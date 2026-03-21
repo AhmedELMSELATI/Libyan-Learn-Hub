@@ -1,8 +1,43 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
+import healthRouter from "./health.js";
+import authRouter from "./auth.js";
+import categoriesRouter from "./categories.js";
+import coursesRouter from "./courses.js";
+import enrollmentsRouter from "./enrollments.js";
+import progressRouter from "./progress.js";
+import liveSessionsRouter from "./live-sessions.js";
+import usersRouter from "./users.js";
+import teacherRouter from "./teacher.js";
+import paymentsRouter from "./payments.js";
+import adminRouter from "./admin.js";
+import videoRouter from "./video.js";
+import reportsRouter from "./reports.js";
+import tutoringRouter from "./tutoring.js";
+import sessionRoomRouter from "./session-room.js";
+import expensesRouter from "./expenses.js";
+import lessonProgressRouter from "./lesson-progress.js";
+import wishlistsRouter from "./wishlists.js";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use("/auth", authRouter);
+router.use("/categories", categoriesRouter);
+router.use("/courses", coursesRouter);
+router.use("/enrollments", enrollmentsRouter);
+router.use("/progress", progressRouter);
+router.use("/live-sessions", liveSessionsRouter);
+router.use("/", usersRouter);
+router.use("/teachers", teacherRouter);
+router.use("/teacher", teacherRouter);
+router.use("/payments", paymentsRouter);
+router.use("/admin", adminRouter);
+router.use("/video", videoRouter);
+router.use("/reports", reportsRouter);
+router.use("/tutoring", tutoringRouter);
+router.use("/room", sessionRoomRouter);
+router.use("/expenses", expensesRouter);
+router.use("/lesson-progress", lessonProgressRouter);
+router.use("/wishlists", wishlistsRouter);
 
 export default router;

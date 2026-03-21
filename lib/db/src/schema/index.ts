@@ -1,20 +1,18 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
-//
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
-//
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
-
-export {}
+export * from "./users.ts";
+export * from "./categories.ts";
+export * from "./courses.ts";
+export * from "./lessons.ts";
+export * from "./enrollments.ts";
+export * from "./progress.ts";
+export * from "./reviews.ts";
+export * from "./live-sessions.ts";
+export * from "./payments.ts";
+export * from "./teacher-earnings.ts";
+export * from "./withdrawal-requests.ts";
+export * from "./session-registrations.ts";
+export * from "./reports.ts";
+export * from "./lesson-progress.ts";
+export * from "./expenses.ts";
+export * from "./tutoring-requests.ts";
+export * from "./session-questions.ts";
+export * from "./wishlists.ts";
