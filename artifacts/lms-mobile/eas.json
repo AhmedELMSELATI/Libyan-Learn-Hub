@@ -1,8 +1,7 @@
 {
   "cli": {
     "version": ">= 7.0.0",
-    "appVersionSource": "remote",
-    "appDir": "artifacts/lms-mobile"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
