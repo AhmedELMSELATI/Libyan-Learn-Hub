@@ -1,0 +1,36 @@
+name: EAS Build (Android & iOS)
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build mobile apps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.28.0
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: Build Android APK and iOS with EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Trigger EAS build
+        run: |
+          cd artifacts/lms-mobile
+          npx eas-cli build --platform android --profile preview --non-interactive
