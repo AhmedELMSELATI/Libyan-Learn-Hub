@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
@@ -150,8 +151,13 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Hero banner */}
-      <View style={styles.heroBanner}>
+      {/* Premium Hero banner with Gradient */}
+      <LinearGradient 
+        colors={[C.tint, C.secondary]} 
+        start={{ x: 0, y: 0 }} 
+        end={{ x: 1, y: 1 }} 
+        style={styles.heroBanner}
+      >
         <View style={styles.heroContent}>
           <Text style={styles.heroTag}>منصة التعلم الليبية</Text>
           <Text style={styles.heroTitle}>ابدأ رحلة{"\n"}التعلم اليوم</Text>
@@ -171,9 +177,9 @@ export default function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.heroIllustration}>
-          <Feather name="book-open" size={60} color="rgba(255,255,255,0.3)" />
+          <Feather name="book-open" size={70} color="rgba(255,255,255,0.2)" />
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Categories */}
       <View style={styles.section}>
@@ -243,20 +249,19 @@ const styles = StyleSheet.create({
   greeting: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary },
   userName: { fontFamily: "Inter_700Bold", fontSize: 20, color: C.text, marginTop: 2 },
   searchBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: C.backgroundSecondary,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: C.card,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: C.cardBorder,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   heroBanner: {
     marginHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: C.tint,
-    padding: 24,
+    borderRadius: 30,
+    padding: 28,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
@@ -301,27 +306,22 @@ const styles = StyleSheet.create({
   categoryChip: {
     alignItems: "center",
     backgroundColor: C.backgroundSecondary,
-    borderRadius: 14,
-    padding: 14,
-    width: 90,
+    borderRadius: 24,
+    padding: 18,
+    width: 105,
     borderWidth: 1,
-    borderColor: C.cardBorder,
+    borderColor: "rgba(255,255,255,0.06)",
   },
-  categoryIcon: { fontSize: 24, marginBottom: 6 },
-  categoryName: { fontFamily: "Inter_500Medium", fontSize: 11, color: C.text, textAlign: "center" },
-  categoryCount: { fontFamily: "Inter_400Regular", fontSize: 10, color: C.textMuted, marginTop: 2 },
+  categoryIcon: { fontSize: 26, marginBottom: 8 },
+  categoryName: { fontFamily: "Inter_500Medium", fontSize: 12, color: C.text, textAlign: "center" },
+  categoryCount: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, marginTop: 4 },
   courseCard: {
-    width: 200,
+    width: 240,
     backgroundColor: C.card,
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: C.cardBorder,
+    borderColor: "rgba(255,255,255,0.06)",
     overflow: "hidden",
-    shadowColor: C.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
   },
   courseThumb: {
     height: 110,

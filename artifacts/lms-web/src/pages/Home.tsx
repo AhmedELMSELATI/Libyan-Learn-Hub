@@ -35,30 +35,32 @@ export default function Home() {
     <PageContainer>
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-background pt-20 pb-32 lg:pt-32 lg:pb-40">
-        {/* Abstract background image */}
-        <div className="absolute inset-0 z-0 opacity-20 dark:opacity-10 mix-blend-multiply">
-           <img src={`${import.meta.env.BASE_URL}images/hero-bg.png`} alt="Abstract background" className="w-full h-full object-cover" />
+        {/* Abstract Glowing Orbs for Premium Background */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+           <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full mix-blend-screen" />
+           <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] bg-secondary/20 blur-[100px] rounded-full mix-blend-screen" />
+           <div className="absolute bottom-[-10%] left-[20%] w-[60%] h-[60%] bg-accent/10 blur-[150px] rounded-full mix-blend-screen" />
         </div>
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
+        <div className="absolute inset-0 z-0 bg-background/40 backdrop-blur-[2px]" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-3xl">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary border border-secondary/20 mb-6 text-sm font-medium"
+              className="glass-panel inline-flex items-center gap-2 px-5 py-2 rounded-full mb-8 text-sm font-medium border-primary/20"
             >
-              <Star className="w-4 h-4 fill-secondary" />
-              <span>The #1 E-Learning Platform in Libya</span>
+              <Star className="w-4 h-4 text-secondary drop-shadow-[0_0_8px_rgba(191,247,64,0.8)]" />
+              <span className="text-foreground/90">The #1 E-Learning Platform in Libya</span>
             </motion.div>
             
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-5xl lg:text-7xl font-display font-extrabold text-foreground leading-tight mb-6"
+              className="text-5xl lg:text-7xl font-display font-extrabold leading-tight mb-6"
             >
-              {t('home.hero.title')}
+              <span className="text-foreground">{t('home.hero.title')}</span>
             </motion.h1>
             
             <motion.p 
@@ -108,17 +110,23 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {categories?.map((cat) => (
+              {categories?.map((cat, i) => (
                 <Link key={cat.id} href={`/courses?categoryId=${cat.id}`}>
-                  <div className="bg-card hover:bg-primary hover:text-white group border border-border/50 p-6 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-xl cursor-pointer text-center flex flex-col items-center justify-center gap-4 h-full">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 group-hover:bg-white/20 flex items-center justify-center transition-colors">
-                      <BookOpen className="w-6 h-6 text-primary group-hover:text-white" />
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="glass-card hover:bg-primary/10 hover:border-primary/40 group p-6 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20 cursor-pointer text-center flex flex-col items-center justify-center gap-4 h-full hover:-translate-y-1"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 group-hover:from-primary group-hover:to-secondary flex items-center justify-center transition-all duration-300 shadow-inner">
+                      <BookOpen className="w-6 h-6 text-primary group-hover:text-white transition-colors" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">{language === 'ar' ? cat.nameAr : cat.name}</h3>
-                      <p className="text-sm text-muted-foreground group-hover:text-white/80 mt-1">{cat.courseCount} Courses</p>
+                      <h3 className="font-display font-bold text-lg text-foreground group-hover:text-primary transition-colors">{language === 'ar' ? cat.nameAr : cat.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{cat.courseCount} Courses</p>
                     </div>
-                  </div>
+                  </motion.div>
                 </Link>
               ))}
             </div>
@@ -145,46 +153,53 @@ export default function Home() {
              </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {coursesData?.courses.map((course) => (
+              {coursesData?.courses.map((course, i) => (
                 <Link key={course.id} href={`/courses/${course.id}`}>
-                  <div className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all duration-300 group flex flex-col h-full">
-                    <div className="aspect-video relative overflow-hidden bg-muted">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="glass-card rounded-[2rem] overflow-hidden hover:shadow-2xl hover:shadow-primary/10 hover:border-primary/40 transition-all duration-500 group flex flex-col h-full hover:-translate-y-2"
+                  >
+                    <div className="aspect-[4/3] relative overflow-hidden bg-muted">
                       {course.thumbnailUrl ? (
-                        <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
-                          <PlayCircle className="w-12 h-12 text-primary/40" />
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 group-hover:from-primary/30 group-hover:to-secondary/30 transition-colors duration-500">
+                          <PlayCircle className="w-14 h-14 text-primary/40 group-hover:text-primary pl-1 transition-colors" />
                         </div>
                       )}
-                      <div className="absolute top-3 start-3 bg-white/90 dark:bg-black/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold text-foreground shadow-sm">
+                      <div className="absolute top-4 start-4 glass-panel px-3 py-1.5 rounded-full text-xs font-bold text-foreground">
                         {course.level}
                       </div>
                     </div>
-                    <div className="p-6 flex flex-col flex-1">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                        <span className="flex items-center gap-1"><BookOpen className="w-3.5 h-3.5"/> {course.lessonCount} Lessons</span>
-                        <span>•</span>
+                    <div className="p-6 flex flex-col flex-1 relative">
+                      <div className="absolute -top-6 right-6 w-12 h-12 rounded-full border-4 border-card bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                        {course.teacherName.charAt(0)}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4 font-medium">
+                        <span className="flex items-center gap-1.5"><BookOpen className="w-4 h-4 text-primary/70"/> {course.lessonCount} Lessons</span>
+                        <span className="w-1 h-1 rounded-full bg-border" />
                         <span>{Math.round(course.totalDuration / 60)}h</span>
                       </div>
-                      <h3 className="font-display font-bold text-xl mb-2 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                      <h3 className="font-display font-bold text-xl mb-2 line-clamp-2 text-foreground group-hover:text-gradient transition-all">
                         {language === 'ar' ? course.titleAr : course.title}
                       </h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-6 flex-1 leading-relaxed">
                         {language === 'ar' ? course.descriptionAr : course.description}
                       </p>
-                      <div className="pt-4 border-t border-border flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold text-xs">
-                            {course.teacherName.charAt(0)}
-                          </div>
-                          <span className="text-sm font-medium text-foreground">{course.teacherName}</span>
+                      <div className="pt-4 border-t border-border/50 flex flex-wrap gap-2 items-center justify-between mt-auto">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-muted-foreground">Instructor</span>
+                          <span className="text-sm font-bold text-foreground">{course.teacherName}</span>
                         </div>
-                        <div className="font-bold text-lg text-primary">
+                        <div className="glass-panel px-4 py-2 rounded-xl font-bold text-lg text-primary">
                           {course.price === 0 ? t('course.free') : t('course.price', { price: course.price.toString() })}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </Link>
               ))}
             </div>

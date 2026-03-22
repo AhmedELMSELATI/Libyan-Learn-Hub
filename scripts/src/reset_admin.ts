@@ -1,19 +1,28 @@
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db";
 import bcrypt from "bcryptjs";
 
 async function main() {
   const hash = await bcrypt.hash("password123", 10);
-  const result = await db.update(usersTable)
-    .set({ passwordHash: hash })
-    .where(eq(usersTable.email, "admin@edulibya.ly"))
-    .returning();
+  const email = "admin@lms.ly"; // Assuming lms.ly based on earlier seeds, but feel free to change it!
 
-  if (result.length > 0) {
-    console.log("Successfully reset password for admin@edulibya.ly to: password123");
-  } else {
-    console.log("Error: User admin@edulibya.ly not found in the database. Are you sure the email is correct?");
-  }
+  await db.insert(usersTable)
+    .values({
+      email,
+      passwordHash: hash,
+      fullName: "System Administrator",
+      fullNameAr: "مدير النظام",
+      role: "admin",
+      isVerified: true,
+      emailVerified: true,
+      language: "en"
+    })
+    .onConflictDoUpdate({
+      target: usersTable.email,
+      set: { passwordHash: hash, role: "admin" }
+    });
+
+  console.log(`Successfully created (or reset the password for) ${email} to: password123`);
 }
 
 main().catch(console.error).finally(() => process.exit(0));
