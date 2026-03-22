@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "EduLibya Mobile",
-    "slug": "lms-mobile",
+    "slug": "learn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.essamku.learn"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -33,6 +35,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "01bdf8a7-429d-4949-a968-56c2fa206ac7"
+      }
+    },
+    "owner": "essamku"
   }
 }
