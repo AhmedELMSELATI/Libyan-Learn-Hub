@@ -30,9 +30,12 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Trigger EAS build (Android + iOS)
+      - name: Trigger Android EAS build
         run: |
           cd artifacts/lms-mobile
-          npx eas-cli build --platform android --profile preview --non-interactive &
-          npx eas-cli build --platform ios --profile preview --non-interactive &
-          wait
+          npx eas-cli build --platform android --profile preview --non-interactive
+          
+      - name: Trigger iOS EAS build
+        run: |
+          cd artifacts/lms-mobile
+          npx eas-cli build --platform ios --profile preview --non-interactive
