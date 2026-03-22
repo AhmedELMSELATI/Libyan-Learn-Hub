@@ -33,9 +33,9 @@ jobs:
       - name: Trigger Android EAS build
         run: |
           cd artifacts/lms-mobile
-          npx eas-cli build --platform android --profile preview --non-interactive
-          
-      - name: Trigger iOS EAS build
+          npx eas-cli build --platform android --profile preview --non-interactive --clear-cache
+
+      - name: Trigger iOS Simulator EAS build
         run: |
           cd artifacts/lms-mobile
-          npx eas-cli build --platform ios --profile preview --non-interactive
+          EXPO_IOS_SIMULATOR=1 IPHONE_OS_SIMULATOR=1 npx eas-cli build --platform ios --profile preview --non-interactive --clear-cache
