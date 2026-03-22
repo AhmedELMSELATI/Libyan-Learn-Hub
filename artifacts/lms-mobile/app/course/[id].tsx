@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { ReportModal } from "@/components/ReportModal";
 
 const C = Colors.light;
 
@@ -126,6 +127,7 @@ export default function CourseDetailScreen() {
   const { apiFetch } = useApi();
   const queryClient = useQueryClient();
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data: course, isLoading } = useQuery<CourseDetail>({
     queryKey: ["course", id],
@@ -191,9 +193,14 @@ export default function CourseDetailScreen() {
       >
         {/* Top banner */}
         <View style={[styles.banner, { paddingTop: topPad }]}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-right" size={22} color="#fff" />
-          </Pressable>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Pressable style={styles.reportBtn} onPress={() => setReportOpen(true)}>
+              <Feather name="flag" size={20} color="#fff" />
+            </Pressable>
+            <Pressable style={styles.backBtn} onPress={() => router.back()}>
+              <Feather name="arrow-right" size={22} color="#fff" />
+            </Pressable>
+          </View>
           <View style={styles.bannerIllustration}>
             <Feather name="book-open" size={64} color="rgba(255,255,255,0.3)" />
           </View>
@@ -297,6 +304,13 @@ export default function CourseDetailScreen() {
           </Pressable>
         )}
       </View>
+
+      <ReportModal 
+        visible={reportOpen} 
+        onClose={() => setReportOpen(false)} 
+        type="course" 
+        targetId={parseInt(id!)} 
+      />
     </View>
   );
 }
@@ -310,6 +324,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reportBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,

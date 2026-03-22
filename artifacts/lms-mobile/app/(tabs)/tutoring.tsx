@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { ReportModal } from "@/components/ReportModal";
 
 const C = Colors.light;
 
@@ -50,12 +51,20 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ListingCard({ listing, isTeacher, onApply, onViewApps }: any) {
+  const [reportOpen, setReportOpen] = useState(false);
   return (
     <View style={styles.card}>
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle}>{listing.titleAr}</Text>
-          {!isTeacher && <Text style={styles.teacherName}>{listing.teacherNameAr || listing.teacherName}</Text>}
+          {!isTeacher && (
+            <View style={{ flexDirection: "row-reverse", alignItems: "center" }}>
+              <Text style={styles.teacherName}>{listing.teacherNameAr || listing.teacherName}</Text>
+              <Pressable onPress={() => setReportOpen(true)} style={{ marginRight: 8, padding: 4 }}>
+                <Feather name="flag" size={14} color={C.textMuted} />
+              </Pressable>
+            </View>
+          )}
         </View>
         <View style={styles.rateTag}>
           <Text style={styles.rateText}>{listing.hourlyRate} LYD/ساعة</Text>
@@ -90,6 +99,13 @@ function ListingCard({ listing, isTeacher, onApply, onViewApps }: any) {
           <Text style={styles.applyBtnText}>تقديم طلب</Text>
         </Pressable>
       )}
+
+      <ReportModal 
+        visible={reportOpen} 
+        onClose={() => setReportOpen(false)} 
+        type="teacher" 
+        targetId={listing.userId || listing.id} 
+      />
     </View>
   );
 }

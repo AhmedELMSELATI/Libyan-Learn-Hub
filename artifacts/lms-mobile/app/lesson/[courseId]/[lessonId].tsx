@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { ReportModal } from "@/components/ReportModal";
 
 const C = Colors.light;
 
@@ -47,6 +48,7 @@ export default function LessonViewerScreen() {
   const videoRef = useRef<any>(null);
   const [videoStatus, setVideoStatus] = useState<any>({});
   const [secureUrl, setSecureUrl] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data: lesson, isLoading } = useQuery<LessonDetail>({
     queryKey: ["lesson", courseId, lessonId],
@@ -124,13 +126,15 @@ export default function LessonViewerScreen() {
     <View style={styles.container}>
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-right" size={20} color={C.text} />
+        <Pressable style={styles.reportBtn} onPress={() => setReportOpen(true)}>
+          <Feather name="flag" size={18} color={C.textMuted} />
         </Pressable>
         <Text style={styles.lessonNum} numberOfLines={1}>
           {currentIdx >= 0 ? `الدرس ${currentIdx + 1} / ${lessons.length}` : ""}
         </Text>
-        <View style={{ width: 40 }} />
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Feather name="arrow-right" size={20} color={C.text} />
+        </Pressable>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -254,6 +258,13 @@ export default function LessonViewerScreen() {
           <Feather name="arrow-left" size={18} color={nextLesson ? "#fff" : C.textMuted} />
         </Pressable>
       </View>
+
+      <ReportModal 
+        visible={reportOpen} 
+        onClose={() => setReportOpen(false)} 
+        type="lesson" 
+        targetId={parseInt(lessonId!)} 
+      />
     </View>
   );
 }
@@ -271,6 +282,14 @@ const styles = StyleSheet.create({
     backgroundColor: C.background,
   },
   backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.backgroundSecondary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reportBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,

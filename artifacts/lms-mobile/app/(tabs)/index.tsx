@@ -162,6 +162,13 @@ export default function HomeScreen() {
             <Text style={styles.heroBtnText}>استكشف الدورات</Text>
             <Feather name="arrow-left" size={16} color="#fff" />
           </Pressable>
+          <Pressable
+            style={[styles.heroBtn, { marginTop: 8, backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" }]}
+            onPress={() => router.push("/teachers")}
+          >
+            <Text style={styles.heroBtnText}>تصفح المعلمين</Text>
+            <Feather name="users" size={16} color="#fff" />
+          </Pressable>
         </View>
         <View style={styles.heroIllustration}>
           <Feather name="book-open" size={60} color="rgba(255,255,255,0.3)" />

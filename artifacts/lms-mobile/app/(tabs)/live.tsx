@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { ReportModal } from "@/components/ReportModal";
 
 const C = Colors.light;
 
@@ -89,6 +90,7 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
   const isLive = session.status === "live";
   const isUpcoming = session.status === "scheduled";
   const canJoin = (isLive || isUpcoming) && !!session.meetingUrl;
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <View style={[styles.card, isLive && styles.cardLive]}>
@@ -105,6 +107,9 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
           </Text>
         </View>
         <View style={styles.cardHeaderRight}>
+          <Pressable onPress={() => setReportOpen(true)} style={{ marginLeft: 8, padding: 4 }}>
+            <Feather name="flag" size={14} color={C.textMuted} />
+          </Pressable>
           <Text style={styles.sessionTitle} numberOfLines={2}>{session.titleAr || session.title}</Text>
         </View>
       </View>
@@ -148,6 +153,13 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
           <Text style={styles.joinBtnText}>{isLive ? "انضم الآن — داخل التطبيق" : "حجز مقعد"}</Text>
         </Pressable>
       )}
+
+      <ReportModal 
+        visible={reportOpen} 
+        onClose={() => setReportOpen(false)} 
+        type="session" 
+        targetId={session.id} 
+      />
     </View>
   );
 }

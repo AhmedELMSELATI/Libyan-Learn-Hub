@@ -80,7 +80,10 @@ function TeacherDashboard() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [createListingOpen, setCreateListingOpen] = useState(false);
   const [form, setForm] = useState({ title: "", titleAr: "", description: "", scheduledAt: "", durationMinutes: "90", maxParticipants: "50" });
+  const [listingForm, setListingForm] = useState({ titleAr: "", title: "", subjectAr: "", subject: "", gradeLevel: "", hourlyRate: "", availableDays: "", availableTimeFrom: "", availableTimeTo: "", sessionDurationMinutes: "60", maxStudents: "1", descriptionAr: "" });
+
 
   const { data: courses = [], isLoading: coursesLoading } = useQuery<any[]>({
     queryKey: ["teacher-courses"],
@@ -115,6 +118,30 @@ function TeacherDashboard() {
       setForm({ title: "", titleAr: "", description: "", scheduledAt: "", durationMinutes: "90", maxParticipants: "50" });
     } catch (err: any) {
       Alert.alert("خطأ", err.message || "فشل إنشاء الجلسة");
+    }
+  };
+
+  const createListing = async () => {
+    if (!listingForm.titleAr || !listingForm.subjectAr || !listingForm.hourlyRate) {
+      Alert.alert("خطأ", "يرجى ملء الحقول المطلوبة: العنوان، المادة، والسعر");
+      return;
+    }
+    try {
+      await apiFetch("/tutoring-listings", {
+        method: "POST",
+        body: JSON.stringify({
+          ...listingForm,
+          hourlyRate: parseFloat(listingForm.hourlyRate),
+          sessionDurationMinutes: parseInt(listingForm.sessionDurationMinutes),
+          maxStudents: parseInt(listingForm.maxStudents),
+        }),
+      });
+      Alert.alert("تم!", "تم إنشاء إعلان الدروس الخصوصية.");
+      queryClient.invalidateQueries({ queryKey: ["tutoring-listings-my"] });
+      setCreateListingOpen(false);
+      setListingForm({ titleAr: "", title: "", subjectAr: "", subject: "", gradeLevel: "", hourlyRate: "", availableDays: "", availableTimeFrom: "", availableTimeTo: "", sessionDurationMinutes: "60", maxStudents: "1", descriptionAr: "" });
+    } catch (err: any) {
+      Alert.alert("خطأ", err.message || "فشل إنشاء الإعلان");
     }
   };
 
@@ -158,7 +185,7 @@ function TeacherDashboard() {
             </View>
             <Text style={styles.actionLabel}>جلسة مباشرة</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push("/(tabs)/tutoring")}>
+          <Pressable style={styles.actionBtn} onPress={() => setCreateListingOpen(true)}>
             <View style={[styles.actionIcon, { backgroundColor: "#F0FDF4" }]}>
               <Feather name="users" size={22} color="#22C55E" />
             </View>
@@ -251,6 +278,67 @@ function TeacherDashboard() {
               </Pressable>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Create Tutoring Listing Modal */}
+      <Modal visible={createListingOpen} transparent animationType="slide" onRequestClose={() => setCreateListingOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <ScrollView style={[styles.modalBox, { maxHeight: "90%" }]} keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalTitle}>إنشاء إعلان دروس خصوصية</Text>
+
+            <Text style={styles.inputLabel}>العنوان بالعربية *</Text>
+            <TextInput style={styles.input} value={listingForm.titleAr} onChangeText={v => setListingForm(f => ({ ...f, titleAr: v }))} placeholder="مثال: دروس رياضيات - الثانوي" textAlign="right" />
+
+            <Text style={styles.inputLabel}>المادة بالعربية *</Text>
+            <TextInput style={styles.input} value={listingForm.subjectAr} onChangeText={v => setListingForm(f => ({ ...f, subjectAr: v }))} placeholder="مثال: الرياضيات" textAlign="right" />
+
+            <Text style={styles.inputLabel}>Subject (English)</Text>
+            <TextInput style={styles.input} value={listingForm.subject} onChangeText={v => setListingForm(f => ({ ...f, subject: v }))} placeholder="e.g. Mathematics" />
+
+            <Text style={styles.inputLabel}>المستوى الدراسي</Text>
+            <TextInput style={styles.input} value={listingForm.gradeLevel} onChangeText={v => setListingForm(f => ({ ...f, gradeLevel: v }))} placeholder="grade_10 / grade_11 / grade_12 / university" />
+
+            <Text style={styles.inputLabel}>السعر بالساعة (دينار) *</Text>
+            <TextInput style={styles.input} value={listingForm.hourlyRate} onChangeText={v => setListingForm(f => ({ ...f, hourlyRate: v }))} keyboardType="numeric" placeholder="50" />
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>مدة الجلسة (دقيقة)</Text>
+                <TextInput style={styles.input} value={listingForm.sessionDurationMinutes} onChangeText={v => setListingForm(f => ({ ...f, sessionDurationMinutes: v }))} keyboardType="numeric" placeholder="60" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>الحد الأقصى للطلاب</Text>
+                <TextInput style={styles.input} value={listingForm.maxStudents} onChangeText={v => setListingForm(f => ({ ...f, maxStudents: v }))} keyboardType="numeric" placeholder="1" />
+              </View>
+            </View>
+
+            <Text style={styles.inputLabel}>أيام التوفر (مثال: Mon,Tue,Wed)</Text>
+            <TextInput style={styles.input} value={listingForm.availableDays} onChangeText={v => setListingForm(f => ({ ...f, availableDays: v }))} placeholder="Mon,Tue,Thu" />
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>من الساعة</Text>
+                <TextInput style={styles.input} value={listingForm.availableTimeFrom} onChangeText={v => setListingForm(f => ({ ...f, availableTimeFrom: v }))} placeholder="16:00" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>حتى الساعة</Text>
+                <TextInput style={styles.input} value={listingForm.availableTimeTo} onChangeText={v => setListingForm(f => ({ ...f, availableTimeTo: v }))} placeholder="21:00" />
+              </View>
+            </View>
+
+            <Text style={styles.inputLabel}>وصف الدرس</Text>
+            <TextInput style={[styles.input, { height: 70 }]} multiline value={listingForm.descriptionAr} onChangeText={v => setListingForm(f => ({ ...f, descriptionAr: v }))} placeholder="اكتب تفاصيل الدرس والمحتوى..." textAlign="right" />
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 16, marginBottom: 24 }}>
+              <Pressable style={[styles.applyBtn, { flex: 1 }]} onPress={createListing}>
+                <Text style={styles.applyBtnText}>إنشاء الإعلان</Text>
+              </Pressable>
+              <Pressable style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setCreateListingOpen(false)}>
+                <Text style={styles.cancelBtnText}>إلغاء</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </ScrollView>
