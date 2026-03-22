@@ -6,7 +6,7 @@ import {
   Users, BookOpen, CreditCard, CheckCircle, XCircle, Trash2,
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
-  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle
+  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +100,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="users" className="gap-2"><Users className="w-4 h-4" /> Users</TabsTrigger>
             <TabsTrigger value="teachers" className="gap-2"><Presentation className="w-4 h-4" /> Teachers</TabsTrigger>
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> Courses</TabsTrigger>
+            <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
             <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" /> Finance</TabsTrigger>
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
@@ -108,6 +109,7 @@ export default function AdminDashboard() {
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} /></TabsContent>
           <TabsContent value="teachers"><TeachersManagementTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="courses"><CoursesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="categories"><CategoriesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="payments"><PaymentsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="finance"><FinanceTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
@@ -1295,6 +1297,153 @@ function ReportsTab({ api, queryClient, toast }: any) {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── CATEGORIES TAB ───────────────────────────────────────────────────────────
+
+const EMOJI_OPTIONS = ['📐','🔬','📖','🇬🇧','🏛️','⚛️','🧪','🧬','💻','🌙','🎨','🎵','⚽','🌍','📊','🧮','🔭','🏥','⚖️','🏗️'];
+
+function CategoriesTab({ api, queryClient, toast }: any) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editCat, setEditCat] = useState<any>(null);
+  const { register, handleSubmit, reset, setValue, watch } = useForm({
+    defaultValues: { name: '', nameAr: '', icon: '📚' },
+  });
+  const icon = watch('icon');
+
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey: ['/api/categories'],
+    queryFn: () => api.get('/categories'),
+  });
+
+  const openCreate = () => {
+    reset({ name: '', nameAr: '', icon: '📚' });
+    setEditCat(null);
+    setIsCreateOpen(true);
+  };
+
+  const openEdit = (cat: any) => {
+    reset({ name: cat.name, nameAr: cat.nameAr, icon: cat.icon || '📚' });
+    setEditCat(cat);
+    setIsCreateOpen(true);
+  };
+
+  const saveCategory = async (data: any) => {
+    try {
+      if (editCat) {
+        await api.put(`/categories/${editCat.id}`, data);
+        toast({ title: 'Category updated!' });
+      } else {
+        await api.post('/categories', data);
+        toast({ title: 'Category created!' });
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      setIsCreateOpen(false);
+      reset();
+      setEditCat(null);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const deleteCategory = async (cat: any) => {
+    if (cat.courseCount > 0) {
+      toast({ title: 'Cannot delete', description: `This category has ${cat.courseCount} courses. Move them first.`, variant: 'destructive' });
+      return;
+    }
+    if (!confirm(`Delete category "${cat.name}"?`)) return;
+    try {
+      await api.del(`/categories/${cat.id}`);
+      toast({ title: 'Category deleted' });
+      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="font-bold text-lg">Course Categories <span className="text-muted-foreground font-normal text-sm">({(categories as any[]).length})</span></h2>
+        <Button onClick={openCreate} className="gap-2 bg-primary hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> Add Category
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="p-10 text-center text-muted-foreground">Loading categories...</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {(categories as any[]).map((cat: any) => (
+            <div key={cat.id} className="bg-card border border-border rounded-2xl p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <div className="text-3xl">{cat.icon || '📚'}</div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(cat)}>
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => deleteCategory(cat)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="font-bold text-base">{cat.nameAr}</div>
+              <div className="text-sm text-muted-foreground">{cat.name}</div>
+              <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                <BookOpen className="w-3.5 h-3.5" />{cat.courseCount} course{cat.courseCount !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isCreateOpen} onOpenChange={v => { if (!v) { setIsCreateOpen(false); setEditCat(null); reset(); } }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{editCat ? 'Edit Category' : 'Add New Category'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(saveCategory)} className="space-y-4 mt-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Category Name (Arabic) *</label>
+              <Input {...register('nameAr', { required: true })} placeholder="مثال: الرياضيات" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Category Name (English) *</label>
+              <Input {...register('name', { required: true })} placeholder="e.g. Mathematics" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Icon</label>
+              <div className="flex flex-wrap gap-2">
+                {EMOJI_OPTIONS.map(e => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setValue('icon', e)}
+                    className={`text-2xl p-2 rounded-lg border-2 transition-all ${icon === e ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">
+                {editCat ? 'Save Changes' : 'Create Category'}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => { setIsCreateOpen(false); setEditCat(null); reset(); }}>
+                Cancel
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

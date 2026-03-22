@@ -17,5 +17,6 @@ export * from "./reports.ts";
 export * from "./lesson-progress.ts";
 export * from "./expenses.ts";
 export * from "./tutoring-requests.ts";
+export * from "./tutoring-listings.ts";
 export * from "./session-questions.ts";
 export * from "./wishlists.ts";

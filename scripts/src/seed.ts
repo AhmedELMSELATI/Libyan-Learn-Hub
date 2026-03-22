@@ -11,6 +11,7 @@ import {
   quizOptionsTable,
   enrollmentsTable,
   liveSessionsTable,
+  tutoringListingsTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -640,6 +641,68 @@ async function seed() {
     },
   ]).onConflictDoNothing();
   console.log("Live sessions OK");
+
+  // ── Tutoring Listings ─────────────────────────────────────────────────────────
+  await db.insert(tutoringListingsTable).values([
+    {
+      teacherId: t1.id,
+      title: "Algebra & Calculus — Secondary Level",
+      titleAr: "الجبر وحساب التفاضل والتكامل — المرحلة الثانوية",
+      subject: "Mathematics",
+      subjectAr: "الرياضيات",
+      gradeLevel: "secondary",
+      gradeLevelAr: "المرحلة الثانوية",
+      description: "Expert algebra and calculus tutoring for secondary and university students. 15 years experience.",
+      descriptionAr: "دروس خصوصية متخصصة في الجبر وحساب التفاضل والتكامل للمرحلة الثانوية والجامعية. خبرة 15 عامًا.",
+      hourlyRate: "50.00",
+      currency: "LYD",
+      availableDays: "Mon,Tue,Wed,Thu,Fri",
+      availableTimeFrom: "16:00",
+      availableTimeTo: "21:00",
+      maxStudents: 3,
+      sessionDurationMinutes: 60,
+      status: "active" as const,
+    },
+    {
+      teacherId: t2.id,
+      title: "Physics — University Level",
+      titleAr: "الفيزياء — المرحلة الجامعية",
+      subject: "Physics",
+      subjectAr: "الفيزياء",
+      gradeLevel: "university",
+      gradeLevelAr: "المرحلة الجامعية",
+      description: "Physics tutoring with practical lab demonstrations. Covering mechanics, electromagnetism, and optics.",
+      descriptionAr: "دروس فيزياء مع عروض مختبرية عملية. تشمل الميكانيكا والكهرومغناطيسية والبصريات.",
+      hourlyRate: "75.00",
+      currency: "LYD",
+      availableDays: "Sat,Sun",
+      availableTimeFrom: "18:00",
+      availableTimeTo: "22:00",
+      maxStudents: 2,
+      sessionDurationMinutes: 90,
+      status: "active" as const,
+    },
+    {
+      teacherId: t1.id,
+      title: "Mathematics — Middle School",
+      titleAr: "الرياضيات — المرحلة المتوسطة",
+      subject: "Mathematics",
+      subjectAr: "الرياضيات",
+      gradeLevel: "middle",
+      gradeLevelAr: "المرحلة المتوسطة",
+      description: "Middle school math made easy! Fractions, geometry, and basic algebra.",
+      descriptionAr: "رياضيات المتوسطة بطريقة سهلة! كسور وهندسة وجبر أساسي.",
+      hourlyRate: "35.00",
+      currency: "LYD",
+      availableDays: "Sat,Sun",
+      availableTimeFrom: "10:00",
+      availableTimeTo: "14:00",
+      maxStudents: 5,
+      sessionDurationMinutes: 45,
+      status: "active" as const,
+    },
+  ]).onConflictDoNothing();
+  console.log("Tutoring listings OK");
 
   console.log("✅ Seeding complete!");
 }

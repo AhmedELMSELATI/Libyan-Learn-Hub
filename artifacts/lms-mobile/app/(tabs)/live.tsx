@@ -1,18 +1,21 @@
 import { Feather } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Platform,
   Pressable,
+  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 
 const C = Colors.light;
@@ -54,9 +57,38 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" });
 }
 
-function SessionCard({ session }: { session: LiveSession }) {
+function InAppVideoModal({ url, title, visible, onClose }: { url: string; title: string; visible: boolean; onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
+        <View style={styles.videoHeader}>
+          <Pressable onPress={onClose} style={styles.closeBtn}>
+            <Feather name="x" size={22} color="#fff" />
+          </Pressable>
+          <Text style={styles.videoTitle} numberOfLines={1}>{title}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <WebView
+          source={{ uri: url }}
+          style={{ flex: 1 }}
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled
+          domStorageEnabled
+          originWhitelist={["*"]}
+          userAgent="Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/91.0.4472.164 Mobile Safari/537.36"
+          onError={() => {}}
+        />
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: LiveSession) => void }) {
   const isLive = session.status === "live";
   const isUpcoming = session.status === "scheduled";
+  const canJoin = (isLive || isUpcoming) && !!session.meetingUrl;
 
   return (
     <View style={[styles.card, isLive && styles.cardLive]}>
@@ -107,13 +139,13 @@ function SessionCard({ session }: { session: LiveSession }) {
         <Text style={styles.description} numberOfLines={2}>{session.description}</Text>
       )}
 
-      {(isLive || isUpcoming) && session.meetingUrl && (
+      {canJoin && (
         <Pressable
           style={({ pressed }) => [styles.joinBtn, isLive && styles.joinBtnLive, pressed && { opacity: 0.85 }]}
-          onPress={() => session.meetingUrl && Linking.openURL(session.meetingUrl)}
+          onPress={() => onJoin(session)}
         >
           <Feather name="video" size={16} color="#fff" />
-          <Text style={styles.joinBtnText}>{isLive ? "انضم الآن" : "حجز مقعد"}</Text>
+          <Text style={styles.joinBtnText}>{isLive ? "انضم الآن — داخل التطبيق" : "حجز مقعد"}</Text>
         </Pressable>
       )}
     </View>
@@ -123,6 +155,8 @@ function SessionCard({ session }: { session: LiveSession }) {
 export default function LiveScreen() {
   const insets = useSafeAreaInsets();
   const { apiFetch } = useApi();
+  const { user } = useAuth();
+  const [activeSession, setActiveSession] = useState<LiveSession | null>(null);
 
   const { data: sessions, isLoading } = useQuery<LiveSession[]>({
     queryKey: ["live-sessions"],
@@ -134,6 +168,8 @@ export default function LiveScreen() {
   const liveSessions = sessions?.filter(s => s.status === "live") || [];
   const upcomingSessions = sessions?.filter(s => s.status === "scheduled") || [];
   const pastSessions = sessions?.filter(s => s.status === "ended") || [];
+
+  const sessionUrl = activeSession?.meetingUrl || `https://meet.jit.si/edulibya-session-${activeSession?.id}`;
 
   return (
     <View style={styles.container}>
@@ -148,7 +184,7 @@ export default function LiveScreen() {
         <FlatList
           data={[...liveSessions, ...upcomingSessions, ...pastSessions]}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <SessionCard session={item} />}
+          renderItem={({ item }) => <SessionCard session={item} onJoin={setActiveSession} />}
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 90,
@@ -162,7 +198,15 @@ export default function LiveScreen() {
               <Text style={styles.emptySubtitle}>سيتم إضافة جلسات مباشرة قريباً</Text>
             </View>
           )}
-          scrollEnabled={!!(sessions?.length ?? 0)}
+        />
+      )}
+
+      {activeSession && (
+        <InAppVideoModal
+          visible
+          url={sessionUrl}
+          title={activeSession.titleAr || activeSession.title}
+          onClose={() => setActiveSession(null)}
         />
       )}
     </View>
@@ -186,16 +230,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  cardLive: {
-    borderColor: "#EF444430",
-    backgroundColor: "#FFF5F5",
-  },
-  livePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-  },
+  cardLive: { borderColor: "#EF444430", backgroundColor: "#FFF5F5" },
+  livePill: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444" },
   liveText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#EF4444" },
   cardHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 12 },
@@ -204,31 +240,19 @@ const styles = StyleSheet.create({
   statusBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start" },
   statusText: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
   teacherRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 14 },
-  teacherAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  teacherAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.pill, alignItems: "center", justifyContent: "center" },
   teacherName: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.textSecondary },
   metaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   metaItem: { flexDirection: "row-reverse", alignItems: "center", gap: 4, minWidth: "45%" },
   metaText: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textMuted },
   description: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, marginBottom: 14, textAlign: "right", lineHeight: 18 },
-  joinBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: C.tint,
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
+  joinBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.tint, borderRadius: 14, paddingVertical: 14 },
   joinBtnLive: { backgroundColor: "#EF4444" },
   joinBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff" },
   emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: C.text },
   emptySubtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "center" },
+  videoHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#1a1a2e" },
+  closeBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  videoTitle: { flex: 1, fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff", textAlign: "center" },
 });

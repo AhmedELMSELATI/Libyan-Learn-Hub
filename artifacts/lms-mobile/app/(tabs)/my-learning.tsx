@@ -1,17 +1,21 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
@@ -58,25 +62,208 @@ function EnrollmentCard({ item }: { item: Enrollment }) {
           <ProgressBar value={item.progress} />
           <Text style={styles.progressPct}>{Math.round(item.progress)}%</Text>
         </View>
-        <Text style={styles.cardMeta}>{item.course.lessonCount} درس • {item.course.totalDuration} دقيقة</Text>
+        <Text style={styles.cardMeta}>
+          {item.course.lessonCount} درس · {Math.round(item.course.totalDuration / 60)} ساعة
+        </Text>
       </View>
-      <Pressable
-        style={styles.continueBtn}
-        onPress={(e) => {
-          e.stopPropagation();
-          router.push({ pathname: "/course/[id]", params: { id: item.courseId.toString() } });
-        }}
-      >
-        <Feather name="play" size={14} color="#fff" />
-      </Pressable>
+      <Feather name="chevron-left" size={18} color={C.textMuted} />
     </Pressable>
   );
 }
 
-export default function MyLearningScreen() {
+// ── Teacher Dashboard ─────────────────────────────────────────────────────────
+
+function TeacherDashboard() {
+  const insets = useSafeAreaInsets();
+  const { apiFetch } = useApi();
+  const queryClient = useQueryClient();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ title: "", titleAr: "", description: "", scheduledAt: "", durationMinutes: "90", maxParticipants: "50" });
+
+  const { data: courses = [], isLoading: coursesLoading } = useQuery<any[]>({
+    queryKey: ["teacher-courses"],
+    queryFn: () => apiFetch("/teacher/courses"),
+  });
+
+  const { data: sessions = [] } = useQuery<any[]>({
+    queryKey: ["live-sessions"],
+    queryFn: () => apiFetch("/live-sessions"),
+  });
+
+  const { data: listings = [] } = useQuery<any[]>({
+    queryKey: ["tutoring-listings-my"],
+    queryFn: () => apiFetch("/tutoring-listings/my"),
+  });
+
+  const createSession = async () => {
+    try {
+      await apiFetch("/live-sessions", {
+        method: "POST",
+        body: JSON.stringify({
+          ...form,
+          durationMinutes: parseInt(form.durationMinutes),
+          maxParticipants: parseInt(form.maxParticipants),
+          scheduledAt: form.scheduledAt,
+          meetingUrl: `https://meet.jit.si/edulibya-${Date.now()}`,
+        }),
+      });
+      Alert.alert("تم!", "تم إنشاء الجلسة المباشرة.");
+      queryClient.invalidateQueries({ queryKey: ["live-sessions"] });
+      setCreateOpen(false);
+      setForm({ title: "", titleAr: "", description: "", scheduledAt: "", durationMinutes: "90", maxParticipants: "50" });
+    } catch (err: any) {
+      Alert.alert("خطأ", err.message || "فشل إنشاء الجلسة");
+    }
+  };
+
+  const mySessions = (sessions as any[]).filter(() => true);
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 90 }}
+    >
+      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
+        <Text style={styles.headerTitle}>لوحة تحكم المعلم</Text>
+        <Text style={styles.headerSubtitle}>إدارة دوراتك وجلساتك</Text>
+      </View>
+
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>{(courses as any[]).length}</Text>
+          <Text style={styles.statLabel}>دوراتي</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>{mySessions.length}</Text>
+          <Text style={styles.statLabel}>جلسات مباشرة</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.stat}>
+          <Text style={styles.statValue}>{(listings as any[]).length}</Text>
+          <Text style={styles.statLabel}>إعلانات خصوصي</Text>
+        </View>
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
+        <View style={styles.actionsRow}>
+          <Pressable style={styles.actionBtn} onPress={() => setCreateOpen(true)}>
+            <View style={[styles.actionIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Feather name="video" size={22} color="#3B82F6" />
+            </View>
+            <Text style={styles.actionLabel}>جلسة مباشرة</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={() => router.push("/(tabs)/tutoring")}>
+            <View style={[styles.actionIcon, { backgroundColor: "#F0FDF4" }]}>
+              <Feather name="users" size={22} color="#22C55E" />
+            </View>
+            <Text style={styles.actionLabel}>إعلان خصوصي</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={() => router.push("/(tabs)/courses")}>
+            <View style={[styles.actionIcon, { backgroundColor: "#FFF7ED" }]}>
+              <Feather name="book" size={22} color="#F97316" />
+            </View>
+            <Text style={styles.actionLabel}>إدارة الدورات</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* My Courses */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>دوراتي</Text>
+        {coursesLoading ? (
+          <ActivityIndicator color={C.tint} />
+        ) : (courses as any[]).length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Feather name="book-open" size={32} color={C.textMuted} />
+            <Text style={styles.emptyText}>لا توجد دورات بعد</Text>
+          </View>
+        ) : (
+          (courses as any[]).slice(0, 5).map((c: any) => (
+            <Pressable key={c.id} style={styles.courseRow} onPress={() => router.push({ pathname: "/course/[id]", params: { id: c.id.toString() } })}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.courseName} numberOfLines={1}>{c.titleAr || c.title}</Text>
+                <Text style={styles.courseMeta}>{c.lessonCount} درس · {c.enrollmentCount} طالب</Text>
+              </View>
+              <Feather name="chevron-left" size={16} color={C.textMuted} />
+            </Pressable>
+          ))
+        )}
+      </View>
+
+      {/* Recent Live Sessions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>الجلسات المباشرة</Text>
+        {mySessions.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Feather name="video-off" size={32} color={C.textMuted} />
+            <Text style={styles.emptyText}>لا توجد جلسات</Text>
+          </View>
+        ) : (
+          mySessions.slice(0, 3).map((s: any) => (
+            <View key={s.id} style={styles.sessionRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.courseName} numberOfLines={1}>{s.titleAr || s.title}</Text>
+                <Text style={styles.courseMeta}>{new Date(s.scheduledAt).toLocaleDateString("ar-LY")}</Text>
+              </View>
+              <View style={[styles.statusPill, { backgroundColor: s.status === "live" ? "#FEE2E2" : "#EFF6FF" }]}>
+                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 11, color: s.status === "live" ? "#DC2626" : C.tint }}>{s.status === "live" ? "مباشر" : "قادم"}</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* Create Live Session Modal */}
+      <Modal visible={createOpen} transparent animationType="slide" onRequestClose={() => setCreateOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>إنشاء جلسة مباشرة</Text>
+            <Text style={styles.inputLabel}>العنوان (عربي) *</Text>
+            <TextInput style={styles.input} value={form.titleAr} onChangeText={v => setForm(f => ({ ...f, titleAr: v }))} placeholder="عنوان الجلسة" textAlign="right" />
+            <Text style={styles.inputLabel}>العنوان (إنجليزي)</Text>
+            <TextInput style={styles.input} value={form.title} onChangeText={v => setForm(f => ({ ...f, title: v }))} placeholder="Session title" />
+            <Text style={styles.inputLabel}>الوصف</Text>
+            <TextInput style={[styles.input, { height: 70 }]} multiline value={form.description} onChangeText={v => setForm(f => ({ ...f, description: v }))} placeholder="وصف الجلسة" textAlign="right" />
+            <Text style={styles.inputLabel}>التاريخ والوقت *</Text>
+            <TextInput style={styles.input} value={form.scheduledAt} onChangeText={v => setForm(f => ({ ...f, scheduledAt: v }))} placeholder="2026-04-01T18:00:00" />
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>المدة (دقيقة)</Text>
+                <TextInput style={styles.input} value={form.durationMinutes} onChangeText={v => setForm(f => ({ ...f, durationMinutes: v }))} keyboardType="numeric" placeholder="90" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>الحد الأقصى للمشاركين</Text>
+                <TextInput style={styles.input} value={form.maxParticipants} onChangeText={v => setForm(f => ({ ...f, maxParticipants: v }))} keyboardType="numeric" placeholder="50" />
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+              <Pressable style={[styles.applyBtn, { flex: 1 }]} onPress={createSession}>
+                <Text style={styles.applyBtnText}>إنشاء الجلسة</Text>
+              </Pressable>
+              <Pressable style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setCreateOpen(false)}>
+                <Text style={styles.cancelBtnText}>إلغاء</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+}
+
+// ── Student My Learning ───────────────────────────────────────────────────────
+
+function StudentMyLearning() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { apiFetch } = useApi();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const { data: enrollments, isLoading } = useQuery<Enrollment[]>({
     queryKey: ["enrollments"],
@@ -84,56 +271,79 @@ export default function MyLearningScreen() {
     enabled: !!user,
   });
 
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const active = enrollments?.filter(e => e.progress < 100) || [];
+  const completed = enrollments?.filter(e => e.progress >= 100) || [];
 
   if (!user) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <Feather name="lock" size={48} color={C.textMuted} />
-        <Text style={styles.authTitle}>سجّل دخولك للمتابعة</Text>
-        <Text style={styles.authSubtitle}>تحتاج إلى حساب لعرض دوراتك</Text>
-        <Pressable style={styles.authBtn} onPress={() => router.push("/auth/login")}>
-          <Text style={styles.authBtnText}>تسجيل الدخول</Text>
+      <View style={[styles.container, styles.centered, { paddingTop: topPad }]}>
+        <Feather name="book-open" size={48} color={C.tint} />
+        <Text style={styles.guestTitle}>دوراتك تنتظرك!</Text>
+        <Text style={styles.guestSubtitle}>سجّل دخولك لرؤية دوراتك المسجّلة</Text>
+        <Pressable style={styles.loginBtn} onPress={() => router.push("/auth/login")}>
+          <Text style={styles.loginBtnText}>تسجيل الدخول</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={styles.headerTitle}>تعلمي</Text>
-        <Text style={styles.headerSubtitle}>{enrollments?.length || 0} دورة مسجّلة</Text>
+    <View style={[styles.container, { paddingTop: topPad }]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>تعلّمي</Text>
+        <Text style={styles.headerSubtitle}>استمر في رحلتك التعليمية</Text>
       </View>
 
       {isLoading ? (
         <ActivityIndicator color={C.tint} style={{ flex: 1 }} />
       ) : (
         <FlatList
-          data={enrollments || []}
-          keyExtractor={(item) => item.id.toString()}
+          data={[...active, ...completed]}
+          keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => <EnrollmentCard item={item} />}
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 90,
-            paddingTop: 8,
-            gap: 12,
-          }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 90, paddingTop: 8, gap: 12 }}
+          ListHeaderComponent={() =>
+            enrollments && enrollments.length > 0 ? (
+              <View style={styles.statsRow}>
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{enrollments.length}</Text>
+                  <Text style={styles.statLabel}>دورة مسجّلة</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{completed.length}</Text>
+                  <Text style={styles.statLabel}>مكتملة</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{active.length}</Text>
+                  <Text style={styles.statLabel}>جارية</Text>
+                </View>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
-              <Feather name="book" size={48} color={C.textMuted} />
+              <Feather name="book-open" size={48} color={C.textMuted} />
               <Text style={styles.emptyTitle}>لم تسجّل في أي دورة بعد</Text>
-              <Text style={styles.emptySubtitle}>استعرض الدورات المتاحة وابدأ رحلة التعلم</Text>
-              <Pressable style={styles.emptyBtn} onPress={() => router.push("/courses")}>
-                <Text style={styles.emptyBtnText}>استعرض الدورات</Text>
+              <Text style={styles.emptySubtitle}>تصفّح الدورات المتاحة وابدأ التعلّم</Text>
+              <Pressable style={styles.loginBtn} onPress={() => router.push("/courses" as any)}>
+                <Text style={styles.loginBtnText}>تصفّح الدورات</Text>
               </Pressable>
             </View>
           )}
-          scrollEnabled={!!(enrollments?.length ?? 0)}
         />
       )}
     </View>
   );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export default function MyLearningScreen() {
+  const { user } = useAuth();
+  const isTeacher = user?.role === "teacher" || user?.role === "admin";
+  return isTeacher ? <TeacherDashboard /> : <StudentMyLearning />;
 }
 
 const styles = StyleSheet.create({
@@ -142,52 +352,48 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 16 },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 28, color: C.text },
   headerSubtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, marginTop: 4 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: C.cardBorder,
-    gap: 12,
-    shadowColor: C.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  cardThumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: C.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  statsRow: { flexDirection: "row", backgroundColor: C.card, marginHorizontal: 20, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.cardBorder, marginBottom: 16 },
+  stat: { flex: 1, alignItems: "center" },
+  statValue: { fontFamily: "Inter_700Bold", fontSize: 22, color: C.text, marginBottom: 4 },
+  statLabel: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textSecondary, textAlign: "center" },
+  statDivider: { width: 1, backgroundColor: C.cardBorder, marginVertical: 4 },
+  card: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: C.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.cardBorder, gap: 12 },
+  cardThumb: { width: 56, height: 56, borderRadius: 12, backgroundColor: C.pill, alignItems: "center", justifyContent: "center" },
   cardInfo: { flex: 1 },
-  cardTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.text, marginBottom: 3, textAlign: "right" },
-  cardTeacher: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, marginBottom: 8, textAlign: "right" },
-  progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  progressBar: { flex: 1, height: 4, backgroundColor: C.backgroundTertiary, borderRadius: 2, overflow: "hidden" },
-  progressFill: { height: "100%", backgroundColor: C.tint, borderRadius: 2 },
-  progressPct: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: C.tint, minWidth: 30 },
+  cardTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.text, textAlign: "right", marginBottom: 2, lineHeight: 20 },
+  cardTeacher: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, textAlign: "right", marginBottom: 6 },
+  progressRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 4 },
+  progressBar: { flex: 1, height: 5, backgroundColor: C.pill, borderRadius: 3 },
+  progressFill: { height: 5, backgroundColor: C.tint, borderRadius: 3 },
+  progressPct: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: C.tint, width: 32, textAlign: "right" },
   cardMeta: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right" },
-  continueBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: C.tint,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  authTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: C.text, textAlign: "center" },
-  authSubtitle: { fontFamily: "Inter_400Regular", fontSize: 14, color: C.textSecondary, textAlign: "center" },
-  authBtn: { backgroundColor: C.tint, borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14, marginTop: 8 },
-  authBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff" },
+  section: { paddingHorizontal: 20, marginBottom: 20 },
+  sectionTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.textMuted, textAlign: "right", marginBottom: 10 },
+  actionsRow: { flexDirection: "row-reverse", gap: 12 },
+  actionBtn: { flex: 1, alignItems: "center", gap: 8 },
+  actionIcon: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  actionLabel: { fontFamily: "Inter_500Medium", fontSize: 11, color: C.textSecondary, textAlign: "center" },
+  courseRow: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: C.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.cardBorder, marginBottom: 8, gap: 10 },
+  courseName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.text, textAlign: "right" },
+  courseMeta: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textMuted, textAlign: "right" },
+  sessionRow: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: C.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.cardBorder, marginBottom: 8, gap: 10 },
+  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  emptyBox: { alignItems: "center", paddingVertical: 24, gap: 8, backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.cardBorder },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textMuted },
   emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: C.text },
-  emptySubtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "center", maxWidth: 260 },
-  emptyBtn: { backgroundColor: C.tint, borderRadius: 14, paddingHorizontal: 28, paddingVertical: 12, marginTop: 8 },
-  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#fff" },
+  emptySubtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "center" },
+  guestTitle: { fontFamily: "Inter_700Bold", fontSize: 22, color: C.text, textAlign: "center" },
+  guestSubtitle: { fontFamily: "Inter_400Regular", fontSize: 14, color: C.textSecondary, textAlign: "center", maxWidth: 260 },
+  loginBtn: { backgroundColor: C.tint, borderRadius: 14, paddingHorizontal: 32, paddingVertical: 12, marginTop: 8 },
+  loginBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff", textAlign: "center" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalBox: { backgroundColor: C.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+  modalTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: C.text, textAlign: "right", marginBottom: 14 },
+  inputLabel: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.textSecondary, textAlign: "right", marginBottom: 4, marginTop: 8 },
+  input: { backgroundColor: C.pill, borderRadius: 12, padding: 12, fontFamily: "Inter_400Regular", fontSize: 14, color: C.text, borderWidth: 1, borderColor: C.cardBorder },
+  applyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: C.tint, borderRadius: 14, paddingVertical: 12 },
+  applyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#fff" },
+  cancelBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: C.pill, borderRadius: 14, paddingVertical: 12 },
+  cancelBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.textSecondary },
 });
