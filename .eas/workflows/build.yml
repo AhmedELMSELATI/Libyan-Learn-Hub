@@ -1,4 +1,4 @@
-name: Build Android APK and iOS app
+name: Build Android and iOS apps
 
 on:
   push:
@@ -7,14 +7,30 @@ on:
 jobs:
   build_android:
     name: Build Android APK
-    type: build
-    params:
-      platform: android
-      profile: preview
+    runs-on: linux-medium-default
+    steps:
+      - uses: eas/checkout
+      - name: Install pnpm 10 and dependencies
+        run: |
+          npm install -g pnpm@10.28.0
+          pnpm install --no-frozen-lockfile --ignore-scripts
+      - uses: eas/build
+        with:
+          platform: android
+          profile: preview
+          working_directory: artifacts/lms-mobile
 
   build_ios:
-    name: Build iOS IPA
-    type: build
-    params:
-      platform: ios
-      profile: preview
+    name: Build iOS app
+    runs-on: macos-medium-default
+    steps:
+      - uses: eas/checkout
+      - name: Install pnpm 10 and dependencies
+        run: |
+          npm install -g pnpm@10.28.0
+          pnpm install --no-frozen-lockfile --ignore-scripts
+      - uses: eas/build
+        with:
+          platform: ios
+          profile: preview
+          working_directory: artifacts/lms-mobile
