@@ -1,0 +1,20 @@
+name: Build Android APK and iOS app
+
+on:
+  push:
+    branches: ['master']
+
+jobs:
+  build_android:
+    name: Build Android APK
+    type: build
+    params:
+      platform: android
+      profile: preview
+
+  build_ios:
+    name: Build iOS IPA
+    type: build
+    params:
+      platform: ios
+      profile: preview
