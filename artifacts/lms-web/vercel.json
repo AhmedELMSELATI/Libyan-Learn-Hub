@@ -1,11 +1,9 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "framework": "vite",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://libyan-learn-hub-api.onrender.com/api/$1"
+      "destination": "https://libyan-learn-hub.onrender.com/api/$1"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
