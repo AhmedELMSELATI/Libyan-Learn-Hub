@@ -290,18 +290,7 @@ export default function Auth() {
         <div className="absolute inset-0 z-20 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-16 text-white">
           <h3 className="font-display text-4xl font-bold mb-4">Empower your future.</h3>
           <p className="text-xl text-white/80 max-w-lg">Join the premier platform for Libyan education. High-quality content, dedicated teachers, and a thriving community.</p>
-          <div className="flex gap-6 mt-8">
-            {[
-              { label: 'Students', value: '10,000+' },
-              { label: 'Courses', value: '500+' },
-              { label: 'Teachers', value: '200+' },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <div className="text-2xl font-bold">{value}</div>
-                <div className="text-white/60 text-sm">{label}</div>
-              </div>
-            ))}
-          </div>
+
         </div>
       </div>
     </div>
