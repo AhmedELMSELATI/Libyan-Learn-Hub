@@ -1,4 +1,4 @@
-name: EAS Update (Expo Go)
+name: EAS Build (Android Only)
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - master
 
 jobs:
-  publish_update:
-    name: Publish Update to Expo Go
+  build_android:
+    name: Build Android APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,7 +30,7 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Trigger Expo Update
+      - name: Trigger Android EAS build
         run: |
           cd artifacts/lms-mobile
-          npx eas-cli update --branch preview --message "GitHub Update: ${{ github.sha }}" --non-interactive
+          npx eas-cli build --platform android --profile preview --non-interactive --no-wait
