@@ -18,7 +18,8 @@ export default function Home() {
   const isRtl = language === 'ar';
 
   const { data: coursesData, isLoading: loadingCourses } = useGetCourses({ limit: 6 });
-  const { data: categories } = useGetCategories();
+  const { data: categoriesData } = useGetCategories();
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
 
   useSEO({
     title: t('home.hero.title'),
