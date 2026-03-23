@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,6 +28,7 @@ function RootLayoutNav() {
       <Stack.Screen name="auth/register" options={{ presentation: "modal", headerShown: false }} />
       <Stack.Screen name="course/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="lesson/[courseId]/[lessonId]" options={{ headerShown: false }} />
+      <Stack.Screen name="manage-course" options={{ headerShown: false }} />
     </Stack>
   );
 }
@@ -53,7 +55,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <AuthProvider>
-              <RootLayoutNav />
+              <LanguageProvider>
+                <RootLayoutNav />
+              </LanguageProvider>
             </AuthProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

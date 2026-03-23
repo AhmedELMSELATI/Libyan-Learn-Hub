@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const C = Colors.light;
 
@@ -44,6 +45,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { apiFetch } = useApi();
+  const { language, setLanguage, t } = useLanguage();
 
   const { data: enrollments } = useQuery({
     queryKey: ["enrollments"],
@@ -53,32 +55,53 @@ export default function ProfileScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
+  const handleLanguageToggle = () => {
+    Alert.alert(
+      t("اختر اللغة", "Choose Language"),
+      "",
+      [
+        { text: "العربية", onPress: () => setLanguage("ar") },
+        { text: "English", onPress: () => setLanguage("en") },
+        { text: t("إلغاء", "Cancel"), style: "cancel" },
+      ]
+    );
+  };
+
   if (!user) {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: topPad }]}>
         <View style={styles.guestIcon}>
           <Feather name="user" size={40} color={C.tint} />
         </View>
-        <Text style={styles.guestTitle}>أهلاً بك في EduLibya</Text>
-        <Text style={styles.guestSubtitle}>سجّل دخولك للوصول إلى حسابك ودوراتك</Text>
+        <Text style={styles.guestTitle}>{t("أهلاً بك في EduLibya", "Welcome to EduLibya")}</Text>
+        <Text style={styles.guestSubtitle}>{t("سجّل دخولك للوصول إلى حسابك ودوراتك", "Sign in to access your account and courses")}</Text>
         <Pressable style={styles.loginBtn} onPress={() => router.push("/auth/login")}>
-          <Text style={styles.loginBtnText}>تسجيل الدخول</Text>
+          <Text style={styles.loginBtnText}>{t("تسجيل الدخول", "Sign In")}</Text>
         </Pressable>
         <Pressable style={styles.registerBtn} onPress={() => router.push("/auth/register")}>
-          <Text style={styles.registerBtnText}>إنشاء حساب جديد</Text>
+          <Text style={styles.registerBtnText}>{t("إنشاء حساب جديد", "Create Account")}</Text>
+        </Pressable>
+        <Pressable style={{ marginTop: 16 }} onPress={handleLanguageToggle}>
+          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.tint }}>
+            {language === "ar" ? "🌐 English" : "🌐 العربية"}
+          </Text>
         </Pressable>
       </View>
     );
   }
 
   const handleLogout = () => {
-    Alert.alert("تسجيل الخروج", "هل أنت متأكد من تسجيل الخروج؟", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "خروج", style: "destructive", onPress: () => logout() },
+    Alert.alert(t("تسجيل الخروج", "Sign Out"), t("هل أنت متأكد من تسجيل الخروج؟", "Are you sure you want to sign out?"), [
+      { text: t("إلغاء", "Cancel"), style: "cancel" },
+      { text: t("خروج", "Sign Out"), style: "destructive", onPress: () => logout() },
     ]);
   };
 
-  const roleName = user.role === "teacher" ? "معلم" : user.role === "admin" ? "مشرف" : "طالب";
+  const roleName = user.role === "teacher"
+    ? t("معلم", "Teacher")
+    : user.role === "admin"
+    ? t("مشرف", "Admin")
+    : t("طالب", "Student");
   const enrolledCount = Array.isArray(enrollments) ? enrollments.length : 0;
 
   return (
@@ -94,7 +117,7 @@ export default function ProfileScreen() {
             {(user.fullNameAr || user.fullName).charAt(0).toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.userName}>{user.fullNameAr || user.fullName}</Text>
+        <Text style={styles.userName}>{language === "ar" ? (user.fullNameAr || user.fullName) : user.fullName}</Text>
         <Text style={styles.userEmail}>{user.email}</Text>
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{roleName}</Text>
@@ -105,7 +128,7 @@ export default function ProfileScreen() {
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{enrolledCount}</Text>
-          <Text style={styles.statLabel}>دورة مسجّلة</Text>
+          <Text style={styles.statLabel}>{t("دورة مسجّلة", "Enrolled")}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
@@ -114,7 +137,7 @@ export default function ProfileScreen() {
               ? enrollments.filter((e: any) => e.progress >= 100).length
               : 0}
           </Text>
-          <Text style={styles.statLabel}>دورة مكتملة</Text>
+          <Text style={styles.statLabel}>{t("دورة مكتملة", "Completed")}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
@@ -123,57 +146,57 @@ export default function ProfileScreen() {
               ? Math.round(enrollments.reduce((acc: number, e: any) => acc + (e.progress || 0), 0) / Math.max(enrolledCount, 1))
               : 0}%
           </Text>
-          <Text style={styles.statLabel}>متوسط التقدم</Text>
+          <Text style={styles.statLabel}>{t("متوسط التقدم", "Avg Progress")}</Text>
         </View>
       </View>
 
       {/* Menu */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>الحساب</Text>
+        <Text style={styles.sectionTitle}>{t("الحساب", "Account")}</Text>
         <View style={styles.menuGroup}>
           <MenuRow
             icon="user"
-            label="معلومات الحساب"
-            value={user.role === "teacher" ? "معلم" : "طالب"}
+            label={t("معلومات الحساب", "Account Info")}
+            value={roleName}
             onPress={() => {}}
           />
           <View style={styles.menuSeparator} />
           <MenuRow
             icon="globe"
-            label="اللغة"
-            value={user.language === "ar" ? "العربية" : "English"}
-            onPress={() => {}}
+            label={t("اللغة", "Language")}
+            value={language === "ar" ? "العربية" : "English"}
+            onPress={handleLanguageToggle}
           />
         </View>
       </View>
 
       {user.role === "teacher" && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إدارة المحتوى</Text>
+          <Text style={styles.sectionTitle}>{t("إدارة المحتوى", "Content Management")}</Text>
           <View style={styles.menuGroup}>
-            <MenuRow icon="book" label="دوراتي" onPress={() => router.push("/courses")} />
+            <MenuRow icon="book" label={t("دوراتي", "My Courses")} onPress={() => router.push("/courses")} />
             <View style={styles.menuSeparator} />
-            <MenuRow icon="users" label="الطلاب" onPress={() => {}} />
+            <MenuRow icon="users" label={t("الطلاب", "Students")} onPress={() => {}} />
             <View style={styles.menuSeparator} />
-            <MenuRow icon="video" label="جلساتي المباشرة" onPress={() => router.push("/live")} />
+            <MenuRow icon="video" label={t("جلساتي المباشرة", "My Live Sessions")} onPress={() => router.push("/live")} />
           </View>
         </View>
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>عام</Text>
+        <Text style={styles.sectionTitle}>{t("عام", "General")}</Text>
         <View style={styles.menuGroup}>
-          <MenuRow icon="help-circle" label="المساعدة والدعم" onPress={() => {}} />
+          <MenuRow icon="help-circle" label={t("المساعدة والدعم", "Help & Support")} onPress={() => {}} />
           <View style={styles.menuSeparator} />
-          <MenuRow icon="info" label="عن التطبيق" onPress={() => {}} />
+          <MenuRow icon="info" label={t("عن التطبيق", "About")} onPress={() => {}} />
           <View style={styles.menuSeparator} />
-          <MenuRow icon="shield" label="سياسة الخصوصية" onPress={() => {}} />
+          <MenuRow icon="shield" label={t("سياسة الخصوصية", "Privacy Policy")} onPress={() => {}} />
         </View>
       </View>
 
       <View style={[styles.section, { marginTop: 8 }]}>
         <View style={styles.menuGroup}>
-          <MenuRow icon="log-out" label="تسجيل الخروج" onPress={handleLogout} danger />
+          <MenuRow icon="log-out" label={t("تسجيل الخروج", "Sign Out")} onPress={handleLogout} danger />
         </View>
       </View>
 

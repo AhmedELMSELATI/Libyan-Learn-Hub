@@ -8,7 +8,27 @@ const router = Router();
 
 router.get("/", async (_req, res) => {
   try {
-    const cats = await db.select().from(categoriesTable);
+    let cats = await db.select().from(categoriesTable);
+
+    // Auto-seed default categories if the table is empty
+    if (cats.length === 0) {
+      const defaults = [
+        { name: "Mathematics",       nameAr: "الرياضيات",          icon: "📐" },
+        { name: "Sciences",          nameAr: "العلوم",              icon: "🔬" },
+        { name: "Arabic Language",   nameAr: "اللغة العربية",       icon: "📖" },
+        { name: "English Language",  nameAr: "اللغة الإنجليزية",    icon: "🇬🇧" },
+        { name: "History",           nameAr: "التاريخ",             icon: "🏛️" },
+        { name: "Physics",           nameAr: "الفيزياء",            icon: "⚛️" },
+        { name: "Chemistry",         nameAr: "الكيمياء",            icon: "🧪" },
+        { name: "Biology",           nameAr: "الأحياء",             icon: "🧬" },
+        { name: "Computer Science",  nameAr: "علوم الحاسوب",        icon: "💻" },
+        { name: "Islamic Studies",   nameAr: "الدراسات الإسلامية",  icon: "🌙" },
+      ];
+      await db.insert(categoriesTable).values(defaults).onConflictDoNothing();
+      cats = await db.select().from(categoriesTable);
+      console.log("Auto-seeded default categories");
+    }
+
     const result = await Promise.all(
       cats.map(async (cat) => {
         const [{ value }] = await db.select({ value: count() }).from(coursesTable).where(eq(coursesTable.categoryId, cat.id));

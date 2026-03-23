@@ -443,6 +443,25 @@ function TeacherDashboard() {
               </View>
             </View>
 
+            <Text style={styles.inputLabel}>لغة الدورة</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+              {([["ar", "العربية 🇱🇾"], ["en", "English 🇬🇧"]] as const).map(([code, label]) => (
+                <Pressable
+                  key={code}
+                  onPress={() => setCourseForm(f => ({ ...f, language: code }))}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center",
+                    backgroundColor: courseForm.language === code ? C.tint : C.pill,
+                  }}
+                >
+                  <Text style={{
+                    fontFamily: "Inter_600SemiBold", fontSize: 13,
+                    color: courseForm.language === code ? "#fff" : C.textSecondary,
+                  }}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
             <View style={{ flexDirection: "row", gap: 10, marginTop: 16, marginBottom: 24 }}>
               <Pressable style={[styles.applyBtn, { flex: 1 }]} onPress={createCourse}>
                 <Text style={styles.applyBtnText}>إنشاء الدورة</Text>
