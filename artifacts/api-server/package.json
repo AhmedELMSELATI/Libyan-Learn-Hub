@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
     "build": "tsx ./build.ts",
     "start": "node --enable-source-maps ./dist/index.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -34,6 +34,7 @@
     "esbuild": "^0.27.3",
     "supertest": "^7.0.0",
     "tsx": "catalog:",
+    "cross-env": "^7.0.3",
     "vitest": "^2.1.0"
   }
 }
