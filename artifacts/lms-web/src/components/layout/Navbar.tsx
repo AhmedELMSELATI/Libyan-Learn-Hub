@@ -23,16 +23,16 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-panel border-b-0 border-b-border/50 transition-all duration-300">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-teal-400 flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform duration-300">
-              <span className="font-display font-bold text-xl">L</span>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white shadow-lg shadow-primary/30 group-hover:scale-105 transition-transform duration-300">
+              <span className="font-display font-bold text-lg">L</span>
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-foreground">
+            <span className="font-display font-bold text-xl tracking-tight">
               Edu<span className="text-primary">Libya</span>
             </span>
           </Link>
@@ -46,7 +46,11 @@ export function Navbar() {
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+                  className={`relative flex items-center gap-2 text-sm font-medium transition-colors px-3 py-2 rounded-xl ${
+                    isActive 
+                      ? 'text-primary bg-primary/8' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
                 >
                   <Icon className="w-4 h-4" />
                   {link.label}
@@ -83,7 +87,7 @@ export function Navbar() {
                   <Button variant="ghost">{t('nav.login')}</Button>
                 </Link>
                 <Link href="/register">
-                  <Button className="bg-gradient-to-r from-primary to-teal-500 hover:from-primary/90 hover:to-teal-500/90 shadow-lg shadow-primary/25">
+                  <Button className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-lg shadow-primary/25 rounded-xl">
                     {t('nav.register')}
                   </Button>
                 </Link>
