@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
-import { BookOpen, Star, Users, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, Award, ChevronRight } from 'lucide-react';
+import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
 
@@ -34,11 +34,7 @@ export default function Home() {
 
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
 
-  const stats = [
-    { icon: Users, value: '12,000+', label: isRtl ? 'طالب مسجّل' : 'Enrolled Students' },
-    { icon: BookOpen, value: '300+', label: isRtl ? 'دورة متاحة' : 'Available Courses' },
-    { icon: Award, value: '98%', label: isRtl ? 'نسبة الرضا' : 'Satisfaction Rate' },
-  ];
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,20 +104,7 @@ export default function Home() {
                 </Link>
               </motion.div>
 
-              {/* Stats row */}
-              <motion.div {...fadeUp(0.4)} className="flex flex-wrap gap-8 mt-12 pt-8 border-t border-border/50">
-                {stats.map((s) => (
-                  <div key={s.label} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <s.icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-display font-bold text-xl text-foreground">{s.value}</div>
-                      <div className="text-xs text-muted-foreground">{s.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
+
             </div>
 
             {/* Right — Floating card panel */}
