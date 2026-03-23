@@ -81,8 +81,15 @@ function TeacherDashboard() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createListingOpen, setCreateListingOpen] = useState(false);
+  const [createCourseOpen, setCreateCourseOpen] = useState(false);
   const [form, setForm] = useState({ title: "", titleAr: "", description: "", scheduledAt: "", durationMinutes: "90", maxParticipants: "50" });
   const [listingForm, setListingForm] = useState({ titleAr: "", title: "", subjectAr: "", subject: "", gradeLevel: "", hourlyRate: "", availableDays: "", availableTimeFrom: "", availableTimeTo: "", sessionDurationMinutes: "60", maxStudents: "1", descriptionAr: "" });
+  const [courseForm, setCourseForm] = useState({ title: "", titleAr: "", description: "", descriptionAr: "", price: "0", categoryId: "", level: "beginner", language: "ar" });
+
+  const { data: categories = [] } = useQuery<any[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiFetch("/categories"),
+  });
 
 
   const { data: courses = [], isLoading: coursesLoading } = useQuery<any[]>({
@@ -145,6 +152,31 @@ function TeacherDashboard() {
     }
   };
 
+  const createCourse = async () => {
+    if (!courseForm.title || !courseForm.titleAr || !courseForm.categoryId) {
+      Alert.alert("خطأ", "يرجى ملء الحقول المطلوبة: العنوان والتصنيف");
+      return;
+    }
+    try {
+      const newCourse = await apiFetch("/courses", {
+        method: "POST",
+        body: JSON.stringify({
+          ...courseForm,
+          price: parseFloat(courseForm.price) || 0,
+          categoryId: parseInt(courseForm.categoryId),
+        }),
+      });
+      Alert.alert("تم!", "تم إنشاء الدورة بنجاح.");
+      queryClient.invalidateQueries({ queryKey: ["teacher-courses"] });
+      setCreateCourseOpen(false);
+      setCourseForm({ title: "", titleAr: "", description: "", descriptionAr: "", price: "0", categoryId: "", level: "beginner", language: "ar" });
+      // Navigate to the manage-course screen
+      router.push({ pathname: "/manage-course", params: { id: newCourse.id.toString() } } as any);
+    } catch (err: any) {
+      Alert.alert("خطأ", err.message || "فشل إنشاء الدورة");
+    }
+  };
+
   const mySessions = (sessions as any[]).filter(() => true);
 
   return (
@@ -179,6 +211,12 @@ function TeacherDashboard() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
         <View style={styles.actionsRow}>
+          <Pressable style={styles.actionBtn} onPress={() => setCreateCourseOpen(true)}>
+            <View style={[styles.actionIcon, { backgroundColor: "#FDF2F8" }]}>
+              <Feather name="plus-circle" size={22} color="#EC4899" />
+            </View>
+            <Text style={styles.actionLabel}>إضافة دورة</Text>
+          </Pressable>
           <Pressable style={styles.actionBtn} onPress={() => setCreateOpen(true)}>
             <View style={[styles.actionIcon, { backgroundColor: "#EFF6FF" }]}>
               <Feather name="video" size={22} color="#3B82F6" />
@@ -190,12 +228,6 @@ function TeacherDashboard() {
               <Feather name="users" size={22} color="#22C55E" />
             </View>
             <Text style={styles.actionLabel}>إعلان خصوصي</Text>
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => router.push("/(tabs)/courses")}>
-            <View style={[styles.actionIcon, { backgroundColor: "#FFF7ED" }]}>
-              <Feather name="book" size={22} color="#F97316" />
-            </View>
-            <Text style={styles.actionLabel}>إدارة الدورات</Text>
           </Pressable>
         </View>
       </View>
@@ -209,10 +241,13 @@ function TeacherDashboard() {
           <View style={styles.emptyBox}>
             <Feather name="book-open" size={32} color={C.textMuted} />
             <Text style={styles.emptyText}>لا توجد دورات بعد</Text>
+            <Pressable style={[styles.applyBtn, { marginTop: 8, paddingHorizontal: 24 }]} onPress={() => setCreateCourseOpen(true)}>
+              <Text style={styles.applyBtnText}>إضافة أول دورة</Text>
+            </Pressable>
           </View>
         ) : (
           (courses as any[]).slice(0, 5).map((c: any) => (
-            <Pressable key={c.id} style={styles.courseRow} onPress={() => router.push({ pathname: "/course/[id]", params: { id: c.id.toString() } })}>
+            <Pressable key={c.id} style={styles.courseRow} onPress={() => router.push({ pathname: "/manage-course", params: { id: c.id.toString() } } as any)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.courseName} numberOfLines={1}>{c.titleAr || c.title}</Text>
                 <Text style={styles.courseMeta}>{c.lessonCount} درس · {c.enrollmentCount} طالب</Text>
@@ -341,6 +376,84 @@ function TeacherDashboard() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Create Course Modal */}
+      <Modal visible={createCourseOpen} transparent animationType="slide" onRequestClose={() => setCreateCourseOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <ScrollView style={[styles.modalBox, { maxHeight: "90%" }]} keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalTitle}>إنشاء دورة جديدة</Text>
+
+            <Text style={styles.inputLabel}>العنوان (عربي) *</Text>
+            <TextInput style={styles.input} value={courseForm.titleAr} onChangeText={v => setCourseForm(f => ({ ...f, titleAr: v }))} placeholder="عنوان الدورة بالعربي" textAlign="right" />
+
+            <Text style={styles.inputLabel}>Title (English) *</Text>
+            <TextInput style={styles.input} value={courseForm.title} onChangeText={v => setCourseForm(f => ({ ...f, title: v }))} placeholder="Course title" />
+
+            <Text style={styles.inputLabel}>الوصف (عربي)</Text>
+            <TextInput style={[styles.input, { height: 70 }]} multiline value={courseForm.descriptionAr} onChangeText={v => setCourseForm(f => ({ ...f, descriptionAr: v }))} placeholder="وصف الدورة" textAlign="right" />
+
+            <Text style={styles.inputLabel}>Description (English)</Text>
+            <TextInput style={[styles.input, { height: 70 }]} multiline value={courseForm.description} onChangeText={v => setCourseForm(f => ({ ...f, description: v }))} placeholder="Course description" />
+
+            <Text style={styles.inputLabel}>التصنيف *</Text>
+            <View style={{ backgroundColor: C.pill, borderRadius: 12, borderWidth: 1, borderColor: C.cardBorder, marginBottom: 4 }}>
+              {(categories as any[]).length === 0 ? (
+                <Text style={{ padding: 12, color: C.textMuted, fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "right" }}>لا توجد تصنيفات — يرجى تشغيل سكربت البذر</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 8, gap: 6 }}>
+                  {(categories as any[]).map((cat: any) => (
+                    <Pressable
+                      key={cat.id}
+                      onPress={() => setCourseForm(f => ({ ...f, categoryId: cat.id.toString() }))}
+                      style={{
+                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+                        backgroundColor: courseForm.categoryId === cat.id.toString() ? C.tint : C.background,
+                      }}
+                    >
+                      <Text style={{
+                        fontFamily: "Inter_600SemiBold", fontSize: 12,
+                        color: courseForm.categoryId === cat.id.toString() ? "#fff" : C.textSecondary,
+                      }}>{cat.icon} {cat.nameAr || cat.name}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>السعر (دينار)</Text>
+                <TextInput style={styles.input} value={courseForm.price} onChangeText={v => setCourseForm(f => ({ ...f, price: v }))} keyboardType="numeric" placeholder="0 = مجاني" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>المستوى</Text>
+                <View style={{ backgroundColor: C.pill, borderRadius: 12, borderWidth: 1, borderColor: C.cardBorder }}>
+                  {["beginner", "intermediate", "advanced"].map(lv => (
+                    <Pressable
+                      key={lv}
+                      onPress={() => setCourseForm(f => ({ ...f, level: lv }))}
+                      style={{ paddingVertical: 8, paddingHorizontal: 12, backgroundColor: courseForm.level === lv ? C.tint : "transparent", borderRadius: 10 }}
+                    >
+                      <Text style={{ fontFamily: "Inter_500Medium", fontSize: 12, color: courseForm.level === lv ? "#fff" : C.textSecondary, textAlign: "center" }}>
+                        {lv === "beginner" ? "مبتدئ" : lv === "intermediate" ? "متوسط" : "متقدم"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 16, marginBottom: 24 }}>
+              <Pressable style={[styles.applyBtn, { flex: 1 }]} onPress={createCourse}>
+                <Text style={styles.applyBtnText}>إنشاء الدورة</Text>
+              </Pressable>
+              <Pressable style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setCreateCourseOpen(false)}>
+                <Text style={styles.cancelBtnText}>إلغاء</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -359,8 +472,15 @@ function StudentMyLearning() {
     enabled: !!user,
   });
 
+  const { data: liveSessions = [] } = useQuery<any[]>({
+    queryKey: ["student-live-sessions"],
+    queryFn: () => apiFetch("/live-sessions"),
+    enabled: !!user,
+  });
+
   const active = enrollments?.filter(e => e.progress < 100) || [];
   const completed = enrollments?.filter(e => e.progress >= 100) || [];
+  const upcomingSessions = (liveSessions as any[]).filter((s: any) => s.status === "scheduled" || s.status === "live").slice(0, 3);
 
   if (!user) {
     return (
@@ -390,26 +510,87 @@ function StudentMyLearning() {
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => <EnrollmentCard item={item} />}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 90, paddingTop: 8, gap: 12 }}
-          ListHeaderComponent={() =>
-            enrollments && enrollments.length > 0 ? (
-              <View style={styles.statsRow}>
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{enrollments.length}</Text>
-                  <Text style={styles.statLabel}>دورة مسجّلة</Text>
+          ListHeaderComponent={() => (
+            <>
+              {enrollments && enrollments.length > 0 ? (
+                <View style={styles.statsRow}>
+                  <View style={styles.stat}>
+                    <Text style={styles.statValue}>{enrollments.length}</Text>
+                    <Text style={styles.statLabel}>دورة مسجّلة</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.stat}>
+                    <Text style={styles.statValue}>{completed.length}</Text>
+                    <Text style={styles.statLabel}>مكتملة</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.stat}>
+                    <Text style={styles.statValue}>{active.length}</Text>
+                    <Text style={styles.statLabel}>جارية</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.stat}>
+                    <Text style={styles.statValue}>{upcomingSessions.length}</Text>
+                    <Text style={styles.statLabel}>جلسات قادمة</Text>
+                  </View>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{completed.length}</Text>
-                  <Text style={styles.statLabel}>مكتملة</Text>
+              ) : null}
+
+              {/* Upcoming Live Sessions Preview */}
+              {upcomingSessions.length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <Text style={styles.sectionTitle}>جلسات مباشرة قادمة</Text>
+                    <Pressable onPress={() => router.push("/(tabs)/live")}>
+                      <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 12, color: C.tint }}>عرض الكل</Text>
+                    </Pressable>
+                  </View>
+                  {upcomingSessions.map((session: any) => (
+                    <Pressable
+                      key={session.id}
+                      style={{
+                        backgroundColor: session.status === "live" ? "#FFF5F5" : C.card,
+                        borderRadius: 14, padding: 14, marginBottom: 8,
+                        borderWidth: 1, borderColor: session.status === "live" ? "#EF444430" : C.cardBorder,
+                      }}
+                      onPress={() => router.push("/(tabs)/live")}
+                    >
+                      <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.text, textAlign: "right" }}>{session.titleAr || session.title}</Text>
+                          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, textAlign: "right", marginTop: 2 }}>{session.teacherName}</Text>
+                        </View>
+                        {session.status === "live" ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#FEE2E2", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#EF4444" }} />
+                            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 10, color: "#EF4444" }}>مباشر</Text>
+                          </View>
+                        ) : (
+                          <View style={{ backgroundColor: `${C.tint}15`, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+                            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 10, color: C.tint }}>قادم</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flexDirection: "row-reverse", gap: 12, marginTop: 8 }}>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+                          <Feather name="calendar" size={11} color={C.textMuted} />
+                          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted }}>
+                            {new Date(session.scheduledAt).toLocaleDateString("ar-LY", { month: "short", day: "numeric" })}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 4 }}>
+                          <Feather name="clock" size={11} color={C.textMuted} />
+                          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted }}>
+                            {new Date(session.scheduledAt).toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" })}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  ))}
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{active.length}</Text>
-                  <Text style={styles.statLabel}>جارية</Text>
-                </View>
-              </View>
-            ) : null
-          }
+              )}
+            </>
+          )}
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Feather name="book-open" size={48} color={C.textMuted} />

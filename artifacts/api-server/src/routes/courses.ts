@@ -235,6 +235,14 @@ router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async 
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
     if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+
+    // Block deletion if students are enrolled
+    const [{ value: enrollCount }] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, courseId));
+    if (Number(enrollCount) > 0) {
+      res.status(403).json({ error: "Cannot delete a course with enrolled students. Remove all enrollments first." });
+      return;
+    }
+
     await db.delete(coursesTable).where(eq(coursesTable.id, courseId));
     res.json({ success: true, message: "Course deleted" });
   } catch (err: any) {

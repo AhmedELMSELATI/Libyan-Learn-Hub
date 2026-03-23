@@ -5,8 +5,9 @@ import {
   lessonsTable,
   slidesTable,
   quizzesTable,
+  enrollmentsTable,
 } from "@workspace/db";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 
 const router = Router({ mergeParams: true });
@@ -101,7 +102,18 @@ router.put("/:sectionId", requireAuth, requireRole("teacher", "admin"), async (r
 
 router.delete("/:sectionId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
     const sectionId = parseInt(req.params.sectionId);
+
+    // Block deletion if students are enrolled in the parent course
+    const [{ value: enrollCount }] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, courseId));
+    if (Number(enrollCount) > 0) {
+      res.status(403).json({ error: "Cannot delete a section from a course with enrolled students." });
+      return;
+    }
+
+    // Cascade-delete lessons within this section
+    await db.delete(lessonsTable).where(and(eq(lessonsTable.courseId, courseId), eq(lessonsTable.sectionId, sectionId)));
     await db.delete(sectionsTable).where(eq(sectionsTable.id, sectionId));
     res.json({ success: true });
   } catch (err: any) {
