@@ -20,27 +20,37 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { ReportModal } from "@/components/ReportModal";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const C = Colors.light;
 
-const GRADE_LEVELS = [
+const GRADE_LEVELS_AR = [
   { value: "grade_10", label: "الصف العاشر" },
   { value: "grade_11", label: "الصف الحادي عشر" },
   { value: "grade_12", label: "الصف الثاني عشر" },
   { value: "university", label: "الجامعة" },
   { value: "all", label: "جميع المستويات" },
 ];
+const GRADE_LEVELS_EN = [
+  { value: "grade_10", label: "Grade 10" },
+  { value: "grade_11", label: "Grade 11" },
+  { value: "grade_12", label: "Grade 12" },
+  { value: "university", label: "University" },
+  { value: "all", label: "All Levels" },
+];
 
-function gradeLabelAr(value: string) {
-  return GRADE_LEVELS.find(g => g.value === value)?.label || value || "–";
+function gradeLabelAr(value: string, lang = "ar") {
+  const levels = lang === "ar" ? GRADE_LEVELS_AR : GRADE_LEVELS_EN;
+  return levels.find(g => g.value === value)?.label || value || "–";
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useLanguage();
   const map: Record<string, { label: string; bg: string; color: string }> = {
-    pending:   { label: "قيد الانتظار", bg: "#FEF9C3", color: "#A16207" },
-    accepted:  { label: "مقبول",        bg: "#DCFCE7", color: "#15803D" },
-    declined:  { label: "مرفوض",        bg: "#FEE2E2", color: "#DC2626" },
-    cancelled: { label: "ملغي",          bg: "#F1F5F9", color: "#64748B" },
+    pending:   { label: t("قيد الانتظار", "Pending"),   bg: "#FEF9C3", color: "#A16207" },
+    accepted:  { label: t("مقبول", "Accepted"),       bg: "#DCFCE7", color: "#15803D" },
+    declined:  { label: t("مرفوض", "Declined"),       bg: "#FEE2E2", color: "#DC2626" },
+    cancelled: { label: t("ملغي", "Cancelled"),        bg: "#F1F5F9", color: "#64748B" },
   };
   const b = map[status] || { label: status, bg: "#F1F5F9", color: "#64748B" };
   return (
@@ -52,14 +62,15 @@ function StatusBadge({ status }: { status: string }) {
 
 function ListingCard({ listing, isTeacher, onApply, onViewApps }: any) {
   const [reportOpen, setReportOpen] = useState(false);
+  const { t, language } = useLanguage();
   return (
     <View style={styles.card}>
       <View style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{listing.titleAr}</Text>
+          <Text style={styles.cardTitle}>{t(listing.titleAr, listing.title || listing.titleAr)}</Text>
           {!isTeacher && (
             <View style={{ flexDirection: "row-reverse", alignItems: "center" }}>
-              <Text style={styles.teacherName}>{listing.teacherNameAr || listing.teacherName}</Text>
+              <Text style={styles.teacherName}>{language === "ar" ? (listing.teacherNameAr || listing.teacherName) : listing.teacherName}</Text>
               <Pressable onPress={() => setReportOpen(true)} style={{ marginRight: 8, padding: 4 }}>
                 <Feather name="flag" size={14} color={C.textMuted} />
               </Pressable>
@@ -67,18 +78,18 @@ function ListingCard({ listing, isTeacher, onApply, onViewApps }: any) {
           )}
         </View>
         <View style={styles.rateTag}>
-          <Text style={styles.rateText}>{listing.hourlyRate} LYD/ساعة</Text>
+          <Text style={styles.rateText}>{listing.hourlyRate} LYD/{t("ساعة", "hr")}</Text>
         </View>
       </View>
 
       <View style={{ flexDirection: "row-reverse", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-        <View style={styles.chip}><Text style={styles.chipText}>{listing.subjectAr}</Text></View>
-        <View style={styles.chip}><Text style={styles.chipText}>{gradeLabelAr(listing.gradeLevel)}</Text></View>
-        <View style={styles.chip}><Text style={styles.chipText}>{listing.sessionDurationMinutes} دقيقة</Text></View>
+        <View style={styles.chip}><Text style={styles.chipText}>{t(listing.subjectAr, listing.subject || listing.subjectAr)}</Text></View>
+        <View style={styles.chip}><Text style={styles.chipText}>{gradeLabelAr(listing.gradeLevel, language)}</Text></View>
+        <View style={styles.chip}><Text style={styles.chipText}>{listing.sessionDurationMinutes} {t("دقيقة", "min")}</Text></View>
       </View>
 
       {listing.descriptionAr ? (
-        <Text style={styles.desc} numberOfLines={2}>{listing.descriptionAr}</Text>
+        <Text style={styles.desc} numberOfLines={2}>{t(listing.descriptionAr, listing.description || listing.descriptionAr)}</Text>
       ) : null}
 
       {listing.availableTimeFrom ? (
@@ -91,12 +102,12 @@ function ListingCard({ listing, isTeacher, onApply, onViewApps }: any) {
       {isTeacher ? (
         <Pressable style={styles.applyBtn} onPress={() => onViewApps(listing)}>
           <Feather name="users" size={15} color="#fff" />
-          <Text style={styles.applyBtnText}>الطلبات ({listing.totalApplications})</Text>
+          <Text style={styles.applyBtnText}>{t("الطلبات", "Applications")} ({listing.totalApplications})</Text>
         </Pressable>
       ) : (
         <Pressable style={styles.applyBtn} onPress={() => onApply(listing)}>
           <Feather name="send" size={15} color="#fff" />
-          <Text style={styles.applyBtnText}>تقديم طلب</Text>
+          <Text style={styles.applyBtnText}>{t("تقديم طلب", "Apply")}</Text>
         </Pressable>
       )}
 
@@ -112,33 +123,34 @@ function ListingCard({ listing, isTeacher, onApply, onViewApps }: any) {
 
 function ApplyModal({ listing, visible, onClose, onApply }: any) {
   const [message, setMessage] = useState("");
+  const { t } = useLanguage();
   if (!listing) return null;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>التقديم على الدرس</Text>
+          <Text style={styles.modalTitle}>{t("التقديم على الدرس", "Apply for Lesson")}</Text>
           <View style={styles.modalInfo}>
-            <Text style={styles.modalInfoTitle}>{listing.titleAr}</Text>
-            <Text style={styles.modalInfoSub}>{listing.subjectAr} · {gradeLabelAr(listing.gradeLevel)}</Text>
-            <Text style={styles.modalInfoRate}>{listing.hourlyRate} LYD/ساعة</Text>
+            <Text style={styles.modalInfoTitle}>{t(listing.titleAr, listing.title || listing.titleAr)}</Text>
+            <Text style={styles.modalInfoSub}>{t(listing.subjectAr, listing.subject || listing.subjectAr)} · {gradeLabelAr(listing.gradeLevel)}</Text>
+            <Text style={styles.modalInfoRate}>{listing.hourlyRate} LYD/{t("ساعة", "hr")}</Text>
           </View>
-          <Text style={styles.inputLabel}>رسالة للمعلم (اختياري)</Text>
+          <Text style={styles.inputLabel}>{t("رسالة للمعلم (اختياري)", "Message to teacher (optional)")}</Text>
           <TextInput
             style={styles.textArea}
             multiline
             numberOfLines={4}
             value={message}
             onChangeText={setMessage}
-            placeholder="اكتب رسالة تعريفية أو تفاصيل..."
+            placeholder={t("اكتب رسالة تعريفية أو تفاصيل...", "Write an introductory message...")}
             textAlign="right"
           />
           <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
             <Pressable style={[styles.applyBtn, { flex: 1 }]} onPress={() => onApply(listing, message)}>
-              <Text style={styles.applyBtnText}>تقديم الطلب</Text>
+              <Text style={styles.applyBtnText}>{t("تقديم الطلب", "Submit")}</Text>
             </Pressable>
             <Pressable style={[styles.cancelBtn, { flex: 1 }]} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>إلغاء</Text>
+              <Text style={styles.cancelBtnText}>{t("إلغاء", "Cancel")}</Text>
             </Pressable>
           </View>
         </View>
@@ -213,6 +225,7 @@ export default function TutoringScreen() {
   const { user } = useAuth();
   const { apiFetch } = useApi();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<"browse" | "mine">("browse");
   const [applyFor, setApplyFor] = useState<any>(null);
   const [appsFor, setAppsFor] = useState<any>(null);
@@ -243,11 +256,11 @@ export default function TutoringScreen() {
         method: "POST",
         body: JSON.stringify({ message }),
       });
-      Alert.alert("تم!", "تم تقديم طلبك بنجاح. سيتواصل معك المعلم قريباً.");
+      Alert.alert(t("تم!", "Done!"), t("تم تقديم طلبك بنجاح. سيتواصل معك المعلم قريباً.", "Your application was submitted successfully."));
       queryClient.invalidateQueries({ queryKey: ["tutoring-my-apps"] });
       setApplyFor(null);
     } catch (err: any) {
-      Alert.alert("خطأ", err.message || "فشل تقديم الطلب");
+      Alert.alert(t("خطأ", "Error"), err.message || t("فشل تقديم الطلب", "Failed to submit application"));
     }
   };
 
@@ -256,19 +269,19 @@ export default function TutoringScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={styles.headerTitle}>الدروس الخصوصية</Text>
+        <Text style={styles.headerTitle}>{t("الدروس الخصوصية", "Private Tutoring")}</Text>
         <Text style={styles.headerSubtitle}>
-          {isTeacher ? "أنشئ إعلاناتك واستقبل طلبات الطلاب" : "تصفّح المعلمين المتاحين"}
+          {isTeacher ? t("أنشئ إعلاناتك واستقبل طلبات الطلاب", "Create listings and receive student applications") : t("تصفّح المعلمين المتاحين", "Browse available teachers")}
         </Text>
       </View>
 
       <View style={styles.tabRow}>
         <Pressable style={[styles.tabBtn, tab === "browse" && styles.tabBtnActive]} onPress={() => setTab("browse")}>
-          <Text style={[styles.tabBtnText, tab === "browse" && styles.tabBtnTextActive]}>تصفّح</Text>
+          <Text style={[styles.tabBtnText, tab === "browse" && styles.tabBtnTextActive]}>{t("تصفّح", "Browse")}</Text>
         </Pressable>
         <Pressable style={[styles.tabBtn, tab === "mine" && styles.tabBtnActive]} onPress={() => setTab("mine")}>
           <Text style={[styles.tabBtnText, tab === "mine" && styles.tabBtnTextActive]}>
-            {isTeacher ? "إعلاناتي" : "طلباتي"}
+            {isTeacher ? t("إعلاناتي", "My Listings") : t("طلباتي", "My Applications")}
           </Text>
         </Pressable>
       </View>
@@ -294,8 +307,8 @@ export default function TutoringScreen() {
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Feather name="book-open" size={48} color={C.textMuted} />
-              <Text style={styles.emptyTitle}>لا توجد إعلانات متاحة</Text>
-              <Text style={styles.emptySubtitle}>سيُضاف معلمون قريباً</Text>
+              <Text style={styles.emptyTitle}>{t("لا توجد إعلانات متاحة", "No listings available")}</Text>
+              <Text style={styles.emptySubtitle}>{t("سيُضاف معلمون قريباً", "Teachers will be added soon")}</Text>
             </View>
           )}
         />

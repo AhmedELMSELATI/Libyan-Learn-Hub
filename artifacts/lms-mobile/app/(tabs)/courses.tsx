@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useApi } from "@/hooks/useApi";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const C = Colors.light;
 
@@ -42,15 +43,22 @@ interface Category {
   icon?: string | null;
 }
 
-const LEVELS = [
+const LEVELS_AR = [
   { key: "", label: "الكل" },
   { key: "beginner", label: "مبتدئ" },
   { key: "intermediate", label: "متوسط" },
   { key: "advanced", label: "متقدم" },
 ];
+const LEVELS_EN = [
+  { key: "", label: "All" },
+  { key: "beginner", label: "Beginner" },
+  { key: "intermediate", label: "Intermediate" },
+  { key: "advanced", label: "Advanced" },
+];
 
 function CourseRow({ course }: { course: Course }) {
-  const levelLabel = course.level === "beginner" ? "مبتدئ" : course.level === "intermediate" ? "متوسط" : "متقدم";
+  const { t } = useLanguage();
+  const levelLabel = course.level === "beginner" ? t("مبتدئ", "Beginner") : course.level === "intermediate" ? t("متوسط", "Intermediate") : t("متقدم", "Advanced");
   return (
     <Pressable
       style={({ pressed }) => [styles.courseRow, pressed && { opacity: 0.8 }]}
@@ -60,14 +68,14 @@ function CourseRow({ course }: { course: Course }) {
         <Feather name="book-open" size={24} color={C.tint} />
       </View>
       <View style={styles.courseRowInfo}>
-        <Text style={styles.courseRowTitle} numberOfLines={2}>{course.titleAr || course.title}</Text>
+        <Text style={styles.courseRowTitle} numberOfLines={2}>{t(course.titleAr || course.title, course.title)}</Text>
         <Text style={styles.courseRowTeacher}>{course.teacherName}</Text>
         <View style={styles.courseRowMeta}>
           <View style={styles.tag}>
             <Text style={styles.tagText}>{levelLabel}</Text>
           </View>
           <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.metaText}>{course.lessonCount} درس</Text>
+          <Text style={styles.metaText}>{course.lessonCount} {t("درس", "lessons")}</Text>
           {course.rating > 0 && (
             <>
               <Text style={styles.metaDot}>·</Text>
@@ -79,7 +87,7 @@ function CourseRow({ course }: { course: Course }) {
       </View>
       <View style={styles.courseRowRight}>
         <Text style={styles.courseRowPrice}>
-          {course.price === 0 ? "مجاني" : `${course.price}`}
+          {course.price === 0 ? t("مجاني", "Free") : `${course.price}`}
         </Text>
         {course.price > 0 && <Text style={styles.courseRowCurrency}>{course.currency}</Text>}
         <Feather name="chevron-left" size={16} color={C.textMuted} style={{ marginTop: 8 }} />
@@ -91,9 +99,12 @@ function CourseRow({ course }: { course: Course }) {
 export default function CoursesScreen() {
   const insets = useSafeAreaInsets();
   const { apiFetch } = useApi();
+  const { t, language } = useLanguage();
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
   const [selectedLevel, setSelectedLevel] = useState("");
+
+  const LEVELS = language === "ar" ? LEVELS_AR : LEVELS_EN;
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -117,12 +128,12 @@ export default function CoursesScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={styles.headerTitle}>الدورات</Text>
+        <Text style={styles.headerTitle}>{t("الدورات", "Courses")}</Text>
         <View style={styles.searchBar}>
           <Feather name="search" size={16} color={C.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="ابحث عن دورة..."
+            placeholder={t("ابحث عن دورة...", "Search for a course...")}
             placeholderTextColor={C.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -143,7 +154,7 @@ export default function CoursesScreen() {
             style={[styles.filterChip, !selectedCat && styles.filterChipActive]}
             onPress={() => setSelectedCat(null)}
           >
-            <Text style={[styles.filterChipText, !selectedCat && styles.filterChipTextActive]}>الكل</Text>
+            <Text style={[styles.filterChipText, !selectedCat && styles.filterChipTextActive]}>{t("الكل", "All")}</Text>
           </Pressable>
           {(categories as Category[] || []).map((cat) => (
             <Pressable
@@ -153,7 +164,7 @@ export default function CoursesScreen() {
             >
               <Text style={styles.catIcon}>{cat.icon || "📚"}</Text>
               <Text style={[styles.filterChipText, selectedCat === cat.id && styles.filterChipTextActive]}>
-                {cat.nameAr}
+                {t(cat.nameAr, cat.name)}
               </Text>
             </Pressable>
           ))}
@@ -188,7 +199,7 @@ export default function CoursesScreen() {
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Feather name="search" size={40} color={C.textMuted} />
-              <Text style={styles.emptyText}>لا توجد دورات مطابقة</Text>
+              <Text style={styles.emptyText}>{t("لا توجد دورات مطابقة", "No matching courses found")}</Text>
             </View>
           )}
           scrollEnabled={!!(coursesData?.courses?.length ?? 0)}

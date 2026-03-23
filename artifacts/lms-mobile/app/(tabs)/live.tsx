@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { ReportModal } from "@/components/ReportModal";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const C = Colors.light;
 
@@ -35,11 +36,11 @@ interface LiveSession {
   description?: string | null;
 }
 
-function statusLabel(s: string) {
-  if (s === "live") return "مباشر الآن";
-  if (s === "scheduled") return "قادم";
-  if (s === "ended") return "منتهي";
-  return "ملغي";
+function statusLabel(s: string, t: (ar: string, en: string) => string) {
+  if (s === "live") return t("مباشر الآن", "Live Now");
+  if (s === "scheduled") return t("قادم", "Upcoming");
+  if (s === "ended") return t("منتهي", "Ended");
+  return t("ملغي", "Cancelled");
 }
 
 function statusColor(s: string) {
@@ -48,14 +49,14 @@ function statusColor(s: string) {
   return C.textMuted;
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string, lang: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString("ar-LY", { weekday: "long", month: "long", day: "numeric" });
+  return d.toLocaleDateString(lang === "ar" ? "ar-LY" : "en-US", { weekday: "long", month: "long", day: "numeric" });
 }
 
-function formatTime(iso: string) {
+function formatTime(iso: string, lang: string) {
   const d = new Date(iso);
-  return d.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(lang === "ar" ? "ar-LY" : "en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
 function InAppVideoModal({ url, title, visible, onClose }: { url: string; title: string; visible: boolean; onClose: () => void }) {
@@ -91,26 +92,27 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
   const isUpcoming = session.status === "scheduled";
   const canJoin = (isLive || isUpcoming) && !!session.meetingUrl;
   const [reportOpen, setReportOpen] = useState(false);
+  const { t, language } = useLanguage();
 
   return (
     <View style={[styles.card, isLive && styles.cardLive]}>
       {isLive && (
         <View style={styles.livePill}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveText}>مباشر الآن</Text>
+          <Text style={styles.liveText}>{t("مباشر الآن", "Live Now")}</Text>
         </View>
       )}
       <View style={styles.cardHeader}>
         <View style={[styles.statusBadge, { backgroundColor: `${statusColor(session.status)}15` }]}>
           <Text style={[styles.statusText, { color: statusColor(session.status) }]}>
-            {statusLabel(session.status)}
+            {statusLabel(session.status, t)}
           </Text>
         </View>
         <View style={styles.cardHeaderRight}>
           <Pressable onPress={() => setReportOpen(true)} style={{ marginLeft: 8, padding: 4 }}>
             <Feather name="flag" size={14} color={C.textMuted} />
           </Pressable>
-          <Text style={styles.sessionTitle} numberOfLines={2}>{session.titleAr || session.title}</Text>
+          <Text style={styles.sessionTitle} numberOfLines={2}>{t(session.titleAr || session.title, session.title)}</Text>
         </View>
       </View>
 
@@ -124,19 +126,19 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
       <View style={styles.metaGrid}>
         <View style={styles.metaItem}>
           <Feather name="calendar" size={13} color={C.textMuted} />
-          <Text style={styles.metaText}>{formatDate(session.scheduledAt)}</Text>
+          <Text style={styles.metaText}>{formatDate(session.scheduledAt, language)}</Text>
         </View>
         <View style={styles.metaItem}>
           <Feather name="clock" size={13} color={C.textMuted} />
-          <Text style={styles.metaText}>{formatTime(session.scheduledAt)}</Text>
+          <Text style={styles.metaText}>{formatTime(session.scheduledAt, language)}</Text>
         </View>
         <View style={styles.metaItem}>
           <Feather name="activity" size={13} color={C.textMuted} />
-          <Text style={styles.metaText}>{session.durationMinutes} دقيقة</Text>
+          <Text style={styles.metaText}>{session.durationMinutes} {t("دقيقة", "min")}</Text>
         </View>
         <View style={styles.metaItem}>
           <Feather name="users" size={13} color={C.textMuted} />
-          <Text style={styles.metaText}>{session.maxParticipants} مشارك كحد أقصى</Text>
+          <Text style={styles.metaText}>{session.maxParticipants} {t("مشارك كحد أقصى", "max participants")}</Text>
         </View>
       </View>
 
@@ -150,7 +152,7 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
           onPress={() => onJoin(session)}
         >
           <Feather name="video" size={16} color="#fff" />
-          <Text style={styles.joinBtnText}>{isLive ? "انضم الآن — داخل التطبيق" : "حجز مقعد"}</Text>
+          <Text style={styles.joinBtnText}>{isLive ? t("انضم الآن — داخل التطبيق", "Join Now — In App") : t("حجز مقعد", "Reserve a Seat")}</Text>
         </Pressable>
       )}
 
@@ -168,6 +170,7 @@ export default function LiveScreen() {
   const insets = useSafeAreaInsets();
   const { apiFetch } = useApi();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [activeSession, setActiveSession] = useState<LiveSession | null>(null);
 
   const { data: sessions, isLoading } = useQuery<LiveSession[]>({
@@ -186,8 +189,8 @@ export default function LiveScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={styles.headerTitle}>الجلسات المباشرة</Text>
-        <Text style={styles.headerSubtitle}>تعلّم مع معلمك في الوقت الفعلي</Text>
+        <Text style={styles.headerTitle}>{t("الجلسات المباشرة", "Live Sessions")}</Text>
+        <Text style={styles.headerSubtitle}>{t("تعلّم مع معلمك في الوقت الفعلي", "Learn with your teacher in real time")}</Text>
       </View>
 
       {isLoading ? (
@@ -206,8 +209,8 @@ export default function LiveScreen() {
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Feather name="video-off" size={48} color={C.textMuted} />
-              <Text style={styles.emptyTitle}>لا توجد جلسات مباشرة</Text>
-              <Text style={styles.emptySubtitle}>سيتم إضافة جلسات مباشرة قريباً</Text>
+              <Text style={styles.emptyTitle}>{t("لا توجد جلسات مباشرة", "No live sessions")}</Text>
+              <Text style={styles.emptySubtitle}>{t("سيتم إضافة جلسات مباشرة قريباً", "Live sessions will be added soon")}</Text>
             </View>
           )}
         />
@@ -217,7 +220,7 @@ export default function LiveScreen() {
         <InAppVideoModal
           visible
           url={sessionUrl}
-          title={activeSession.titleAr || activeSession.title}
+          title={t(activeSession.titleAr || activeSession.title, activeSession.title)}
           onClose={() => setActiveSession(null)}
         />
       )}

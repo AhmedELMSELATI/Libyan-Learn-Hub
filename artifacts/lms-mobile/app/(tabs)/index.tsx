@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const C = Colors.light;
 
@@ -54,12 +55,13 @@ function StarRow({ rating }: { rating: number }) {
           color={i <= Math.round(rating) ? C.star : C.textMuted}
         />
       ))}
-      <Text style={styles.ratingText}>{rating > 0 ? rating.toFixed(1) : "جديد"}</Text>
+      <Text style={styles.ratingText}>{rating > 0 ? rating.toFixed(1) : "New"}</Text>
     </View>
   );
 }
 
 function CourseCard({ course }: { course: Course }) {
+  const { t } = useLanguage();
   return (
     <Pressable
       style={({ pressed }) => [styles.courseCard, pressed && { opacity: 0.85 }]}
@@ -75,19 +77,19 @@ function CourseCard({ course }: { course: Course }) {
         )}
         <View style={styles.levelBadge}>
           <Text style={styles.levelBadgeText}>
-            {course.level === "beginner" ? "مبتدئ" : course.level === "intermediate" ? "متوسط" : "متقدم"}
+            {course.level === "beginner" ? t("مبتدئ", "Beginner") : course.level === "intermediate" ? t("متوسط", "Intermediate") : t("متقدم", "Advanced")}
           </Text>
         </View>
       </View>
       <View style={styles.courseInfo}>
-        <Text style={styles.courseTitleCard} numberOfLines={2}>{course.titleAr || course.title}</Text>
+        <Text style={styles.courseTitleCard} numberOfLines={2}>{t(course.titleAr || course.title, course.title)}</Text>
         <Text style={styles.courseTeacher}>{course.teacherName}</Text>
         <StarRow rating={course.rating} />
         <View style={styles.courseFooter}>
           <Text style={styles.coursePrice}>
-            {course.price === 0 ? "مجاني" : `${course.price} ${course.currency}`}
+            {course.price === 0 ? t("مجاني", "Free") : `${course.price} ${course.currency}`}
           </Text>
-          <Text style={styles.lessonCount}>{course.lessonCount} درس</Text>
+          <Text style={styles.lessonCount}>{course.lessonCount} {t("درس", "lessons")}</Text>
         </View>
       </View>
     </Pressable>
@@ -95,13 +97,14 @@ function CourseCard({ course }: { course: Course }) {
 }
 
 function CategoryChip({ cat, onPress }: { cat: Category; onPress: () => void }) {
+  const { t } = useLanguage();
   return (
     <Pressable
       style={({ pressed }) => [styles.categoryChip, pressed && { opacity: 0.75 }]}
       onPress={onPress}
     >
       <Text style={styles.categoryIcon}>{cat.icon || "📚"}</Text>
-      <Text style={styles.categoryName}>{cat.nameAr}</Text>
+      <Text style={styles.categoryName}>{t(cat.nameAr, cat.name)}</Text>
       <Text style={styles.categoryCount}>{cat.courseCount}</Text>
     </Pressable>
   );
@@ -111,6 +114,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { apiFetch } = useApi();
+  const { t, language } = useLanguage();
 
   const { data: coursesData, isLoading: loadingCourses } = useQuery({
     queryKey: ["courses-featured"],
@@ -124,9 +128,9 @@ export default function HomeScreen() {
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return "صباح الخير";
-    if (h < 18) return "مساء الخير";
-    return "مساء النور";
+    if (h < 12) return t("صباح الخير", "Good Morning");
+    if (h < 18) return t("مساء الخير", "Good Afternoon");
+    return t("مساء النور", "Good Evening");
   };
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -141,7 +145,7 @@ export default function HomeScreen() {
       <View style={[styles.header, { paddingTop: topPad + 16 }]}>
         <View>
           <Text style={styles.greeting}>{greeting()}</Text>
-          <Text style={styles.userName}>{user?.fullNameAr || user?.fullName || "مرحباً بك"}</Text>
+          <Text style={styles.userName}>{language === "ar" ? (user?.fullNameAr || user?.fullName || "مرحباً بك") : (user?.fullName || "Welcome")}</Text>
         </View>
         <Pressable
           style={styles.searchBtn}
@@ -159,20 +163,20 @@ export default function HomeScreen() {
         style={styles.heroBanner}
       >
         <View style={styles.heroContent}>
-          <Text style={styles.heroTag}>منصة التعلم الليبية</Text>
-          <Text style={styles.heroTitle}>ابدأ رحلة{"\n"}التعلم اليوم</Text>
+          <Text style={styles.heroTag}>{t("منصة التعلم الليبية", "Libyan Learning Platform")}</Text>
+          <Text style={styles.heroTitle}>{t("ابدأ رحلة\nالتعلم اليوم", "Start Your\nLearning Journey")}</Text>
           <Pressable
             style={styles.heroBtn}
             onPress={() => router.push("/courses")}
           >
-            <Text style={styles.heroBtnText}>استكشف الدورات</Text>
-            <Feather name="arrow-left" size={16} color="#fff" />
+            <Text style={styles.heroBtnText}>{t("استكشف الدورات", "Explore Courses")}</Text>
+            <Feather name={language === "ar" ? "arrow-left" : "arrow-right"} size={16} color="#fff" />
           </Pressable>
           <Pressable
             style={[styles.heroBtn, { marginTop: 8, backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" }]}
             onPress={() => router.push("/teachers")}
           >
-            <Text style={styles.heroBtnText}>تصفح المعلمين</Text>
+            <Text style={styles.heroBtnText}>{t("تصفح المعلمين", "Browse Teachers")}</Text>
             <Feather name="users" size={16} color="#fff" />
           </Pressable>
         </View>
@@ -184,9 +188,9 @@ export default function HomeScreen() {
       {/* Categories */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>التخصصات</Text>
+          <Text style={styles.sectionTitle}>{t("التخصصات", "Categories")}</Text>
           <Pressable onPress={() => router.push("/courses")}>
-            <Text style={styles.seeAll}>عرض الكل</Text>
+            <Text style={styles.seeAll}>{t("عرض الكل", "See All")}</Text>
           </Pressable>
         </View>
         {loadingCats ? (
@@ -203,9 +207,9 @@ export default function HomeScreen() {
       {/* Featured Courses */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>دورات مميزة</Text>
+          <Text style={styles.sectionTitle}>{t("دورات مميزة", "Featured Courses")}</Text>
           <Pressable onPress={() => router.push("/courses")}>
-            <Text style={styles.seeAll}>عرض الكل</Text>
+            <Text style={styles.seeAll}>{t("عرض الكل", "See All")}</Text>
           </Pressable>
         </View>
         {loadingCourses ? (
@@ -223,13 +227,13 @@ export default function HomeScreen() {
       {!user && (
         <View style={styles.ctaBox}>
           <Feather name="award" size={32} color={C.tint} />
-          <Text style={styles.ctaTitle}>انضم إلى EduLibya</Text>
-          <Text style={styles.ctaSubtitle}>سجّل مجاناً وابدأ التعلم مع أفضل المعلمين الليبيين</Text>
+          <Text style={styles.ctaTitle}>{t("انضم إلى EduLibya", "Join EduLibya")}</Text>
+          <Text style={styles.ctaSubtitle}>{t("سجّل مجاناً وابدأ التعلم مع أفضل المعلمين الليبيين", "Sign up for free and learn from the best Libyan teachers")}</Text>
           <Pressable style={styles.ctaBtn} onPress={() => router.push("/auth/register")}>
-            <Text style={styles.ctaBtnText}>إنشاء حساب مجاني</Text>
+            <Text style={styles.ctaBtnText}>{t("إنشاء حساب مجاني", "Create Free Account")}</Text>
           </Pressable>
           <Pressable onPress={() => router.push("/auth/login")}>
-            <Text style={styles.ctaLogin}>لدي حساب بالفعل</Text>
+            <Text style={styles.ctaLogin}>{t("لدي حساب بالفعل", "I already have an account")}</Text>
           </Pressable>
         </View>
       )}

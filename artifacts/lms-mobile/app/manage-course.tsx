@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const C = Colors.light;
 
@@ -26,6 +28,7 @@ export default function ManageCourseScreen() {
   const { user } = useAuth();
   const { apiFetch } = useApi();
   const queryClient = useQueryClient();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ id: string }>();
   const courseId = params.id;
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -66,7 +69,7 @@ export default function ManageCourseScreen() {
   // ── Section CRUD ──────────────────────────────────────────────
   const handleAddSection = async () => {
     if (!sectionForm.title || !sectionForm.titleAr) {
-      Alert.alert("خطأ", "يرجى ملء عنوان القسم بالعربي والإنجليزي");
+      Alert.alert(t("خطأ", "Error"), t("يرجى ملء عنوان القسم بالعربي والإنجليزي", "Please fill section title in both Arabic and English"));
       return;
     }
     try {
@@ -74,12 +77,12 @@ export default function ManageCourseScreen() {
         method: "POST",
         body: JSON.stringify({ ...sectionForm, order: sections.length }),
       });
-      Alert.alert("تم!", "تمت إضافة القسم.");
+      Alert.alert(t("تم!", "Done!"), t("تمت إضافة القسم.", "Section added."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setAddSectionOpen(false);
       setSectionForm({ title: "", titleAr: "", description: "", descriptionAr: "" });
     } catch (err: any) {
-      Alert.alert("خطأ", err.message);
+      Alert.alert(t("خطأ", "Error"), err.message);
     }
   };
 
@@ -90,11 +93,11 @@ export default function ManageCourseScreen() {
         method: "PUT",
         body: JSON.stringify({ ...sectionForm, order: editSectionTarget.order }),
       });
-      Alert.alert("تم!", "تم تحديث القسم.");
+      Alert.alert(t("تم!", "Done!"), t("تم تحديث القسم.", "Section updated."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setEditSectionTarget(null);
     } catch (err: any) {
-      Alert.alert("خطأ", err.message);
+      Alert.alert(t("خطأ", "Error"), err.message);
     }
   };
 
@@ -119,7 +122,7 @@ export default function ManageCourseScreen() {
   // ── Lesson CRUD ───────────────────────────────────────────────
   const handleAddLesson = async () => {
     if (!addLessonSectionId || !lessonForm.title || !lessonForm.titleAr) {
-      Alert.alert("خطأ", "يرجى ملء عنوان الدرس");
+      Alert.alert(t("خطأ", "Error"), t("يرجى ملء عنوان الدرس", "Please fill lesson title"));
       return;
     }
     const sectionLessons = sections.find(s => s.id === addLessonSectionId)?.lessons || [];
@@ -133,12 +136,12 @@ export default function ManageCourseScreen() {
           isFree: lessonForm.isFree,
         }),
       });
-      Alert.alert("تم!", "تمت إضافة الدرس.");
+      Alert.alert(t("تم!", "Done!"), t("تمت إضافة الدرس.", "Lesson added."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setAddLessonSectionId(null);
       setLessonForm({ title: "", titleAr: "", videoUrl: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
     } catch (err: any) {
-      Alert.alert("خطأ", err.message);
+      Alert.alert(t("خطأ", "Error"), err.message);
     }
   };
 
@@ -154,11 +157,11 @@ export default function ManageCourseScreen() {
           isFree: lessonForm.isFree,
         }),
       });
-      Alert.alert("تم!", "تم تحديث الدرس.");
+      Alert.alert(t("تم!", "Done!"), t("تم تحديث الدرس.", "Lesson updated."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setEditLessonTarget(null);
     } catch (err: any) {
-      Alert.alert("خطأ", err.message);
+      Alert.alert(t("خطأ", "Error"), err.message);
     }
   };
 
@@ -194,9 +197,9 @@ export default function ManageCourseScreen() {
       });
       queryClient.invalidateQueries({ queryKey: ["course-detail", courseId] });
       queryClient.invalidateQueries({ queryKey: ["teacher-courses"] });
-      Alert.alert("تم!", course.isPublished ? "تم إلغاء نشر الدورة" : "تم نشر الدورة بنجاح!");
+      Alert.alert(t("تم!", "Done!"), course.isPublished ? t("تم إلغاء نشر الدورة", "Course unpublished") : t("تم نشر الدورة بنجاح!", "Course published!"));
     } catch (err: any) {
-      Alert.alert("خطأ", err.message);
+      Alert.alert(t("خطأ", "Error"), err.message);
     }
   };
 
@@ -227,26 +230,26 @@ export default function ManageCourseScreen() {
       <View style={[styles.header, { paddingTop: topPad + 16 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-right" size={20} color={C.text} />
-          <Text style={styles.backText}>رجوع</Text>
+          <Text style={styles.backText}>{t("رجوع", "Back")}</Text>
         </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={2}>{course?.titleAr || course?.title}</Text>
+        <Text style={styles.headerTitle} numberOfLines={2}>{t(course?.titleAr || course?.title, course?.title)}</Text>
         <Text style={styles.headerSubtitle}>{course?.title}</Text>
 
         {/* Course stats */}
         <View style={styles.statsRow}>
           <View style={styles.stat}>
             <Text style={styles.statValue}>{sections.length}</Text>
-            <Text style={styles.statLabel}>أقسام</Text>
+            <Text style={styles.statLabel}>{t("أقسام", "Sections")}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={styles.statValue}>{totalLessons}</Text>
-            <Text style={styles.statLabel}>دروس</Text>
+            <Text style={styles.statLabel}>{t("دروس", "Lessons")}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={styles.statValue}>{enrollCount}</Text>
-            <Text style={styles.statLabel}>طلاب</Text>
+            <Text style={styles.statLabel}>{t("طلاب", "Students")}</Text>
           </View>
         </View>
 
@@ -257,14 +260,14 @@ export default function ManageCourseScreen() {
             onPress={handlePublishToggle}
           >
             <Feather name={course?.isPublished ? "eye-off" : "check-circle"} size={16} color="#fff" />
-            <Text style={styles.primaryBtnText}>{course?.isPublished ? "إلغاء النشر" : "نشر الدورة"}</Text>
+            <Text style={styles.primaryBtnText}>{course?.isPublished ? t("إلغاء النشر", "Unpublish") : t("نشر الدورة", "Publish Course")}</Text>
           </Pressable>
           <Pressable style={styles.outlineBtn} onPress={() => {
             setSectionForm({ title: "", titleAr: "", description: "", descriptionAr: "" });
             setAddSectionOpen(true);
           }}>
             <Feather name="plus" size={16} color={C.tint} />
-            <Text style={[styles.primaryBtnText, { color: C.tint }]}>إضافة قسم</Text>
+            <Text style={[styles.primaryBtnText, { color: C.tint }]}>{t("إضافة قسم", "Add Section")}</Text>
           </Pressable>
         </View>
       </View>
@@ -273,7 +276,7 @@ export default function ManageCourseScreen() {
       {!canDelete && (
         <View style={styles.warningBar}>
           <Feather name="alert-triangle" size={16} color="#92400E" />
-          <Text style={styles.warningText}>يوجد {enrollCount} طالب مسجل — لا يمكن حذف المحتوى</Text>
+          <Text style={styles.warningText}>{t(`يوجد ${enrollCount} طالب مسجل — لا يمكن حذف المحتوى`, `${enrollCount} students enrolled — content cannot be deleted`)}</Text>
         </View>
       )}
 
@@ -281,11 +284,11 @@ export default function ManageCourseScreen() {
       {sections.length === 0 ? (
         <View style={styles.emptyBox}>
           <Feather name="folder" size={48} color={C.textMuted} />
-          <Text style={styles.emptyTitle}>لا توجد أقسام بعد</Text>
-          <Text style={styles.emptySubtitle}>أنشئ أول قسم لتنظيم محتوى دورتك</Text>
+          <Text style={styles.emptyTitle}>{t("لا توجد أقسام بعد", "No sections yet")}</Text>
+          <Text style={styles.emptySubtitle}>{t("أنشئ أول قسم لتنظيم محتوى دورتك", "Create your first section to organize course content")}</Text>
           <Pressable style={[styles.primaryBtn, { marginTop: 12 }]} onPress={() => setAddSectionOpen(true)}>
             <Feather name="plus" size={16} color="#fff" />
-            <Text style={styles.primaryBtnText}>إضافة أول قسم</Text>
+            <Text style={styles.primaryBtnText}>{t("إضافة أول قسم", "Add First Section")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -302,8 +305,8 @@ export default function ManageCourseScreen() {
                     <Text style={styles.sectionNumText}>{sIdx + 1}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.sectionTitle}>{section.titleAr || section.title}</Text>
-                    <Text style={styles.sectionMeta}>{lessons.length} درس</Text>
+                    <Text style={styles.sectionTitle}>{t(section.titleAr || section.title, section.title)}</Text>
+                    <Text style={styles.sectionMeta}>{lessons.length} {t("درس", "lessons")}</Text>
                   </View>
                   <Pressable style={styles.iconBtn} onPress={() => {
                     setEditSectionTarget(section);
@@ -325,7 +328,7 @@ export default function ManageCourseScreen() {
                 {isOpen && (
                   <View style={styles.lessonsList}>
                     {lessons.length === 0 ? (
-                      <Text style={styles.noLessonsText}>لا توجد دروس في هذا القسم</Text>
+                      <Text style={styles.noLessonsText}>{t("لا توجد دروس في هذا القسم", "No lessons in this section")}</Text>
                     ) : (
                       lessons.map((lesson: any, lIdx: number) => (
                         <View key={lesson.id} style={styles.lessonRow}>
@@ -333,8 +336,8 @@ export default function ManageCourseScreen() {
                             <Feather name={lesson.type === "video" ? "play-circle" : "file-text"} size={14} color={C.tint} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.lessonTitle}>{lesson.titleAr || lesson.title}</Text>
-                            {lesson.isFree && <Text style={styles.freeBadge}>مجاني</Text>}
+                            <Text style={styles.lessonTitle}>{t(lesson.titleAr || lesson.title, lesson.title)}</Text>
+                            {lesson.isFree && <Text style={styles.freeBadge}>{t("مجاني", "Free")}</Text>}
                           </View>
                           <Pressable style={styles.iconBtn} onPress={() => {
                             setEditLessonTarget(lesson);
@@ -360,7 +363,7 @@ export default function ManageCourseScreen() {
                       setLessonForm({ title: "", titleAr: "", videoUrl: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
                     }}>
                       <Feather name="plus" size={14} color={C.tint} />
-                      <Text style={styles.addLessonText}>إضافة درس</Text>
+                      <Text style={styles.addLessonText}>{t("إضافة درس", "Add Lesson")}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -372,135 +375,143 @@ export default function ManageCourseScreen() {
 
       {/* ── Add Section Modal ──────────────────────────────────── */}
       <Modal visible={addSectionOpen} transparent animationType="slide" onRequestClose={() => setAddSectionOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>إضافة قسم جديد</Text>
-            <Text style={styles.inputLabel}>عنوان القسم (عربي) *</Text>
-            <TextInput style={styles.input} value={sectionForm.titleAr} onChangeText={v => setSectionForm(f => ({ ...f, titleAr: v }))} placeholder="مثال: المقدمة" textAlign="right" />
-            <Text style={styles.inputLabel}>Section Title (EN) *</Text>
-            <TextInput style={styles.input} value={sectionForm.title} onChangeText={v => setSectionForm(f => ({ ...f, title: v }))} placeholder="e.g. Introduction" />
-            <Text style={styles.inputLabel}>الوصف (اختياري)</Text>
-            <TextInput style={[styles.input, { height: 60 }]} multiline value={sectionForm.descriptionAr} onChangeText={v => setSectionForm(f => ({ ...f, descriptionAr: v }))} placeholder="وصف القسم" textAlign="right" />
-            <View style={styles.modalBtns}>
-              <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleAddSection}>
-                <Text style={styles.primaryBtnText}>إضافة</Text>
-              </Pressable>
-              <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setAddSectionOpen(false)}>
-                <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>إلغاء</Text>
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <ScrollView style={styles.modalBox} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>{t("إضافة قسم جديد", "Add New Section")}</Text>
+              <Text style={styles.inputLabel}>{t("عنوان القسم (عربي) *", "Section Title (AR) *")}</Text>
+              <TextInput style={styles.input} value={sectionForm.titleAr} onChangeText={v => setSectionForm(f => ({ ...f, titleAr: v }))} placeholder={t("مثال: المقدمة", "e.g. Introduction")} textAlign="right" />
+              <Text style={styles.inputLabel}>{t("Section Title (EN) *", "Section Title (EN) *")}</Text>
+              <TextInput style={styles.input} value={sectionForm.title} onChangeText={v => setSectionForm(f => ({ ...f, title: v }))} placeholder="e.g. Introduction" />
+              <Text style={styles.inputLabel}>{t("الوصف (اختياري)", "Description (optional)")}</Text>
+              <TextInput style={[styles.input, { height: 60 }]} multiline value={sectionForm.descriptionAr} onChangeText={v => setSectionForm(f => ({ ...f, descriptionAr: v }))} placeholder={t("وصف القسم", "Section description")} textAlign="right" />
+              <View style={[styles.modalBtns, { marginBottom: 30 }]}>
+                <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleAddSection}>
+                  <Text style={styles.primaryBtnText}>{t("إضافة", "Add")}</Text>
+                </Pressable>
+                <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setAddSectionOpen(false)}>
+                  <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>{t("إلغاء", "Cancel")}</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Edit Section Modal ─────────────────────────────────── */}
       <Modal visible={!!editSectionTarget} transparent animationType="slide" onRequestClose={() => setEditSectionTarget(null)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>تعديل القسم</Text>
-            <Text style={styles.inputLabel}>عنوان القسم (عربي) *</Text>
-            <TextInput style={styles.input} value={sectionForm.titleAr} onChangeText={v => setSectionForm(f => ({ ...f, titleAr: v }))} textAlign="right" />
-            <Text style={styles.inputLabel}>Section Title (EN) *</Text>
-            <TextInput style={styles.input} value={sectionForm.title} onChangeText={v => setSectionForm(f => ({ ...f, title: v }))} />
-            <Text style={styles.inputLabel}>الوصف</Text>
-            <TextInput style={[styles.input, { height: 60 }]} multiline value={sectionForm.descriptionAr} onChangeText={v => setSectionForm(f => ({ ...f, descriptionAr: v }))} textAlign="right" />
-            <View style={styles.modalBtns}>
-              <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleEditSection}>
-                <Text style={styles.primaryBtnText}>حفظ</Text>
-              </Pressable>
-              <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setEditSectionTarget(null)}>
-                <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>إلغاء</Text>
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <ScrollView style={styles.modalBox} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>{t("تعديل القسم", "Edit Section")}</Text>
+              <Text style={styles.inputLabel}>{t("عنوان القسم (عربي) *", "Section Title (AR) *")}</Text>
+              <TextInput style={styles.input} value={sectionForm.titleAr} onChangeText={v => setSectionForm(f => ({ ...f, titleAr: v }))} textAlign="right" />
+              <Text style={styles.inputLabel}>{t("Section Title (EN) *", "Section Title (EN) *")}</Text>
+              <TextInput style={styles.input} value={sectionForm.title} onChangeText={v => setSectionForm(f => ({ ...f, title: v }))} />
+              <Text style={styles.inputLabel}>{t("الوصف", "Description")}</Text>
+              <TextInput style={[styles.input, { height: 60 }]} multiline value={sectionForm.descriptionAr} onChangeText={v => setSectionForm(f => ({ ...f, descriptionAr: v }))} textAlign="right" />
+              <View style={[styles.modalBtns, { marginBottom: 30 }]}>
+                <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleEditSection}>
+                  <Text style={styles.primaryBtnText}>{t("حفظ", "Save")}</Text>
+                </Pressable>
+                <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setEditSectionTarget(null)}>
+                  <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>{t("إلغاء", "Cancel")}</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Add Lesson Modal ───────────────────────────────────── */}
       <Modal visible={!!addLessonSectionId} transparent animationType="slide" onRequestClose={() => setAddLessonSectionId(null)}>
-        <View style={styles.modalOverlay}>
-          <ScrollView style={[styles.modalBox, { maxHeight: "85%" }]} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>إضافة درس جديد</Text>
-            <Text style={styles.inputLabel}>عنوان الدرس (عربي) *</Text>
-            <TextInput style={styles.input} value={lessonForm.titleAr} onChangeText={v => setLessonForm(f => ({ ...f, titleAr: v }))} placeholder="مثال: ما هو الجبر؟" textAlign="right" />
-            <Text style={styles.inputLabel}>Lesson Title (EN) *</Text>
-            <TextInput style={styles.input} value={lessonForm.title} onChangeText={v => setLessonForm(f => ({ ...f, title: v }))} placeholder="e.g. What is Algebra?" />
-            <Text style={styles.inputLabel}>نوع الدرس</Text>
-            <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 10 }}>
-              {(["video", "text"] as const).map(t => (
-                <Pressable
-                  key={t}
-                  style={[styles.typeChip, lessonForm.type === t && styles.typeChipActive]}
-                  onPress={() => setLessonForm(f => ({ ...f, type: t }))}
-                >
-                  <Feather name={t === "video" ? "play-circle" : "file-text"} size={14} color={lessonForm.type === t ? "#fff" : C.textSecondary} />
-                  <Text style={[styles.typeChipText, lessonForm.type === t && { color: "#fff" }]}>{t === "video" ? "فيديو" : "نص"}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={styles.inputLabel}>رابط الفيديو</Text>
-            <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://youtube.com/..." />
-            <Text style={styles.inputLabel}>المحتوى / الملاحظات</Text>
-            <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} placeholder="ملاحظات إضافية..." textAlign="right" />
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>المدة (ثواني)</Text>
-                <TextInput style={styles.input} value={lessonForm.duration} onChangeText={v => setLessonForm(f => ({ ...f, duration: v }))} keyboardType="numeric" placeholder="600" />
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <ScrollView style={[styles.modalBox, { maxHeight: "85%" }]} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>{t("إضافة درس جديد", "Add New Lesson")}</Text>
+              <Text style={styles.inputLabel}>{t("عنوان الدرس (عربي) *", "Lesson Title (AR) *")}</Text>
+              <TextInput style={styles.input} value={lessonForm.titleAr} onChangeText={v => setLessonForm(f => ({ ...f, titleAr: v }))} placeholder={t("مثال: ما هو الجبر؟", "e.g. What is Algebra?")} textAlign="right" />
+              <Text style={styles.inputLabel}>{t("Lesson Title (EN) *", "Lesson Title (EN) *")}</Text>
+              <TextInput style={styles.input} value={lessonForm.title} onChangeText={v => setLessonForm(f => ({ ...f, title: v }))} placeholder="e.g. What is Algebra?" />
+              <Text style={styles.inputLabel}>{t("نوع الدرس", "Lesson Type")}</Text>
+              <View style={{ flexDirection: "row-reverse", gap: 8, marginBottom: 10 }}>
+                {(["video", "text"] as const).map(tp => (
+                  <Pressable
+                    key={tp}
+                    style={[styles.typeChip, lessonForm.type === tp && styles.typeChipActive]}
+                    onPress={() => setLessonForm(f => ({ ...f, type: tp }))}
+                  >
+                    <Feather name={tp === "video" ? "play-circle" : "file-text"} size={14} color={lessonForm.type === tp ? "#fff" : C.textSecondary} />
+                    <Text style={[styles.typeChipText, lessonForm.type === tp && { color: "#fff" }]}>{tp === "video" ? t("فيديو", "Video") : t("نص", "Text")}</Text>
+                  </Pressable>
+                ))}
               </View>
-              <Pressable style={{ flex: 1, justifyContent: "flex-end" }} onPress={() => setLessonForm(f => ({ ...f, isFree: !f.isFree }))}>
-                <View style={[styles.freeToggle, lessonForm.isFree && styles.freeToggleActive]}>
-                  <Feather name={lessonForm.isFree ? "check-square" : "square"} size={16} color={lessonForm.isFree ? C.tint : C.textMuted} />
-                  <Text style={[styles.freeToggleText, lessonForm.isFree && { color: C.tint }]}>معاينة مجانية</Text>
+              <Text style={styles.inputLabel}>{t("رابط الفيديو", "Video URL")}</Text>
+              <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://youtube.com/..." />
+              <Text style={styles.inputLabel}>{t("المحتوى / الملاحظات", "Content / Notes")}</Text>
+              <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} placeholder={t("ملاحظات إضافية...", "Additional notes...")} textAlign="right" />
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>{t("المدة (ثواني)", "Duration (sec)")}</Text>
+                  <TextInput style={styles.input} value={lessonForm.duration} onChangeText={v => setLessonForm(f => ({ ...f, duration: v }))} keyboardType="numeric" placeholder="600" />
                 </View>
-              </Pressable>
-            </View>
-            <View style={[styles.modalBtns, { marginBottom: 24 }]}>
-              <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleAddLesson}>
-                <Text style={styles.primaryBtnText}>إضافة الدرس</Text>
-              </Pressable>
-              <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setAddLessonSectionId(null)}>
-                <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>إلغاء</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
+                <Pressable style={{ flex: 1, justifyContent: "flex-end" }} onPress={() => setLessonForm(f => ({ ...f, isFree: !f.isFree }))}>
+                  <View style={[styles.freeToggle, lessonForm.isFree && styles.freeToggleActive]}>
+                    <Feather name={lessonForm.isFree ? "check-square" : "square"} size={16} color={lessonForm.isFree ? C.tint : C.textMuted} />
+                    <Text style={[styles.freeToggleText, lessonForm.isFree && { color: C.tint }]}>{t("معاينة مجانية", "Free Preview")}</Text>
+                  </View>
+                </Pressable>
+              </View>
+              <View style={[styles.modalBtns, { marginBottom: 30 }]}>
+                <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleAddLesson}>
+                  <Text style={styles.primaryBtnText}>{t("إضافة الدرس", "Add Lesson")}</Text>
+                </Pressable>
+                <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setAddLessonSectionId(null)}>
+                  <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>{t("إلغاء", "Cancel")}</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Edit Lesson Modal ──────────────────────────────────── */}
       <Modal visible={!!editLessonTarget} transparent animationType="slide" onRequestClose={() => setEditLessonTarget(null)}>
-        <View style={styles.modalOverlay}>
-          <ScrollView style={[styles.modalBox, { maxHeight: "85%" }]} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>تعديل الدرس</Text>
-            <Text style={styles.inputLabel}>عنوان الدرس (عربي) *</Text>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <ScrollView style={[styles.modalBox, { maxHeight: "85%" }]} keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalTitle}>{t("تعديل الدرس", "Edit Lesson")}</Text>
+            <Text style={styles.inputLabel}>{t("عنوان الدرس (عربي) *", "Lesson Title (AR) *")}</Text>
             <TextInput style={styles.input} value={lessonForm.titleAr} onChangeText={v => setLessonForm(f => ({ ...f, titleAr: v }))} textAlign="right" />
-            <Text style={styles.inputLabel}>Lesson Title (EN) *</Text>
+            <Text style={styles.inputLabel}>{t("Lesson Title (EN) *", "Lesson Title (EN) *")}</Text>
             <TextInput style={styles.input} value={lessonForm.title} onChangeText={v => setLessonForm(f => ({ ...f, title: v }))} />
-            <Text style={styles.inputLabel}>رابط الفيديو</Text>
+            <Text style={styles.inputLabel}>{t("رابط الفيديو", "Video URL")}</Text>
             <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} />
-            <Text style={styles.inputLabel}>المحتوى / الملاحظات</Text>
+            <Text style={styles.inputLabel}>{t("المحتوى / الملاحظات", "Content / Notes")}</Text>
             <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} textAlign="right" />
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>المدة (ثواني)</Text>
+                <Text style={styles.inputLabel}>{t("المدة (ثواني)", "Duration (sec)")}</Text>
                 <TextInput style={styles.input} value={lessonForm.duration} onChangeText={v => setLessonForm(f => ({ ...f, duration: v }))} keyboardType="numeric" />
               </View>
               <Pressable style={{ flex: 1, justifyContent: "flex-end" }} onPress={() => setLessonForm(f => ({ ...f, isFree: !f.isFree }))}>
                 <View style={[styles.freeToggle, lessonForm.isFree && styles.freeToggleActive]}>
                   <Feather name={lessonForm.isFree ? "check-square" : "square"} size={16} color={lessonForm.isFree ? C.tint : C.textMuted} />
-                  <Text style={[styles.freeToggleText, lessonForm.isFree && { color: C.tint }]}>معاينة مجانية</Text>
+                  <Text style={[styles.freeToggleText, lessonForm.isFree && { color: C.tint }]}>{t("معاينة مجانية", "Free Preview")}</Text>
                 </View>
               </Pressable>
             </View>
-            <View style={[styles.modalBtns, { marginBottom: 24 }]}>
+            <View style={[styles.modalBtns, { marginBottom: 30 }]}>
               <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleEditLesson}>
-                <Text style={styles.primaryBtnText}>حفظ التعديلات</Text>
+                <Text style={styles.primaryBtnText}>{t("حفظ التعديلات", "Save Changes")}</Text>
               </Pressable>
               <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setEditLessonTarget(null)}>
-                <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>إلغاء</Text>
+                <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>{t("إلغاء", "Cancel")}</Text>
               </Pressable>
             </View>
-          </ScrollView>
-        </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );

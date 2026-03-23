@@ -6,6 +6,7 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -14,6 +15,7 @@ export default function TabLayout() {
   const isWeb = Platform.OS === "web";
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
 
@@ -52,14 +54,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "الرئيسية",
+          title: t("الرئيسية", "Home"),
           tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="courses"
         options={{
-          title: "الدورات",
+          title: t("الدورات", "Courses"),
           tabBarIcon: ({ color }) => <Feather name="book-open" size={22} color={color} />,
         }}
       />
@@ -68,7 +70,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="my-learning"
         options={{
-          title: isTeacher ? "تدريسي" : "تعلمي",
+          title: isTeacher ? t("تدريسي", "Teaching") : t("تعلمي", "My Learning"),
           tabBarIcon: ({ color }) =>
             isTeacher
               ? <Feather name="briefcase" size={22} color={color} />
@@ -79,7 +81,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="tutoring"
         options={{
-          title: "خصوصي",
+          title: t("خصوصي", "Tutoring"),
           tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
         }}
       />
@@ -87,7 +89,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="live"
         options={{
-          title: "مباشر",
+          title: t("مباشر", "Live"),
           tabBarIcon: ({ color }) => <Feather name="video" size={22} color={color} />,
         }}
       />
@@ -95,10 +97,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "حسابي",
+          title: t("حسابي", "Profile"),
           tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} />,
         }}
       />
     </Tabs>
   );
 }
+

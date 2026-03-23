@@ -12,6 +12,7 @@ router.get("/", async (_req, res) => {
 
     // Auto-seed default categories if the table is empty
     if (cats.length === 0) {
+      console.log("Categories table is empty, auto-seeding...");
       const defaults = [
         { name: "Mathematics",       nameAr: "الرياضيات",          icon: "📐" },
         { name: "Sciences",          nameAr: "العلوم",              icon: "🔬" },
@@ -24,9 +25,13 @@ router.get("/", async (_req, res) => {
         { name: "Computer Science",  nameAr: "علوم الحاسوب",        icon: "💻" },
         { name: "Islamic Studies",   nameAr: "الدراسات الإسلامية",  icon: "🌙" },
       ];
-      await db.insert(categoriesTable).values(defaults).onConflictDoNothing();
-      cats = await db.select().from(categoriesTable);
-      console.log("Auto-seeded default categories");
+      try {
+        await db.insert(categoriesTable).values(defaults);
+        cats = await db.select().from(categoriesTable);
+        console.log(`Auto-seeded ${cats.length} default categories`);
+      } catch (seedErr: any) {
+        console.error("Failed to auto-seed categories:", seedErr.message);
+      }
     }
 
     const result = await Promise.all(
