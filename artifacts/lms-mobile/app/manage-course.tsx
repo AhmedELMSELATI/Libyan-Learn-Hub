@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as DocumentPicker from "expo-document-picker";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
@@ -41,7 +42,13 @@ export default function ManageCourseScreen() {
 
   // Forms
   const [sectionForm, setSectionForm] = useState({ title: "", titleAr: "", description: "", descriptionAr: "" });
-  const [lessonForm, setLessonForm] = useState({ title: "", titleAr: "", videoUrl: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+  const [lessonForm, setLessonForm] = useState({ title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+
+  // File upload state
+  const [videoFile, setVideoFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [documentFile, setDocumentFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
 
   // Expanded
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -119,6 +126,64 @@ export default function ManageCourseScreen() {
     ]);
   };
 
+  // ── File Pickers ──────────────────────────────────────────────
+  const pickVideo = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["video/mp4", "video/webm", "video/quicktime"],
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        setVideoFile(result.assets[0]);
+      }
+    } catch (err: any) {
+      Alert.alert(t("خطأ", "Error"), err.message);
+    }
+  };
+
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ],
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        setDocumentFile(result.assets[0]);
+      }
+    } catch (err: any) {
+      Alert.alert(t("خطأ", "Error"), err.message);
+    }
+  };
+
+  const uploadFile = async (file: DocumentPicker.DocumentPickerAsset, type: "video" | "document"): Promise<any> => {
+    const formData = new FormData();
+    formData.append(type, {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || (type === "video" ? "video/mp4" : "application/pdf"),
+    } as any);
+
+    const res = await fetch(`${apiBase}/upload/${type}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Upload failed" }));
+      throw new Error(err.error || "Upload failed");
+    }
+    return res.json();
+  };
+
+  const { token: authToken, apiBase } = useAuth();
+
   // ── Lesson CRUD ───────────────────────────────────────────────
   const handleAddLesson = async () => {
     if (!addLessonSectionId || !lessonForm.title || !lessonForm.titleAr) {
@@ -127,11 +192,37 @@ export default function ManageCourseScreen() {
     }
     const sectionLessons = sections.find(s => s.id === addLessonSectionId)?.lessons || [];
     try {
+      setUploading(true);
+      let videoFilePath = lessonForm.videoFilePath;
+      let documentFilePath = lessonForm.documentFilePath;
+      let documentFileName = lessonForm.documentFileName;
+      let duration = parseInt(lessonForm.duration) || 0;
+
+      // Upload video if selected
+      if (videoFile) {
+        setUploadProgress(t("جاري رفع الفيديو...", "Uploading video..."));
+        const result = await uploadFile(videoFile, "video");
+        videoFilePath = result.url;
+        if (result.duration) duration = result.duration;
+      }
+
+      // Upload document if selected
+      if (documentFile) {
+        setUploadProgress(t("جاري رفع المستند...", "Uploading document..."));
+        const result = await uploadFile(documentFile, "document");
+        documentFilePath = result.url;
+        documentFileName = result.fileName;
+      }
+
+      setUploadProgress(t("جاري حفظ الدرس...", "Saving lesson..."));
       await apiFetch(`/courses/${courseId}/sections/${addLessonSectionId}/lessons`, {
         method: "POST",
         body: JSON.stringify({
           ...lessonForm,
-          duration: parseInt(lessonForm.duration) || 0,
+          videoFilePath,
+          documentFilePath,
+          documentFileName,
+          duration,
           order: sectionLessons.length,
           isFree: lessonForm.isFree,
         }),
@@ -139,20 +230,49 @@ export default function ManageCourseScreen() {
       Alert.alert(t("تم!", "Done!"), t("تمت إضافة الدرس.", "Lesson added."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setAddLessonSectionId(null);
-      setLessonForm({ title: "", titleAr: "", videoUrl: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+      setLessonForm({ title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+      setVideoFile(null);
+      setDocumentFile(null);
     } catch (err: any) {
       Alert.alert(t("خطأ", "Error"), err.message);
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
     }
   };
 
   const handleEditLesson = async () => {
     if (!editLessonTarget) return;
     try {
+      setUploading(true);
+      let videoFilePath = lessonForm.videoFilePath;
+      let documentFilePath = lessonForm.documentFilePath;
+      let documentFileName = lessonForm.documentFileName;
+      let duration = parseInt(lessonForm.duration) || 0;
+
+      if (videoFile) {
+        setUploadProgress(t("جاري رفع الفيديو...", "Uploading video..."));
+        const result = await uploadFile(videoFile, "video");
+        videoFilePath = result.url;
+        if (result.duration) duration = result.duration;
+      }
+
+      if (documentFile) {
+        setUploadProgress(t("جاري رفع المستند...", "Uploading document..."));
+        const result = await uploadFile(documentFile, "document");
+        documentFilePath = result.url;
+        documentFileName = result.fileName;
+      }
+
+      setUploadProgress(t("جاري حفظ التعديلات...", "Saving changes..."));
       await apiFetch(`/courses/${courseId}/lessons/${editLessonTarget.id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...lessonForm,
-          duration: parseInt(lessonForm.duration) || 0,
+          videoFilePath,
+          documentFilePath,
+          documentFileName,
+          duration,
           order: editLessonTarget.order,
           isFree: lessonForm.isFree,
         }),
@@ -160,8 +280,13 @@ export default function ManageCourseScreen() {
       Alert.alert(t("تم!", "Done!"), t("تم تحديث الدرس.", "Lesson updated."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setEditLessonTarget(null);
+      setVideoFile(null);
+      setDocumentFile(null);
     } catch (err: any) {
       Alert.alert(t("خطأ", "Error"), err.message);
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
     }
   };
 
@@ -343,10 +468,14 @@ export default function ManageCourseScreen() {
                             setEditLessonTarget(lesson);
                             setLessonForm({
                               title: lesson.title || "", titleAr: lesson.titleAr || "",
-                              videoUrl: lesson.videoUrl || "", content: lesson.content || "",
+                              videoUrl: lesson.videoUrl || "", videoFilePath: lesson.videoFilePath || "",
+                              documentFilePath: lesson.documentFilePath || "", documentFileName: lesson.documentFileName || "",
+                              content: lesson.content || "",
                               contentAr: lesson.contentAr || "", duration: (lesson.duration || 0).toString(),
                               isFree: lesson.isFree, type: lesson.type || "video",
                             });
+                            setVideoFile(null);
+                            setDocumentFile(null);
                           }}>
                             <Feather name="edit-2" size={12} color={C.textMuted} />
                           </Pressable>
@@ -360,7 +489,9 @@ export default function ManageCourseScreen() {
                     )}
                     <Pressable style={styles.addLessonBtn} onPress={() => {
                       setAddLessonSectionId(section.id);
-                      setLessonForm({ title: "", titleAr: "", videoUrl: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+                      setLessonForm({ title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+                      setVideoFile(null);
+                      setDocumentFile(null);
                     }}>
                       <Feather name="plus" size={14} color={C.tint} />
                       <Text style={styles.addLessonText}>{t("إضافة درس", "Add Lesson")}</Text>
@@ -446,8 +577,47 @@ export default function ManageCourseScreen() {
                   </Pressable>
                 ))}
               </View>
-              <Text style={styles.inputLabel}>{t("رابط الفيديو", "Video URL")}</Text>
-              <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://youtube.com/..." />
+
+              {/* Video Upload Section */}
+              {lessonForm.type === "video" && (
+                <>
+                  <Text style={styles.inputLabel}>{t("رفع فيديو (HD أو أعلى)", "Upload Video (HD or higher)")}</Text>
+                  <Pressable style={styles.uploadBtn} onPress={pickVideo}>
+                    <Feather name="upload" size={18} color={C.tint} />
+                    <Text style={styles.uploadBtnText}>
+                      {videoFile ? videoFile.name : (lessonForm.videoFilePath ? t("✓ فيديو مرفوع - اضغط للتغيير", "✓ Video uploaded - tap to change") : t("اختر ملف فيديو", "Pick Video File"))}
+                    </Text>
+                  </Pressable>
+                  {videoFile && (
+                    <Text style={styles.fileInfo}>
+                      {(videoFile.size ? (videoFile.size / (1024 * 1024)).toFixed(1) : "?")} MB
+                    </Text>
+                  )}
+                </>
+              )}
+
+              {/* Document Upload Section */}
+              {lessonForm.type === "text" && (
+                <>
+                  <Text style={styles.inputLabel}>{t("رفع مستند (PDF / Word)", "Upload Document (PDF / Word)")}</Text>
+                  <Pressable style={styles.uploadBtn} onPress={pickDocument}>
+                    <Feather name="paperclip" size={18} color={C.tint} />
+                    <Text style={styles.uploadBtnText}>
+                      {documentFile ? documentFile.name : (lessonForm.documentFileName ? `✓ ${lessonForm.documentFileName}` : t("اختر مستند", "Pick Document"))}
+                    </Text>
+                  </Pressable>
+                  {documentFile && (
+                    <Text style={styles.fileInfo}>
+                      {(documentFile.size ? (documentFile.size / (1024 * 1024)).toFixed(1) : "?")} MB
+                    </Text>
+                  )}
+                </>
+              )}
+
+              <Text style={styles.inputLabel}>{t("رابط مرجعي (اختياري)", "Reference Link (optional)")}</Text>
+              <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://example.com/..." />
+              <Text style={[styles.fileInfo, { marginBottom: 6 }]}>{t("رابط خارجي لمعلومات إضافية", "External link for additional info")}</Text>
+
               <Text style={styles.inputLabel}>{t("المحتوى / الملاحظات", "Content / Notes")}</Text>
               <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} placeholder={t("ملاحظات إضافية...", "Additional notes...")} textAlign="right" />
               <View style={{ flexDirection: "row", gap: 10 }}>
@@ -462,11 +632,20 @@ export default function ManageCourseScreen() {
                   </View>
                 </Pressable>
               </View>
+
+              {/* Upload progress */}
+              {uploading && (
+                <View style={styles.uploadingBar}>
+                  <ActivityIndicator size="small" color={C.tint} />
+                  <Text style={styles.uploadingText}>{uploadProgress}</Text>
+                </View>
+              )}
+
               <View style={[styles.modalBtns, { marginBottom: 30 }]}>
-                <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleAddLesson}>
-                  <Text style={styles.primaryBtnText}>{t("إضافة الدرس", "Add Lesson")}</Text>
+                <Pressable style={[styles.primaryBtn, { flex: 1, opacity: uploading ? 0.6 : 1 }]} onPress={handleAddLesson} disabled={uploading}>
+                  <Text style={styles.primaryBtnText}>{uploading ? t("جاري الرفع...", "Uploading...") : t("إضافة الدرس", "Add Lesson")}</Text>
                 </Pressable>
-                <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setAddLessonSectionId(null)}>
+                <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setAddLessonSectionId(null)} disabled={uploading}>
                   <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>{t("إلغاء", "Cancel")}</Text>
                 </Pressable>
               </View>
@@ -485,8 +664,42 @@ export default function ManageCourseScreen() {
             <TextInput style={styles.input} value={lessonForm.titleAr} onChangeText={v => setLessonForm(f => ({ ...f, titleAr: v }))} textAlign="right" />
             <Text style={styles.inputLabel}>{t("Lesson Title (EN) *", "Lesson Title (EN) *")}</Text>
             <TextInput style={styles.input} value={lessonForm.title} onChangeText={v => setLessonForm(f => ({ ...f, title: v }))} />
-            <Text style={styles.inputLabel}>{t("رابط الفيديو", "Video URL")}</Text>
-            <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} />
+            {/* Video Upload Section */}
+            {lessonForm.type === "video" && (
+              <>
+                <Text style={styles.inputLabel}>{t("رفع فيديو (HD أو أعلى)", "Upload Video (HD or higher)")}</Text>
+                <Pressable style={styles.uploadBtn} onPress={pickVideo}>
+                  <Feather name="upload" size={18} color={C.tint} />
+                  <Text style={styles.uploadBtnText}>
+                    {videoFile ? videoFile.name : (lessonForm.videoFilePath ? t("✓ فيديو مرفوع - اضغط للتغيير", "✓ Video uploaded - tap to change") : t("اختر ملف فيديو", "Pick Video File"))}
+                  </Text>
+                </Pressable>
+                {videoFile && (
+                  <Text style={styles.fileInfo}>{(videoFile.size ? (videoFile.size / (1024 * 1024)).toFixed(1) : "?")} MB</Text>
+                )}
+              </>
+            )}
+
+            {/* Document Upload Section */}
+            {lessonForm.type === "text" && (
+              <>
+                <Text style={styles.inputLabel}>{t("رفع مستند (PDF / Word)", "Upload Document (PDF / Word)")}</Text>
+                <Pressable style={styles.uploadBtn} onPress={pickDocument}>
+                  <Feather name="paperclip" size={18} color={C.tint} />
+                  <Text style={styles.uploadBtnText}>
+                    {documentFile ? documentFile.name : (lessonForm.documentFileName ? `✓ ${lessonForm.documentFileName}` : t("اختر مستند", "Pick Document"))}
+                  </Text>
+                </Pressable>
+                {documentFile && (
+                  <Text style={styles.fileInfo}>{(documentFile.size ? (documentFile.size / (1024 * 1024)).toFixed(1) : "?")} MB</Text>
+                )}
+              </>
+            )}
+
+            <Text style={styles.inputLabel}>{t("رابط مرجعي (اختياري)", "Reference Link (optional)")}</Text>
+            <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://example.com/..." />
+            <Text style={[styles.fileInfo, { marginBottom: 6 }]}>{t("رابط خارجي لمعلومات إضافية", "External link for additional info")}</Text>
+
             <Text style={styles.inputLabel}>{t("المحتوى / الملاحظات", "Content / Notes")}</Text>
             <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} textAlign="right" />
             <View style={{ flexDirection: "row", gap: 10 }}>
@@ -501,11 +714,19 @@ export default function ManageCourseScreen() {
                 </View>
               </Pressable>
             </View>
+
+            {uploading && (
+              <View style={styles.uploadingBar}>
+                <ActivityIndicator size="small" color={C.tint} />
+                <Text style={styles.uploadingText}>{uploadProgress}</Text>
+              </View>
+            )}
+
             <View style={[styles.modalBtns, { marginBottom: 30 }]}>
-              <Pressable style={[styles.primaryBtn, { flex: 1 }]} onPress={handleEditLesson}>
-                <Text style={styles.primaryBtnText}>{t("حفظ التعديلات", "Save Changes")}</Text>
+              <Pressable style={[styles.primaryBtn, { flex: 1, opacity: uploading ? 0.6 : 1 }]} onPress={handleEditLesson} disabled={uploading}>
+                <Text style={styles.primaryBtnText}>{uploading ? t("جاري الرفع...", "Uploading...") : t("حفظ التعديلات", "Save Changes")}</Text>
               </Pressable>
-              <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setEditLessonTarget(null)}>
+              <Pressable style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setEditLessonTarget(null)} disabled={uploading}>
                 <Text style={[styles.primaryBtnText, { color: C.textSecondary }]}>{t("إلغاء", "Cancel")}</Text>
               </Pressable>
             </View>
@@ -564,4 +785,9 @@ const styles = StyleSheet.create({
   freeToggle: { flexDirection: "row-reverse", alignItems: "center", gap: 6, padding: 12, borderRadius: 12, backgroundColor: C.pill },
   freeToggleActive: { backgroundColor: `${C.tint}10` },
   freeToggleText: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.textMuted },
+  uploadBtn: { flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: `${C.tint}12`, borderRadius: 12, paddingVertical: 14, borderWidth: 1.5, borderColor: C.tint, borderStyle: "dashed", marginBottom: 4 },
+  uploadBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.tint },
+  fileInfo: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right", marginBottom: 2 },
+  uploadingBar: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: `${C.tint}10`, borderRadius: 12, padding: 12, marginTop: 8 },
+  uploadingText: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.tint },
 });

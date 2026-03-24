@@ -174,10 +174,10 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
   try {
     const courseId = parseInt(req.params.courseId);
     const sectionId = parseInt(req.params.sectionId);
-    const { title, titleAr, videoUrl, content, contentAr, notes, notesAr, duration, order, isFree, type } = req.body;
+    const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, notes, notesAr, duration, order, isFree, type } = req.body;
     const [lesson] = await db
       .insert(lessonsTable)
-      .values({ courseId, sectionId, title, titleAr, videoUrl, content, contentAr, notes, notesAr, duration: duration || 0, order: order || 0, isFree: isFree || false, type: type || "video" })
+      .values({ courseId, sectionId, title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, notes, notesAr, duration: duration || 0, order: order || 0, isFree: isFree || false, type: type || "video" })
       .returning();
     res.status(201).json(lesson);
   } catch (err: any) {

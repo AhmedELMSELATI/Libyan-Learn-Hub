@@ -3,8 +3,8 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useParams } from 'wouter';
 import {
-  Plus, Edit, Trash2, ArrowLeft, Video, FileText,
-  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers
+  Plus, Edit, Trash2, ArrowLeft, Video, FileText, Upload,
+  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,6 +35,12 @@ export default function ManageCourse() {
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [deletingSection, setDeletingSection] = useState<any>(null);
   const [deletingLesson, setDeletingLesson] = useState<any>(null);
+
+  // File upload state
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   // Expanded sections
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -125,44 +131,116 @@ export default function ManageCourse() {
   // ── Lesson Form ─────────────────────────────────────────────────
   const lessonForm = useForm({
     defaultValues: {
-      title: '', titleAr: '', videoUrl: '', content: '', contentAr: '',
-      duration: 0, isFree: false, type: 'video'
+      title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '',
+      content: '', contentAr: '', duration: 0, isFree: false, type: 'video'
     }
   });
+
+  const uploadFileToServer = async (file: File, type: 'video' | 'document'): Promise<any> => {
+    const formData = new FormData();
+    formData.append(type, file);
+    const token = localStorage.getItem('lms_token');
+    const res = await fetch(`/api/upload/${type}`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(err.error || 'Upload failed');
+    }
+    return res.json();
+  };
 
   const handleAddLesson = async (data: any) => {
     if (!isAddLessonOpen) return;
     const sectionId = isAddLessonOpen;
     const sectionLessons = sections.find(s => s.id === sectionId)?.lessons || [];
     try {
+      setUploading(true);
+      let videoFilePath = data.videoFilePath || '';
+      let documentFilePath = data.documentFilePath || '';
+      let documentFileName = data.documentFileName || '';
+      let duration = parseInt(data.duration) || 0;
+
+      if (videoFile) {
+        setUploadProgress('Uploading video...');
+        const result = await uploadFileToServer(videoFile, 'video');
+        videoFilePath = result.url;
+        if (result.duration) duration = result.duration;
+      }
+      if (documentFile) {
+        setUploadProgress('Uploading document...');
+        const result = await uploadFileToServer(documentFile, 'document');
+        documentFilePath = result.url;
+        documentFileName = result.fileName;
+      }
+
+      setUploadProgress('Saving...');
       await api.post(`/courses/${courseId}/sections/${sectionId}/lessons`, {
         ...data,
-        duration: parseInt(data.duration) || 0,
+        videoFilePath,
+        documentFilePath,
+        documentFileName,
+        duration,
         order: sectionLessons.length,
         isFree: data.isFree === true || data.isFree === 'true',
       });
       toast({ title: 'Lesson added!' });
       setIsAddLessonOpen(null);
       lessonForm.reset();
+      setVideoFile(null);
+      setDocumentFile(null);
       loadData();
     } catch (err: any) {
       toast({ title: 'Error adding lesson', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      setUploadProgress('');
     }
   };
 
   const handleUpdateLesson = async (data: any) => {
     if (!editingLesson) return;
     try {
+      setUploading(true);
+      let videoFilePath = data.videoFilePath || '';
+      let documentFilePath = data.documentFilePath || '';
+      let documentFileName = data.documentFileName || '';
+      let duration = parseInt(data.duration) || 0;
+
+      if (videoFile) {
+        setUploadProgress('Uploading video...');
+        const result = await uploadFileToServer(videoFile, 'video');
+        videoFilePath = result.url;
+        if (result.duration) duration = result.duration;
+      }
+      if (documentFile) {
+        setUploadProgress('Uploading document...');
+        const result = await uploadFileToServer(documentFile, 'document');
+        documentFilePath = result.url;
+        documentFileName = result.fileName;
+      }
+
+      setUploadProgress('Saving...');
       await api.put(`/courses/${courseId}/lessons/${editingLesson.id}`, {
         ...data,
-        duration: parseInt(data.duration) || 0,
+        videoFilePath,
+        documentFilePath,
+        documentFileName,
+        duration,
         isFree: data.isFree === true || data.isFree === 'true',
       });
       toast({ title: 'Lesson updated!' });
       setEditingLesson(null);
+      setVideoFile(null);
+      setDocumentFile(null);
       loadData();
     } catch (err: any) {
       toast({ title: 'Error updating lesson', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      setUploadProgress('');
     }
   };
 
@@ -181,10 +259,14 @@ export default function ManageCourse() {
     setEditingLesson(lesson);
     lessonForm.reset({
       title: lesson.title, titleAr: lesson.titleAr,
-      videoUrl: lesson.videoUrl || '', content: lesson.content || '',
+      videoUrl: lesson.videoUrl || '', videoFilePath: lesson.videoFilePath || '',
+      documentFilePath: lesson.documentFilePath || '', documentFileName: lesson.documentFileName || '',
+      content: lesson.content || '',
       contentAr: lesson.contentAr || '', duration: lesson.duration,
       isFree: lesson.isFree, type: lesson.type || 'video',
     });
+    setVideoFile(null);
+    setDocumentFile(null);
   };
 
   const handleToggleFree = async (lesson: any) => {
@@ -252,7 +334,11 @@ export default function ManageCourse() {
   );
 
   // ── Lesson Form UI ──────────────────────────────────────────────
-  const LessonFormUI = ({ onSubmit, submitLabel }: { onSubmit: (d: any) => void; submitLabel: string }) => (
+  const LessonFormUI = ({ onSubmit, submitLabel }: { onSubmit: (d: any) => void; submitLabel: string }) => {
+    const watchType = lessonForm.watch('type');
+    const watchVideoFilePath = lessonForm.watch('videoFilePath');
+    const watchDocFileName = lessonForm.watch('documentFileName');
+    return (
     <form onSubmit={lessonForm.handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -271,10 +357,69 @@ export default function ManageCourse() {
           <option value="text">📄 Text / Article</option>
         </select>
       </div>
+
+      {/* Video Upload */}
+      {watchType === 'video' && (
+        <div>
+          <label className="text-sm font-medium mb-1 block">Upload Video (HD resolution or higher)</label>
+          <div
+            className="border-2 border-dashed border-primary/40 rounded-xl p-4 text-center cursor-pointer hover:border-primary/70 hover:bg-primary/5 transition-colors"
+            onClick={() => document.getElementById('video-upload-input')?.click()}
+          >
+            <Upload className="w-8 h-8 text-primary/50 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {videoFile
+                ? `${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(1)} MB)`
+                : watchVideoFilePath
+                  ? '✓ Video uploaded — click to replace'
+                  : 'Click to select video (MP4, WebM, MOV — max 100MB)'}
+            </p>
+          </div>
+          <input
+            id="video-upload-input"
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            className="hidden"
+            onChange={e => {
+              if (e.target.files?.[0]) setVideoFile(e.target.files[0]);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Document Upload */}
+      {watchType === 'text' && (
+        <div>
+          <label className="text-sm font-medium mb-1 block">Upload Document (PDF / Word)</label>
+          <div
+            className="border-2 border-dashed border-primary/40 rounded-xl p-4 text-center cursor-pointer hover:border-primary/70 hover:bg-primary/5 transition-colors"
+            onClick={() => document.getElementById('doc-upload-input')?.click()}
+          >
+            <Paperclip className="w-8 h-8 text-primary/50 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {documentFile
+                ? `${documentFile.name} (${(documentFile.size / (1024 * 1024)).toFixed(1)} MB)`
+                : watchDocFileName
+                  ? `✓ ${watchDocFileName}`
+                  : 'Click to select document (PDF, DOC, DOCX — max 20MB)'}
+            </p>
+          </div>
+          <input
+            id="doc-upload-input"
+            type="file"
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={e => {
+              if (e.target.files?.[0]) setDocumentFile(e.target.files[0]);
+            }}
+          />
+        </div>
+      )}
+
       <div>
-        <label className="text-sm font-medium mb-1 block">Video URL</label>
-        <Input {...lessonForm.register('videoUrl')} type="url" placeholder="https://youtube.com/watch?v=..." />
-        <p className="text-xs text-muted-foreground mt-1">YouTube, Vimeo, or direct video URL</p>
+        <label className="text-sm font-medium mb-1 block">Reference Link (optional)</label>
+        <Input {...lessonForm.register('videoUrl')} type="url" placeholder="https://example.com/..." />
+        <p className="text-xs text-muted-foreground mt-1">External link for additional info or references</p>
       </div>
       <div>
         <label className="text-sm font-medium mb-1 block">Content / Notes (EN)</label>
@@ -297,9 +442,20 @@ export default function ManageCourse() {
           <p className="text-xs text-muted-foreground mt-1">Students can watch without enrolling</p>
         </div>
       </div>
-      <Button type="submit" className="w-full bg-primary hover:bg-primary/90">{submitLabel}</Button>
+
+      {uploading && (
+        <div className="flex items-center gap-3 bg-primary/10 rounded-xl p-3">
+          <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full" />
+          <span className="text-sm font-medium text-primary">{uploadProgress}</span>
+        </div>
+      )}
+
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={uploading}>
+        {uploading ? uploadProgress : submitLabel}
+      </Button>
     </form>
   );
+  };
 
   return (
     <PageContainer>
@@ -446,7 +602,9 @@ export default function ManageCourse() {
                         className="gap-2 mt-4 w-full border-dashed"
                         onClick={() => {
                           setIsAddLessonOpen(section.id);
-                          lessonForm.reset({ title: '', titleAr: '', videoUrl: '', content: '', contentAr: '', duration: 0, isFree: false, type: 'video' });
+                          lessonForm.reset({ title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '', content: '', contentAr: '', duration: 0, isFree: false, type: 'video' });
+                        setVideoFile(null);
+                        setDocumentFile(null);
                         }}
                       >
                         <Plus className="w-3.5 h-3.5" /> Add Lesson to "{section.title}"

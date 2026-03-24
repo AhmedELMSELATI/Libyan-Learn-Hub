@@ -1,0 +1,166 @@
+import { Router } from "express";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { requireAuth, requireRole } from "../lib/auth.js";
+import { Readable } from "stream";
+
+const router = Router();
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer memory storage (files go straight to Cloudinary, not disk)
+const storage = multer.memoryStorage();
+
+const videoUpload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video files (MP4, WebM, MOV, AVI) are allowed"));
+    }
+  },
+});
+
+const documentUpload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF and Word documents are allowed"));
+    }
+  },
+});
+
+// Helper: upload buffer to Cloudinary
+function uploadToCloudinary(
+  buffer: Buffer,
+  options: Record<string, any>
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+    Readable.from(buffer).pipe(stream);
+  });
+}
+
+// ── Upload Video ─────────────────────────────────────────────────
+router.post(
+  "/video",
+  requireAuth,
+  requireRole("teacher", "admin"),
+  videoUpload.single("video"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No video file provided" });
+        return;
+      }
+
+      const result = await uploadToCloudinary(req.file.buffer, {
+        resource_type: "video",
+        folder: "libyan-learn-hub/videos",
+        transformation: [{ quality: "auto" }],
+      });
+
+      // Check resolution (Cloudinary returns width/height)
+      if (result.width && result.height) {
+        if (result.width < 1280 || result.height < 720) {
+          // Delete the uploaded file since it doesn't meet resolution requirements
+          await cloudinary.uploader.destroy(result.public_id, { resource_type: "video" });
+          res.status(400).json({
+            error: "Video resolution must be at least HD (1280×720)",
+            actualWidth: result.width,
+            actualHeight: result.height,
+          });
+          return;
+        }
+      }
+
+      res.json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        duration: Math.round(result.duration || 0),
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        size: result.bytes,
+      });
+    } catch (err: any) {
+      console.error("Video upload error:", err);
+      res.status(500).json({ error: "Failed to upload video", message: err.message });
+    }
+  }
+);
+
+// ── Upload Document ──────────────────────────────────────────────
+router.post(
+  "/document",
+  requireAuth,
+  requireRole("teacher", "admin"),
+  documentUpload.single("document"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No document file provided" });
+        return;
+      }
+
+      const result = await uploadToCloudinary(req.file.buffer, {
+        resource_type: "raw",
+        folder: "libyan-learn-hub/documents",
+      });
+
+      res.json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        fileName: req.file.originalname,
+        size: result.bytes,
+        format: result.format,
+      });
+    } catch (err: any) {
+      console.error("Document upload error:", err);
+      res.status(500).json({ error: "Failed to upload document", message: err.message });
+    }
+  }
+);
+
+// ── Delete uploaded file ─────────────────────────────────────────
+router.delete(
+  "/:publicId",
+  requireAuth,
+  requireRole("teacher", "admin"),
+  async (req, res) => {
+    try {
+      const publicId = req.params.publicId as string;
+      const resourceType = (req.query.type as string) || "video";
+
+      await cloudinary.uploader.destroy(publicId, {
+        resource_type: resourceType,
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("Delete upload error:", err);
+      res.status(500).json({ error: "Failed to delete file", message: err.message });
+    }
+  }
+);
+
+export default router;

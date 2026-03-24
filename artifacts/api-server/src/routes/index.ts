@@ -21,6 +21,7 @@ import sessionRoomRouter from "./session-room.js";
 import expensesRouter from "./expenses.js";
 import lessonProgressRouter from "./lesson-progress.js";
 import wishlistsRouter from "./wishlists.js";
+import uploadRouter from "./upload.js";
 
 const router: IRouter = Router();
 
@@ -47,5 +48,6 @@ router.use("/room", sessionRoomRouter);
 router.use("/expenses", expensesRouter);
 router.use("/lesson-progress", lessonProgressRouter);
 router.use("/wishlists", wishlistsRouter);
+router.use("/upload", uploadRouter);
 
 export default router;

@@ -276,9 +276,9 @@ router.get("/:courseId/lessons", async (req, res) => {
 router.post("/:courseId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
-    const { title, titleAr, videoUrl, content, contentAr, duration, order, isFree, type } = req.body;
+    const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, type } = req.body;
     const [lesson] = await db.insert(lessonsTable).values({
-      courseId, title, titleAr, videoUrl, content, contentAr,
+      courseId, title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr,
       duration: duration || 0,
       order: order || 0,
       isFree: isFree || false,
@@ -338,9 +338,9 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
 router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const { title, titleAr, videoUrl, content, contentAr, duration, order, isFree } = req.body;
+    const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree } = req.body;
     const [updated] = await db.update(lessonsTable)
-      .set({ title, titleAr, videoUrl, content, contentAr, duration, order, isFree, updatedAt: new Date() })
+      .set({ title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, updatedAt: new Date() })
       .where(eq(lessonsTable.id, parseInt(lessonId)))
       .returning();
     res.json(updated);

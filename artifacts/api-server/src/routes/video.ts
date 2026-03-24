@@ -65,7 +65,14 @@ router.get("/secure-stream/:lessonId", async (req, res) => {
     }
 
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
-    if (!lesson || !lesson.videoUrl) return res.status(404).send("Video not found");
+    if (!lesson) return res.status(404).send("Video not found");
+
+    // If lesson has a Cloudinary-hosted video, redirect to it
+    if (lesson.videoFilePath) {
+      return res.redirect(lesson.videoFilePath);
+    }
+
+    if (!lesson.videoUrl) return res.status(404).send("Video not found");
 
     // Block caching to enhance DRM simulation
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
