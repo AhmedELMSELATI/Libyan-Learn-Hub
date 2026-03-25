@@ -17,6 +17,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { ReportModal } from "@/components/ReportModal";
+import { OfflineDownloader, OfflineVideo } from "@/utils/OfflineDownloader";
 
 const C = Colors.light;
 
@@ -49,6 +50,9 @@ export default function LessonViewerScreen() {
   const [videoStatus, setVideoStatus] = useState<any>({});
   const [secureUrl, setSecureUrl] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [localVideoUri, setLocalVideoUri] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const { data: lesson, isLoading } = useQuery<LessonDetail>({
     queryKey: ["lesson", courseId, lessonId],
@@ -57,6 +61,23 @@ export default function LessonViewerScreen() {
   });
 
   React.useEffect(() => {
+    if (!lessonId || !courseId) return;
+    OfflineDownloader.getOfflineVideos().then(vids => {
+      const local = vids.find(v => v.id === `${courseId}_${lessonId}`);
+      if (local) {
+        setLocalVideoUri(local.localPlaylistPath);
+      } else {
+        setLocalVideoUri(null);
+      }
+    });
+  }, [courseId, lessonId]);
+
+  React.useEffect(() => {
+    if (localVideoUri) {
+      setSecureUrl(localVideoUri);
+      return;
+    }
+
     if (lesson?.videoUrl && user && courseId && lessonId) {
       apiFetch(`/video/generate-token`, {
         method: "POST",
@@ -77,7 +98,7 @@ export default function LessonViewerScreen() {
     } else {
       setSecureUrl(null);
     }
-  }, [lesson?.videoUrl, user, courseId, lessonId, apiBase]);
+  }, [lesson?.videoUrl, user, courseId, lessonId, apiBase, localVideoUri]);
 
   const { data: courseLessons } = useQuery<CourseLesson[]>({
     queryKey: ["course-lessons", courseId],
@@ -106,6 +127,38 @@ export default function LessonViewerScreen() {
     router.replace({ pathname: "/lesson/[courseId]/[lessonId]", params: { courseId, lessonId: lid.toString() } });
   };
 
+  const handleDownload = async () => {
+    if (localVideoUri) {
+      // Delete
+      await OfflineDownloader.deleteOfflineVideo(Number(courseId), Number(lessonId));
+      setLocalVideoUri(null);
+      return;
+    }
+    if (!secureUrl) return;
+
+    try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      const hostUrl = secureUrl.startsWith('/') && apiBase 
+          ? `${apiBase.replace('/api', '')}${secureUrl}` 
+          : secureUrl;
+      const path = await OfflineDownloader.downloadHLS(
+        hostUrl, 
+        Number(courseId), 
+        Number(lessonId), 
+        lesson?.titleAr || lesson?.title || "Lesson",
+        (prog) => setDownloadProgress(prog)
+      );
+      setLocalVideoUri(path);
+      setSecureUrl(path);
+    } catch (e: any) {
+      alert("Failed to download video: " + e.message);
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress(0);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
@@ -126,9 +179,18 @@ export default function LessonViewerScreen() {
     <View style={styles.container}>
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
-        <Pressable style={styles.reportBtn} onPress={() => setReportOpen(true)}>
-          <Feather name="flag" size={18} color={C.textMuted} />
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Pressable style={styles.reportBtn} onPress={() => setReportOpen(true)}>
+            <Feather name="flag" size={18} color={C.textMuted} />
+          </Pressable>
+          <Pressable style={styles.reportBtn} onPress={handleDownload} disabled={isDownloading}>
+            {isDownloading ? (
+               <Text style={{ fontSize: 10, color: C.tint }}>{Math.round(downloadProgress * 100)}%</Text>
+            ) : (
+               <Feather name={localVideoUri ? "trash-2" : "download"} size={18} color={localVideoUri ? C.tint : C.textMuted} />
+            )}
+          </Pressable>
+        </View>
         <Text style={styles.lessonNum} numberOfLines={1}>
           {currentIdx >= 0 ? `الدرس ${currentIdx + 1} / ${lessons.length}` : ""}
         </Text>

@@ -76,7 +76,10 @@ router.post(
       const result = await uploadToCloudinary(req.file.buffer, {
         resource_type: "video",
         folder: "libyan-learn-hub/videos",
-        transformation: [{ quality: "auto" }],
+        eager: [
+          { streaming_profile: "hd", format: "m3u8" }
+        ],
+        eager_async: false,
       });
 
       // Check resolution (Cloudinary returns width/height)
@@ -94,7 +97,7 @@ router.post(
       }
 
       res.json({
-        url: result.secure_url,
+        url: result.eager?.[0]?.secure_url || result.secure_url,
         publicId: result.public_id,
         duration: Math.round(result.duration || 0),
         width: result.width,

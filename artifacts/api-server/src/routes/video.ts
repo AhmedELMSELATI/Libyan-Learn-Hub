@@ -39,7 +39,13 @@ router.post("/generate-token", requireAuth, async (req, res) => {
       { expiresIn: "6h" }
     );
 
-    res.json({ token: playbackToken, url: `/api/video/secure-stream/${lessonId}?token=${playbackToken}` });
+    const isHls = lesson.videoFilePath?.endsWith('.m3u8') || false;
+
+    res.json({ 
+      token: playbackToken, 
+      url: `/api/video/secure-stream/${lessonId}?token=${playbackToken}`,
+      isHls 
+    });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

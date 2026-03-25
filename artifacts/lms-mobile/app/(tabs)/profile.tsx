@@ -16,6 +16,7 @@ import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { OfflineDownloader } from "@/utils/OfflineDownloader";
 
 const C = Colors.light;
 
@@ -95,6 +96,28 @@ export default function ProfileScreen() {
       { text: t("إلغاء", "Cancel"), style: "cancel" },
       { text: t("خروج", "Sign Out"), style: "destructive", onPress: () => logout() },
     ]);
+  };
+
+  const clearOfflineVideos = () => {
+    Alert.alert(
+      t("مسح التنزيلات", "Clear Downloads"),
+      t("هل أنت متأكد من مسح جميع الفيديوهات المحملة؟", "Are you sure you want to clear all offline downloaded videos?"),
+      [
+        { text: t("إلغاء", "Cancel"), style: "cancel" },
+        { 
+          text: t("مسح", "Clear"), 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await OfflineDownloader.clearAllOfflineVideos();
+              Alert.alert(t("تم بنجاح", "Success"), t("تم مسح الفيديوهات لتوفير المساحة", "Offline videos cleared to free up space."));
+            } catch (err: any) {
+              Alert.alert(t("خطأ", "Error"), err.message);
+            }
+          }
+        },
+      ]
+    );
   };
 
   const roleName = user.role === "teacher"
@@ -186,6 +209,8 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("عام", "General")}</Text>
         <View style={styles.menuGroup}>
+          <MenuRow icon="hard-drive" label={t("مساحة التخزين (حذف التنزيلات)", "Storage (Clear Downloads)")} onPress={clearOfflineVideos} />
+          <View style={styles.menuSeparator} />
           <MenuRow icon="help-circle" label={t("المساعدة والدعم", "Help & Support")} onPress={() => {}} />
           <View style={styles.menuSeparator} />
           <MenuRow icon="info" label={t("عن التطبيق", "About")} onPress={() => {}} />

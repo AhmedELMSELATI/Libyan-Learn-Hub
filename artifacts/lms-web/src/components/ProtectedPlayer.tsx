@@ -18,6 +18,7 @@ export function ProtectedPlayer({ url, courseId, lessonId, onEnded, onProgress }
   const containerRef = useRef<HTMLDivElement>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [secureUrl, setSecureUrl] = useState<string | null>(null);
+  const [isHls, setIsHls] = useState(false);
 
   useEffect(() => {
     if (courseId && lessonId && token && apiBase) {
@@ -31,6 +32,7 @@ export function ProtectedPlayer({ url, courseId, lessonId, onEnded, onProgress }
         if (data.url) {
           const host = apiBase.replace('/api', '');
           setSecureUrl(`${host}${data.url}`);
+          setIsHls(!!data.isHls);
         }
       })
       .catch(console.error);
@@ -96,6 +98,7 @@ export function ProtectedPlayer({ url, courseId, lessonId, onEnded, onProgress }
         controls={true}
         config={{
           file: {
+            forceHLS: isHls,
             attributes: {
               controlsList: 'nodownload', // Disable download button in native player
               disablePictureInPicture: true,
