@@ -27,6 +27,7 @@ import teacherProfileRouter from "./teacher-profile.js";
 import advertisementsRouter from "./advertisements.js";
 import copyrightComplaintsRouter from "./copyright-complaints.js";
 import verificationRouter from "./verification.js";
+import academyRouter from "./academy.js";
 
 const router: IRouter = Router();
 
@@ -59,5 +60,7 @@ router.use("/teacher-profile", teacherProfileRouter);
 router.use("/advertisements", advertisementsRouter);
 router.use("/copyright-complaints", copyrightComplaintsRouter);
 router.use("/verification", verificationRouter);
+// Academy router
+router.use("/academy", academyRouter);
 
 export default router;

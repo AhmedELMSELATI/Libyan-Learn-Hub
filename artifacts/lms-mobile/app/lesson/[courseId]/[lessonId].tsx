@@ -31,6 +31,8 @@ interface LessonDetail {
   duration: number;
   order: number;
   type: string;
+  watchedSeconds?: number;
+  isCompleted?: boolean;
 }
 
 interface CourseLesson {
@@ -106,10 +108,10 @@ export default function LessonViewerScreen() {
   });
 
   const progressMutation = useMutation({
-    mutationFn: (isCompleted: boolean) =>
+    mutationFn: (data: { isCompleted: boolean; watchedSeconds: number }) =>
       apiFetch(`/progress/${courseId}/${lessonId}`, {
         method: "POST",
-        body: JSON.stringify({ isCompleted, watchedSeconds: 0 }),
+        body: JSON.stringify(data),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["enrollments"] });
@@ -211,19 +213,33 @@ export default function LessonViewerScreen() {
                 )}
               </View>
               {secureUrl ? (
-                <Video
-                  ref={videoRef}
-                  source={{ uri: secureUrl }}
-                  style={styles.video}
-                  resizeMode={ResizeMode.CONTAIN}
-                  useNativeControls
-                  onPlaybackStatusUpdate={(status: any) => {
-                    setVideoStatus(status);
-                    if (status.didJustFinish && user) {
-                      progressMutation.mutate(true);
-                    }
-                  }}
-                />
+                  <Video
+                    ref={videoRef}
+                    source={{ uri: secureUrl }}
+                    style={styles.video}
+                    resizeMode={ResizeMode.CONTAIN}
+                    useNativeControls
+                    progressUpdateIntervalMillis={10000}
+                    onLoad={() => {
+                      if (lesson.watchedSeconds && lesson.watchedSeconds > 0) {
+                        videoRef.current?.setPositionAsync(lesson.watchedSeconds * 1000);
+                      }
+                    }}
+                    onPlaybackStatusUpdate={(status: any) => {
+                      setVideoStatus(status);
+                      if (status.isLoaded) {
+                        const isCompleteCheck = status.positionMillis > (lesson.duration * 60 * 1000 * 0.9);
+                        if (status.isPlaying) {
+                           progressMutation.mutate({ 
+                             isCompleted: isCompleteCheck || !!lesson.isCompleted, 
+                             watchedSeconds: Math.floor(status.positionMillis / 1000) 
+                           });
+                        } else if (status.didJustFinish && user) {
+                           progressMutation.mutate({ isCompleted: true, watchedSeconds: Math.floor(status.durationMillis / 1000) });
+                        }
+                      }
+                    }}
+                  />
               ) : (
                 <View style={[styles.video, { alignItems: 'center', justifyContent: 'center' }]}>
                   <ActivityIndicator color={C.tint} size="small" />
@@ -243,7 +259,7 @@ export default function LessonViewerScreen() {
           <View style={styles.progressSection}>
             <Pressable
               style={styles.markCompleteBtn}
-              onPress={() => progressMutation.mutate(true)}
+              onPress={() => progressMutation.mutate({ isCompleted: true, watchedSeconds: 0 })}
             >
               <Feather name="check-circle" size={16} color={C.tint} />
               <Text style={styles.markCompleteText}>

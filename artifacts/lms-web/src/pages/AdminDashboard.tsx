@@ -6,7 +6,7 @@ import {
   Users, BookOpen, CreditCard, CheckCircle, XCircle, Trash2,
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
-  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert
+  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,6 +105,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" /> Finance</TabsTrigger>
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
             <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
+            <TabsTrigger value="academy" className="gap-2 text-amber-600"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} /></TabsContent>
@@ -115,6 +116,7 @@ export default function AdminDashboard() {
           <TabsContent value="finance"><FinanceTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="dmca"><DMCAComplaintsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="academy"><AcademyAdminTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
         </Tabs>
       </div>
     </PageContainer>
@@ -1626,6 +1628,155 @@ function DMCAComplaintsTab({ api, queryClient, toast }: any) {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── ACADEMY ADMIN TAB ────────────────────────────────────────────────────────
+
+function AcademyAdminTab({ api, queryClient, toast }: any) {
+  const [activeSubTab, setActiveSubTab] = useState('applications');
+
+  const { data: applications, isLoading: appsLoading } = useQuery({
+    queryKey: ['admin-academy-applications'],
+    queryFn: () => api.get('/academy/admin/applications'),
+  });
+
+  const { data: programs, isLoading: progsLoading } = useQuery({
+    queryKey: ['admin-academy-programs'],
+    queryFn: () => api.get('/academy/programs'),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id, status, notes }: any) => api.put(`/academy/admin/applications/${id}`, { status, reviewNotes: notes }),
+    onSuccess: () => {
+      toast({ title: 'Application updated successfully' });
+      queryClient.invalidateQueries({ queryKey: ['admin-academy-applications'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error updating application', description: err.message, variant: 'destructive' });
+    }
+  });
+
+  const handleApprove = (appId: number, currentStatus: string) => {
+    const isApproved = currentStatus === 'approved';
+    const notes = window.prompt(`Admin notes for ${isApproved ? 'rejecting' : 'approving'} application:`);
+    if (notes !== null) {
+      approveMutation.mutate({ id: appId, status: isApproved ? 'rejected' : 'approved', notes });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-4 border-b border-border pb-4">
+        <button
+          onClick={() => setActiveSubTab('applications')}
+          className={`font-semibold text-sm pb-1 border-b-2 ${activeSubTab === 'applications' ? 'border-amber-500 text-amber-600' : 'border-transparent text-muted-foreground'}`}
+        >
+          Applications
+        </button>
+        <button
+          onClick={() => setActiveSubTab('programs')}
+          className={`font-semibold text-sm pb-1 border-b-2 ${activeSubTab === 'programs' ? 'border-amber-500 text-amber-600' : 'border-transparent text-muted-foreground'}`}
+        >
+          Programs
+        </button>
+      </div>
+
+      {activeSubTab === 'applications' && (
+        <div className="bg-card border border-border rounded-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted text-muted-foreground uppercase">
+                <tr>
+                  <th className="px-6 py-4">Student</th>
+                  <th className="px-6 py-4">Program / Grade</th>
+                  <th className="px-6 py-4">Parent Info</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appsLoading ? (
+                  <tr><td colSpan={5} className="py-8 text-center"><RefreshCw className="w-5 h-5 animate-spin mx-auto text-amber-500" /></td></tr>
+                ) : applications?.length === 0 ? (
+                  <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No applications found</td></tr>
+                ) : applications?.map((app: any) => (
+                  <tr key={app.id} className="border-b border-border hover:bg-muted/30">
+                    <td className="px-6 py-4">
+                      <div className="font-bold">{app.studentName}</div>
+                      <div className="text-muted-foreground text-xs">{app.studentEmail}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold">{app.programName}</div>
+                      <div className="text-muted-foreground text-xs">Grade {app.gradeLevel} • {app.programType}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold">{app.parentName}</div>
+                      <div className="text-muted-foreground text-xs">{app.parentPhone}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className={
+                        app.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                        app.status === 'rejected' ? 'bg-rose-100 text-rose-700 border-rose-200' :
+                        'bg-amber-100 text-amber-700 border-amber-200'
+                      }>
+                        {app.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 flex gap-2 justify-center">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className={app.status === 'approved' ? 'text-rose-600 hover:text-rose-700' : 'text-emerald-600 hover:text-emerald-700'}
+                        onClick={() => handleApprove(app.id, app.status)}
+                        disabled={approveMutation.isPending}
+                      >
+                        {app.status === 'approved' ? 'Reject' : 'Approve'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'programs' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center bg-card p-6 border border-border rounded-xl">
+            <div>
+              <h3 className="text-xl font-bold">Programs Matrix</h3>
+              <p className="text-muted-foreground">Active Academy programs available for enrollment.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {progsLoading ? (
+               <div className="col-span-full py-8 text-center"><RefreshCw className="w-5 h-5 animate-spin mx-auto text-amber-500" /></div>
+            ) : programs?.length === 0 ? (
+               <div className="col-span-full py-8 text-center text-muted-foreground border border-dashed border-border rounded-xl">No active programs found. Create one directly via DB for now.</div>
+            ) : programs?.map((prog: any) => (
+              <div key={prog.id} className="bg-card border border-border rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-full">Active</Badge>
+                </div>
+                <h4 className="font-bold text-lg mb-1">{prog.name}</h4>
+                <div className="text-sm font-medium text-amber-600 mb-4">{prog.type}</div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-muted-foreground"><span>Grade</span> <span className="text-foreground font-semibold">{prog.gradeLevel}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Duration</span> <span className="text-foreground font-semibold">{prog.durationYears} Years</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Tuition</span> <span className="text-foreground font-semibold">{prog.tuitionPerSemester} {prog.currency} / sem</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Subjects</span> <span className="text-foreground font-semibold">{prog.subjectCount || 0}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

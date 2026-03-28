@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGetMyEnrollments, useGetLiveSessions } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { BookOpen, PlayCircle, Trophy, Calendar, Radio, Clock, DollarSign, ExternalLink, CheckCircle } from 'lucide-react';
+import { BookOpen, PlayCircle, Trophy, Calendar, Radio, Clock, DollarSign, ExternalLink, CheckCircle, Video, ArrowRight, GraduationCap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApi } from '@/hooks/useApi';
 
@@ -11,6 +12,21 @@ export default function Dashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const api = useApi();
+  const [activeTab, setActiveTab] = useState<'courses' | 'academy'>('courses');
+
+  const { data: enrollmentData } = useQuery({
+    queryKey: ['academy-enrollment'],
+    queryFn: () => api.get('/academy/my-enrollment')
+  });
+
+  const { data: applications } = useQuery({
+    queryKey: ['academy-application'],
+    queryFn: () => api.get('/academy/my-application'),
+  });
+
+  const { enrolled, current } = enrollmentData || { enrolled: false, current: null };
+  const hasPendingApp = applications?.some((a: any) => a.status === 'pending' || a.status === 'waitlisted');
+
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -18,16 +34,22 @@ export default function Dashboard() {
   }, [isAuthenticated, authLoading, user, setLocation]);
 
   const { data: enrollments, isLoading } = useGetMyEnrollments({
-    query: { enabled: !!user && user.role === 'student' }
+    query: { queryKey: ['my-enrollments'], enabled: !!user && user.role === 'student' }
   });
 
   const { data: allSessions } = useGetLiveSessions({
-    query: { enabled: !!user }
-  });
+    queryKey: ['live-sessions'], enabled: !!user
+  } as any);
 
   const upcomingSessions = allSessions?.filter((s: any) =>
     new Date(s.scheduledAt) >= new Date() && s.status !== 'ended' && s.status !== 'cancelled'
   ).slice(0, 4) || [];
+
+  const { data: continueWatching } = useQuery({
+    queryKey: ['continue-watching'],
+    queryFn: () => api.get('/progress/continue-watching'),
+    enabled: !!user
+  });
 
   const handleEnrollFree = async (courseId: number) => {
     try {
@@ -89,7 +111,97 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        <div className="flex gap-1 bg-muted/50 p-1 rounded-2xl w-fit">
+          <button
+            onClick={() => setActiveTab('courses')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'courses'
+                ? 'bg-card text-primary shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            My Courses
+          </button>
+          <button
+            onClick={() => setActiveTab('academy')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeTab === 'academy'
+                ? 'bg-card text-amber-600 shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <GraduationCap className="w-4 h-4" />
+            Academy Program
+            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none">
+              NEW
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'courses' ? (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
+        
+        {/* Continue Watching */}
+        {continueWatching && continueWatching.length > 0 && (
+          <section>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-display font-bold flex items-center gap-2">
+                <PlayCircle className="w-5 h-5 text-primary" />
+                Continue Watching
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {continueWatching.map((item: any) => {
+                const isArabic = item.courseTitleAr || item.lessonTitleAr;
+                // Calculate percentage
+                const progressPct = item.totalDuration > 0 ? (item.watchedSeconds / (item.totalDuration * 60)) * 100 : 0;
+                
+                return (
+                  <Link href={`/courses/${item.courseId}/learn`} key={item.lessonId}>
+                    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer group">
+                      <div className="flex gap-4 p-4">
+                        <div className="w-24 h-24 rounded-xl bg-muted overflow-hidden shrink-0 relative">
+                          {item.courseThumbnailUrl ? (
+                            <img src={item.courseThumbnailUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                              <Video className="w-8 h-8 text-primary/40" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle className="w-8 h-8 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex flex-col justify-center flex-1 min-w-0">
+                          <p className="text-xs text-primary font-bold tracking-wider uppercase mb-1 truncate">{item.courseTitle}</p>
+                          <h3 className="font-bold text-sm mb-2 line-clamp-2 leading-tight">
+                            {isArabic ? item.lessonTitleAr : item.lessonTitle}
+                          </h3>
+                          <div className="mt-auto">
+                            <div className="w-full bg-muted rounded-full h-1.5 mb-2">
+                              <div
+                                className="bg-primary h-1.5 rounded-full transition-all"
+                                style={{ width: `${Math.min(progressPct, 100)}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between items-center text-xs text-muted-foreground">
+                              <span>Resume</span>
+                              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* My Courses */}
         <section>
@@ -220,6 +332,95 @@ export default function Dashboard() {
           </section>
         )}
       </div>
+      ) : (
+      /* Academy Tab */
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {!enrolled ? (
+          <div className="text-center py-20 bg-card rounded-3xl border border-dashed border-amber-500/30">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mx-auto mb-6">
+              <GraduationCap className="w-10 h-10 text-amber-500" />
+            </div>
+            
+            {hasPendingApp ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-bold mb-4">
+                  <Clock className="w-3 h-3" />
+                  Request Pending
+                </span>
+                <h3 className="text-2xl font-display font-bold text-foreground mb-3">Application Under Review</h3>
+                <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+                  Your application to the EduLibya Online Academy is currently being reviewed by our administration team.
+                </p>
+                <Link href="/academy/dashboard">
+                  <Button variant="outline" className="font-bold border-2 rounded-xl">View Details</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold mb-4">
+                  <Sparkles className="w-3 h-3" />
+                  Enrollment Open
+                </span>
+                <h3 className="text-2xl font-display font-bold text-foreground mb-3">EduLibya Academy</h3>
+                <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
+                  The EduLibya Online Academy offers full primary and secondary education following the official Libyan curriculum. Earn your diploma from home.
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Link href="/academy">
+                    <Button variant="outline" className="font-bold rounded-xl border-amber-500/30 text-amber-700 hover:bg-amber-500/10">Learn More</Button>
+                  </Link>
+                  <Link href="/academy/apply">
+                    <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 gap-2">
+                       Apply Now <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
+             <div className="flex items-start justify-between mb-8 pb-8 border-b border-border">
+               <div className="flex items-center gap-4">
+                 <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center">
+                   <GraduationCap className="w-8 h-8 text-amber-600" />
+                 </div>
+                 <div>
+                   <h3 className="text-2xl font-bold font-display">{current?.programName}</h3>
+                   <p className="text-muted-foreground">Grade {current?.currentGradeLevel} — {current?.semesterName}</p>
+                 </div>
+               </div>
+               <Link href="/academy/dashboard">
+                 <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold px-6 shadow-md shadow-amber-500/20">
+                   Go to Academy Dashboard
+                 </Button>
+               </Link>
+             </div>
+             
+             <h4 className="font-bold mb-4 flex items-center gap-2">
+               <BookOpen className="w-5 h-5 text-muted-foreground" />
+               Current Registered Subjects ({current?.registrations?.length || 0})
+             </h4>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {current?.registrations?.slice(0, 3).map((reg: any) => (
+                 <div key={reg.id} className="border border-border rounded-xl p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                   <div className="font-medium truncate">{reg.subjectName}</div>
+                   <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                     {reg.status === 'registered' ? 'Registered' : 'In Progress'}
+                   </span>
+                 </div>
+               ))}
+               {current?.registrations && current.registrations.length > 3 && (
+                 <div className="border border-dashed border-border rounded-xl p-4 flex items-center justify-center text-muted-foreground font-medium bg-muted/20">
+                    +{current.registrations.length - 3} more subjects
+                 </div>
+               )}
+             </div>
+          </div>
+        )}
+      </div>
+      )}
     </PageContainer>
   );
 }

@@ -103,6 +103,7 @@ export default function CoursesScreen() {
   const [search, setSearch] = useState("");
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
   const [selectedLevel, setSelectedLevel] = useState("");
+  const [exploreSection, setExploreSection] = useState<'courses' | 'tutoring' | 'live'>('courses');
 
   const LEVELS = language === "ar" ? LEVELS_AR : LEVELS_EN;
 
@@ -128,7 +129,27 @@ export default function CoursesScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 16 }]}>
-        <Text style={styles.headerTitle}>{t("الدورات", "Courses")}</Text>
+        <Text style={styles.headerTitle}>{t("استكشف", "Explore")}</Text>
+
+        {/* Section Chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
+          {[
+            { key: 'courses' as const, label: t("الدورات", "Courses"), icon: 'book-open' as const },
+            { key: 'tutoring' as const, label: t("خصوصي", "Tutoring"), icon: 'users' as const },
+            { key: 'live' as const, label: t("مباشر", "Live"), icon: 'video' as const },
+          ].map((sec) => (
+            <Pressable
+              key={sec.key}
+              style={[styles.sectionChip, exploreSection === sec.key && styles.sectionChipActive]}
+              onPress={() => setExploreSection(sec.key)}
+            >
+              <Feather name={sec.icon} size={14} color={exploreSection === sec.key ? "#fff" : C.textSecondary} />
+              <Text style={[styles.sectionChipText, exploreSection === sec.key && styles.sectionChipTextActive]}>{sec.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {exploreSection === 'courses' && (
         <View style={styles.searchBar}>
           <Feather name="search" size={16} color={C.textMuted} />
           <TextInput
@@ -145,8 +166,10 @@ export default function CoursesScreen() {
             </Pressable>
           )}
         </View>
+        )}
       </View>
-
+      {exploreSection === 'courses' ? (
+      <>
       {/* Filters */}
       <View style={styles.filters}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
@@ -204,6 +227,44 @@ export default function CoursesScreen() {
           )}
           scrollEnabled={!!(coursesData?.courses?.length ?? 0)}
         />
+      )}
+      </>
+      ) : exploreSection === 'tutoring' ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+          <Feather name="users" size={48} color={C.tint} />
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 18, color: C.text, marginTop: 16 }}>
+            {t("الدروس الخصوصية", "Private Tutoring")}
+          </Text>
+          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: C.textMuted, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+            {t("ابحث عن معلم خصوصي يناسب احتياجاتك", "Find a private tutor that fits your needs")}
+          </Text>
+          <Pressable 
+            style={{ backgroundColor: C.tint, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 20 }}
+            onPress={() => router.push("/tutoring")}
+          >
+            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#fff" }}>
+              {t("تصفح المعلمين", "Browse Tutors")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+          <Feather name="video" size={48} color={C.tint} />
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 18, color: C.text, marginTop: 16 }}>
+            {t("الجلسات المباشرة", "Live Sessions")}
+          </Text>
+          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: C.textMuted, marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+            {t("انضم إلى حصص مباشرة مع أفضل المعلمين", "Join live classes with the best teachers")}
+          </Text>
+          <Pressable 
+            style={{ backgroundColor: C.tint, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14, marginTop: 20 }}
+            onPress={() => router.push("/live")}
+          >
+            <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#fff" }}>
+              {t("عرض الجلسات", "View Sessions")}
+            </Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -279,7 +340,7 @@ const styles = StyleSheet.create({
   courseRowInfo: { flex: 1 },
   courseRowTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.text, marginBottom: 4, textAlign: "right" },
   courseRowTeacher: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, marginBottom: 6, textAlign: "right" },
-  courseRowMeta: { flexDirection: "row", alignItems: "center", gap: 4, flexDirection: "row-reverse" },
+  courseRowMeta: { flexDirection: "row-reverse", alignItems: "center", gap: 4 },
   tag: { backgroundColor: C.backgroundTertiary, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   tagText: { fontFamily: "Inter_500Medium", fontSize: 10, color: C.textSecondary },
   metaDot: { color: C.textMuted, fontSize: 10 },
@@ -290,4 +351,27 @@ const styles = StyleSheet.create({
   separator: { height: 10 },
   emptyState: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontFamily: "Inter_500Medium", fontSize: 15, color: C.textMuted },
+  sectionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: C.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+  },
+  sectionChipActive: {
+    backgroundColor: C.tint,
+    borderColor: C.tint,
+  },
+  sectionChipText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: C.textSecondary,
+  },
+  sectionChipTextActive: {
+    color: "#fff",
+  },
 });

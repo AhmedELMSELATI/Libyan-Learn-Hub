@@ -61,8 +61,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="courses"
         options={{
-          title: t("الدورات", "Courses"),
-          tabBarIcon: ({ color }) => <Feather name="book-open" size={22} color={color} />,
+          title: t("استكشف", "Explore"),
+          tabBarIcon: ({ color }) => <Feather name="compass" size={22} color={color} />,
         }}
       />
 
@@ -79,18 +79,18 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="tutoring"
+        name="academy"
         options={{
-          title: t("خصوصي", "Tutoring"),
-          tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
-        }}
-      />
-
-      <Tabs.Screen
-        name="live"
-        options={{
-          title: t("مباشر", "Live"),
-          tabBarIcon: ({ color }) => <Feather name="video" size={22} color={color} />,
+          title: t("الأكاديمية", "Academy"),
+          tabBarIcon: ({ color }) => <Ionicons name="school" size={22} color={color} />,
+          tabBarBadge: "✨",
+          tabBarBadgeStyle: {
+            backgroundColor: "transparent",
+            fontSize: 10,
+            minWidth: 14,
+            height: 14,
+            lineHeight: 14,
+          },
         }}
       />
 
@@ -101,7 +101,20 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} />,
         }}
       />
+
+      {/* Hidden tabs - still accessible via routes but not shown in tab bar */}
+      <Tabs.Screen
+        name="tutoring"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="live"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
     </Tabs>
   );
 }
-

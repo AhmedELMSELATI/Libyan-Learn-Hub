@@ -79,6 +79,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "react-hot-toast": "^2.6.0",
     "react-player": "^3.4.0"
   }
 }

@@ -51,13 +51,11 @@ export default function Learn() {
     // Mark complete if 90% watched
     const isComplete = progress.playedSeconds > (lesson.duration * 60 * 0.9);
     
-    if (isComplete) {
-      updateProgress({
-        courseId,
-        lessonId: lesson.id,
-        data: { isCompleted: true, watchedSeconds: Math.floor(progress.playedSeconds) }
-      });
-    }
+    updateProgress({
+      courseId,
+      lessonId: lesson.id,
+      data: { isCompleted: isComplete, watchedSeconds: Math.floor(progress.playedSeconds) }
+    });
   };
 
   const handleEnded = () => {
@@ -129,6 +127,7 @@ export default function Learn() {
                     url={lesson.videoUrl} 
                     courseId={courseId}
                     lessonId={lesson.id}
+                    startAt={lesson.watchedSeconds || 0}
                     onProgress={handleVideoProgress}
                     onEnded={handleEnded}
                   />

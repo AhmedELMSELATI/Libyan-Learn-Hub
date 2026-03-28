@@ -183,19 +183,20 @@ export default function CourseDetail() {
                 </div>
                 
                 {course.isEnrolled ? (
-                  <Link href={`/courses/${course.id}/learn`}>
-                    <Button className="w-full h-14 text-lg rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90">
-                      Go to Lessons
+                  <>
+                    <Link href={`/courses/${course.id}/learn`}>
+                      <Button className="w-full h-14 text-lg rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                        Go to Lessons
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="outline"
+                      className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
+                      onClick={() => setShowReviewModal(true)}
+                    >
+                      <Star className="w-4 h-4 fill-amber-500" /> Write a Review
                     </Button>
-                  </Link>
-                  <Button 
-                    variant="outline"
-                    className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
-                    onClick={() => setShowReviewModal(true)}
-                  >
-                    <Star className="w-4 h-4 fill-amber-500" /> Write a Review
-                  </Button>
-                </>
+                  </>
                 ) : (
                   <Button 
                     onClick={handleEnroll} 

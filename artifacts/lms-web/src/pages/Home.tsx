@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
-import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight } from 'lucide-react';
+import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight, GraduationCap, Sparkles, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
 import { useApi } from '@/hooks/useApi';
@@ -113,6 +113,48 @@ export default function Home() {
                 </Link>
               </motion.div>
 
+              {/* Dual-path cards */}
+              <motion.div {...fadeUp(0.4)} className="flex flex-col sm:flex-row gap-4 mt-10">
+                <Link href="/courses" className="flex-1">
+                  <div className="group relative overflow-hidden bg-card/80 backdrop-blur-sm border border-border/60 rounded-2xl p-5 cursor-pointer hover:border-primary/40 hover:shadow-xl transition-all">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all">
+                        <BookOpen className="w-6 h-6 text-primary group-hover:text-white transition-colors" />
+                      </div>
+                      <div className={isRtl ? 'text-right' : ''}>
+                        <h3 className="font-display font-bold text-foreground">
+                          {isRtl ? '📚 الدورات' : '📚 Courses'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {isRtl ? 'تعلّم بالوتيرة المناسبة لك' : 'Learn at your own pace'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+                <Link href="/academy" className="flex-1">
+                  <div className="group relative overflow-hidden bg-card/80 backdrop-blur-sm border border-amber-500/30 rounded-2xl p-5 cursor-pointer hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10 transition-all">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute top-2 end-2 px-2 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                      {isRtl ? 'قريباً' : 'COMING SOON'}
+                    </div>
+                    <div className="relative flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 group-hover:bg-gradient-to-br group-hover:from-amber-500 group-hover:to-orange-500 transition-all">
+                        <GraduationCap className="w-6 h-6 text-amber-600 group-hover:text-white transition-colors" />
+                      </div>
+                      <div className={isRtl ? 'text-right' : ''}>
+                        <h3 className="font-display font-bold text-foreground">
+                          {isRtl ? '🎓 الأكاديمية' : '🎓 Academy'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {isRtl ? 'احصل على شهادتك من المنزل' : 'Earn your diploma from home'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
 
             </div>
 
@@ -212,6 +254,62 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ─── ACADEMY PROMO ───────────────────────────────────── */}
+      <section className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            {...fadeUp()}
+            className="relative overflow-hidden rounded-[2.5rem] border border-amber-500/20 bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-rose-50/30 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-rose-950/10 p-10 lg:p-14"
+          >
+            <div className="absolute top-4 end-4 lg:top-8 lg:end-8">
+              <span className="px-3 py-1.5 text-xs font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg">
+                <Sparkles className="w-3 h-3 inline mr-1" />
+                {isRtl ? 'قريباً' : 'COMING SOON'}
+              </span>
+            </div>
+            
+            <div className={`max-w-2xl ${isRtl ? 'text-right' : ''}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
+                  <GraduationCap className="w-6 h-6 text-white" />
+                </div>
+                <h2 className="text-3xl lg:text-4xl font-display font-extrabold text-foreground">
+                  {isRtl ? 'أكاديمية EduLibya' : 'EduLibya Academy'}
+                </h2>
+              </div>
+              
+              <p className="text-lg text-muted-foreground leading-relaxed mb-8">
+                {isRtl
+                  ? 'أول أكاديمية إلكترونية ليبية لتعليم المرحلة الأساسية والثانوية. تعلّم من المنزل واحصل على شهادة معتمدة.'
+                  : 'The first Libyan online academy for primary and secondary education. Learn from home and earn a certified diploma.'
+                }
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {[
+                  { text: isRtl ? 'الصفوف ١-١٢' : 'Grades 1-12' },
+                  { text: isRtl ? 'شهادة معتمدة' : 'Certified Diploma' },
+                  { text: isRtl ? 'منهج ليبي' : 'Libyan Curriculum' },
+                  { text: isRtl ? 'كادر متميز' : 'Expert Faculty' },
+                ].map(({ text }) => (
+                  <div key={text} className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />
+                    {text}
+                  </div>
+                ))}
+              </div>
+
+              <Link href="/academy">
+                <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 gap-2">
+                  {isRtl ? 'اعرف المزيد' : 'Learn More'}
+                  <Arrow className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 

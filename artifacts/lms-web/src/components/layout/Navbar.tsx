@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut } from 'lucide-react';
+import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut, GraduationCap, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function Navbar() {
@@ -11,13 +11,27 @@ export function Navbar() {
   const { user, logout, isAuthenticated } = useAuth();
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleLanguage = () => {
     setLanguage(language === 'ar' ? 'en' : 'ar');
   };
 
+  // Close user menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const navLinks = [
     { href: '/courses', label: t('nav.courses'), icon: BookOpen },
+    { href: '/academy', label: language === 'ar' ? 'الأكاديمية' : 'Academy', icon: GraduationCap, badge: true },
     { href: '/live-sessions', label: t('nav.live'), icon: MonitorPlay },
     { href: '/teachers', label: t('nav.teachers'), icon: Users },
   ];
@@ -38,9 +52,9 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
-              const isActive = location === link.href;
+              const isActive = location === link.href || location.startsWith(link.href + '/');
               const Icon = link.icon;
               return (
                 <Link 
@@ -54,13 +68,18 @@ export function Navbar() {
                 >
                   <Icon className="w-4 h-4" />
                   {link.label}
+                  {link.badge && (
+                    <span className="absolute -top-1 -end-1 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none shadow-sm">
+                      {language === 'ar' ? 'جديد' : 'NEW'}
+                    </span>
+                  )}
                 </Link>
               );
             })}
           </nav>
 
           {/* Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             <button 
               onClick={toggleLanguage}
               className="p-2 rounded-full hover:bg-secondary/20 text-muted-foreground hover:text-secondary transition-colors flex items-center gap-2 text-sm font-medium"
@@ -70,16 +89,88 @@ export function Navbar() {
             </button>
 
             {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <Link href={user?.role === 'teacher' ? '/teacher/dashboard' : '/dashboard'}>
-                  <Button variant="ghost" className="gap-2">
-                    <UserIcon className="w-4 h-4" />
-                    {t('nav.dashboard')}
-                  </Button>
-                </Link>
-                <Button variant="outline" size="icon" onClick={logout} className="text-destructive hover:bg-destructive/10">
-                  <LogOut className="w-4 h-4" />
-                </Button>
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                    {user?.fullName?.charAt(0) || 'U'}
+                  </div>
+                  <span className="text-sm font-medium text-foreground max-w-[100px] truncate hidden lg:block">
+                    {user?.fullName}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute end-0 top-full mt-2 w-56 bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50"
+                    >
+                      {/* User info */}
+                      <div className="px-4 py-3 border-b border-border bg-muted/30">
+                        <div className="font-bold text-sm text-foreground truncate">{user?.fullName}</div>
+                        <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+                        <div className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary capitalize">
+                          {user?.role}
+                        </div>
+                      </div>
+
+                      <div className="py-1">
+                        <Link 
+                          href={user?.role === 'teacher' ? '/teacher/dashboard' : '/dashboard'}
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-start">
+                            <LayoutDashboard className="w-4 h-4 text-muted-foreground" />
+                            {t('nav.dashboard')}
+                          </button>
+                        </Link>
+                        
+                        {user?.role === 'student' && (
+                          <>
+                            <Link href="/academy/dashboard" onClick={() => setIsUserMenuOpen(false)}>
+                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors text-start font-medium">
+                                <GraduationCap className="w-4 h-4 text-amber-500" />
+                                {language === 'ar' ? 'بوابة الأكاديمية' : 'Academy Portal'}
+                              </button>
+                            </Link>
+                            <Link href="/profile" onClick={() => setIsUserMenuOpen(false)}>
+                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-start">
+                                <UserIcon className="w-4 h-4 text-muted-foreground" />
+                                {language === 'ar' ? 'الملف الشخصي' : 'Profile'}
+                              </button>
+                            </Link>
+                          </>
+                        )}
+
+                        {user?.role === 'admin' && (
+                          <Link href="/admin/dashboard" onClick={() => setIsUserMenuOpen(false)}>
+                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-start">
+                              <LayoutDashboard className="w-4 h-4 text-muted-foreground" />
+                              {language === 'ar' ? 'لوحة الإدارة' : 'Admin Panel'}
+                            </button>
+                          </Link>
+                        )}
+                      </div>
+
+                      <div className="border-t border-border py-1">
+                        <button 
+                          onClick={() => { logout(); setIsUserMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors text-start"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          {language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <div className="flex items-center gap-3">
@@ -114,16 +205,21 @@ export function Navbar() {
             exit={{ height: 0, opacity: 0 }}
             className="md:hidden overflow-hidden bg-background border-t border-border"
           >
-            <div className="px-4 py-6 flex flex-col gap-4">
+            <div className="px-4 py-6 flex flex-col gap-3">
               {navLinks.map((link) => (
                 <Link 
                   key={link.href} 
                   href={link.href}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted font-medium"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted font-medium relative"
                   onClick={() => setIsMobileOpen(false)}
                 >
                   <link.icon className="w-5 h-5 text-primary" />
                   {link.label}
+                  {link.badge && (
+                    <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none">
+                      {language === 'ar' ? 'جديد' : 'NEW'}
+                    </span>
+                  )}
                 </Link>
               ))}
               
@@ -141,11 +237,18 @@ export function Navbar() {
                 <>
                   <Link href={user?.role === 'teacher' ? '/teacher/dashboard' : '/dashboard'} onClick={() => setIsMobileOpen(false)}>
                     <Button className="w-full justify-start gap-2" variant="outline">
-                      <UserIcon className="w-4 h-4" /> {t('nav.dashboard')}
+                      <LayoutDashboard className="w-4 h-4" /> {t('nav.dashboard')}
                     </Button>
                   </Link>
+                  {user?.role === 'student' && (
+                    <Link href="/profile" onClick={() => setIsMobileOpen(false)}>
+                      <Button className="w-full justify-start gap-2" variant="outline">
+                        <UserIcon className="w-4 h-4" /> {language === 'ar' ? 'الملف الشخصي' : 'Profile'}
+                      </Button>
+                    </Link>
+                  )}
                   <Button variant="ghost" onClick={() => { logout(); setIsMobileOpen(false); }} className="w-full justify-start text-destructive">
-                    <LogOut className="w-4 h-4 me-2" /> Logout
+                    <LogOut className="w-4 h-4 me-2" /> {language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
                   </Button>
                 </>
               ) : (

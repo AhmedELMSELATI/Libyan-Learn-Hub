@@ -27,4 +27,6 @@ export * from "./copyright-complaints.ts";
 export * from "./profile-analytics.ts";
 export * from "./student-endorsements.ts";
 export * from "./teacher-devices.ts";
+// Academy tables
+export * from "./academy.ts";
 

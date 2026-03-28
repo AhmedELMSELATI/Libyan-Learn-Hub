@@ -154,6 +154,12 @@ export default function HomeScreen() {
   });
   const bannerAds = (activeAds as any[])?.filter(ad => ad.adType === "banner") || [];
 
+  const { data: continueWatching } = useQuery({
+    queryKey: ['continue-watching'],
+    queryFn: () => apiFetch('/progress/continue-watching'),
+    enabled: !!user && user.role === 'student',
+  });
+
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return t("صباح الخير", "Good Morning");
@@ -212,6 +218,50 @@ export default function HomeScreen() {
           <Feather name="book-open" size={70} color="rgba(255,255,255,0.2)" />
         </View>
       </LinearGradient>
+
+      {/* Continue Watching */}
+      {continueWatching && continueWatching.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Feather name="play-circle" size={16} color={C.tint} />
+              <Text style={styles.sectionTitle}>{t("متابعة التعلم", "Continue Watching")}</Text>
+            </View>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingHorizontal: 20 }}>
+            {continueWatching.map((item: any) => {
+              const progressPct = item.totalDuration > 0 ? (item.watchedSeconds / (item.totalDuration * 60)) * 100 : 0;
+              return (
+                <Pressable
+                  key={item.lessonId}
+                  style={({ pressed }) => [styles.continueCard, pressed && { opacity: 0.85 }]}
+                  onPress={() => router.push({ pathname: "/lesson/[courseId]/[lessonId]", params: { courseId: item.courseId.toString(), lessonId: item.lessonId.toString() } })}
+                >
+                  <View style={styles.continueThumb}>
+                    {item.courseThumbnailUrl ? (
+                      <Image source={{ uri: item.courseThumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    ) : (
+                      <View style={[StyleSheet.absoluteFill, styles.thumbPlaceholder]}>
+                        <Feather name="video" size={24} color={C.tint} />
+                      </View>
+                    )}
+                    <View style={styles.playOverlay}>
+                      <Feather name="play" size={20} color="#fff" style={{ marginLeft: 2 }} />
+                    </View>
+                  </View>
+                  <View style={styles.continueInfo}>
+                    <Text style={styles.continueCourseTitle} numberOfLines={1}>{language === 'ar' ? (item.courseTitleAr || item.courseTitle) : item.courseTitle}</Text>
+                    <Text style={styles.continueLessonTitle} numberOfLines={2}>{language === 'ar' ? (item.lessonTitleAr || item.lessonTitle) : item.lessonTitle}</Text>
+                    <View style={styles.continueProgressBarContainer}>
+                      <View style={[styles.continueProgressBar, { width: `${Math.min(progressPct, 100)}%` }]} />
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Sponsored Instructors */}
       {bannerAds.length > 0 && (
@@ -440,4 +490,48 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   adBadgeText: { fontFamily: "Inter_500Medium", fontSize: 10, color: "#ca8a04" },
+  
+  continueCard: {
+    width: 260,
+    flexDirection: "row",
+    backgroundColor: C.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    overflow: "hidden",
+  },
+  continueThumb: {
+    width: 90,
+    backgroundColor: C.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    position: 'relative'
+  },
+  playOverlay: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueInfo: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'center'
+  },
+  continueCourseTitle: { fontFamily: "Inter_600SemiBold", fontSize: 10, color: C.tint, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  continueLessonTitle: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text, marginBottom: 8, lineHeight: 18 },
+  continueProgressBarContainer: {
+    height: 4,
+    backgroundColor: C.backgroundSecondary,
+    borderRadius: 2,
+    overflow: 'hidden'
+  },
+  continueProgressBar: {
+    height: '100%',
+    backgroundColor: C.tint,
+    borderRadius: 2
+  }
 });

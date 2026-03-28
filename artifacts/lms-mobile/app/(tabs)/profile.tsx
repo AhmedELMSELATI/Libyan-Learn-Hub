@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import React from "react";
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -173,6 +174,42 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Enrolled Courses Progress */}
+      {user.role === 'student' && enrollments && enrollments.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t("تقدم التعلم", "My Learning Progress")}</Text>
+          <View style={styles.coursesList}>
+            {enrollments.map((enrollment: any) => (
+              <Pressable 
+                key={enrollment.id} 
+                style={({pressed}) => [styles.courseProgressCard, pressed && { opacity: 0.8 }]}
+                onPress={() => router.push({ pathname: "/lesson/[courseId]/[lessonId]", params: { courseId: enrollment.courseId.toString(), lessonId: "0" } })}
+              >
+                <View style={styles.courseThumbProgress}>
+                  {enrollment.course?.thumbnailUrl ? (
+                    <Image source={{ uri: enrollment.course.thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  ) : (
+                    <Feather name="book" size={20} color={C.tint} />
+                  )}
+                </View>
+                <View style={styles.courseProgressInfo}>
+                  <Text style={styles.courseProgressTitle} numberOfLines={1}>
+                    {language === 'ar' ? (enrollment.course?.titleAr || enrollment.course?.title) : enrollment.course?.title}
+                  </Text>
+                  <View style={styles.courseProgressBarBg}>
+                    <View style={[styles.courseProgressBarFill, { width: `${Math.min(enrollment.progress || 0, 100)}%` }]} />
+                  </View>
+                  <Text style={styles.courseProgressText}>
+                    {Math.round(enrollment.progress || 0)}% {t("مكتمل", "Complete")}
+                  </Text>
+                </View>
+                <Feather name={language === 'ar' ? "chevron-left" : "chevron-right"} size={16} color={C.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
       {/* Menu */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("الحساب", "Account")}</Text>
@@ -313,4 +350,54 @@ const styles = StyleSheet.create({
   registerBtn: { borderWidth: 1.5, borderColor: C.tint, borderRadius: 14, paddingHorizontal: 40, paddingVertical: 14, width: "100%" },
   registerBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: C.tint, textAlign: "center" },
   version: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textMuted, textAlign: "center", marginTop: 24, marginBottom: 8 },
+  coursesList: { gap: 10 },
+  courseProgressCard: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: C.background,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    gap: 12
+  },
+  courseThumbProgress: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: C.backgroundSecondary,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  courseProgressInfo: {
+    flex: 1,
+    justifyContent: "center"
+  },
+  courseProgressTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: C.text,
+    textAlign: "right",
+    marginBottom: 6
+  },
+  courseProgressBarBg: {
+    height: 4,
+    backgroundColor: C.pill,
+    borderRadius: 2,
+    flexDirection: "row-reverse",
+    overflow: "hidden",
+    marginBottom: 4
+  },
+  courseProgressBarFill: {
+    height: "100%",
+    backgroundColor: C.tint,
+    borderRadius: 2
+  },
+  courseProgressText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    color: C.textMuted,
+    textAlign: "right"
+  }
 });

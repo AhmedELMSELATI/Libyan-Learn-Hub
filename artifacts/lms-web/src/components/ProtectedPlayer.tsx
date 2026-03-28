@@ -8,11 +8,12 @@ interface ProtectedPlayerProps {
   url: string;
   courseId?: number;
   lessonId?: number;
+  startAt?: number;
   onEnded?: () => void;
   onProgress?: (progress: { playedSeconds: number }) => void;
 }
 
-export function ProtectedPlayer({ url, courseId, lessonId, onEnded, onProgress }: ProtectedPlayerProps) {
+export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded, onProgress }: ProtectedPlayerProps) {
   const { user, token, apiBase } = useAuth();
   const playerRef = useRef<ReactPlayer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -105,9 +106,14 @@ export function ProtectedPlayer({ url, courseId, lessonId, onEnded, onProgress }
             }
           }
         }}
+        onReady={() => {
+          if (startAt > 0 && playerRef.current) {
+            playerRef.current.seekTo(startAt, 'seconds');
+          }
+        }}
         onEnded={onEnded}
         onProgress={onProgress}
-          progressInterval={5000}
+        progressInterval={10000} // Trigger every 10 seconds to limit API load
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-black">
