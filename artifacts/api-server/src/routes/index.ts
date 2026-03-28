@@ -56,7 +56,7 @@ router.use("/wishlists", wishlistsRouter);
 router.use("/upload", uploadRouter);
 // New platform improvement routes
 router.use("/teacher-profile", teacherProfileRouter);
-router.use("/ads", advertisementsRouter);
+router.use("/advertisements", advertisementsRouter);
 router.use("/copyright-complaints", copyrightComplaintsRouter);
 router.use("/verification", verificationRouter);
 

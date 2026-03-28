@@ -6,6 +6,8 @@ import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
 import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
+import { useApi } from '@/hooks/useApi';
+import { useQuery } from '@tanstack/react-query';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 32 },
@@ -33,7 +35,14 @@ export default function Home() {
   });
 
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
+  const api = useApi();
 
+  const { data: activeAds } = useQuery({
+    queryKey: ['/api/advertisements/active'],
+    queryFn: () => api.get('/advertisements/active')
+  });
+
+  const bannerAds = activeAds?.filter((ad: any) => ad.adType === 'banner') || [];
 
 
   return (
@@ -206,6 +215,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ─── SPONSORED INSTRUCTORS ──────────────────────────── */}
+      {bannerAds.length > 0 && (
+        <section className="py-12 bg-primary/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className={`mb-8 flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
+              <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex flex-shrink-0 items-center justify-center">
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-400" />
+              </div>
+              <h2 className="text-2xl font-display font-bold text-foreground">
+                {isRtl ? 'معلمون مميزون' : 'Featured Instructors'}
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {bannerAds.map((ad: any, i: number) => (
+                <Link key={ad.id} href={`/teachers/${ad.teacherSlug}`}>
+                  <motion.div 
+                    {...fadeUp(i * 0.1)}
+                    className="bg-card border border-amber-200/50 rounded-2xl p-5 flex items-center gap-4 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xl flex-shrink-0 overflow-hidden relative">
+                      {ad.teacherAvatar ? (
+                        <img src={ad.teacherAvatar} alt={ad.teacherName} className="w-full h-full object-cover" />
+                      ) : (
+                        ad.teacherName.charAt(0)
+                      )}
+                      <div className="absolute inset-0 ring-2 ring-amber-400 rounded-full" />
+                    </div>
+                    <div className={isRtl ? 'text-right' : ''}>
+                      <div className="font-bold text-sm text-foreground line-clamp-1">
+                        {language === 'ar' ? (ad.teacherNameAr || ad.teacherName) : ad.teacherName}
+                      </div>
+                      <div className="text-xs text-amber-600 font-medium bg-amber-100/50 inline-block px-2 py-0.5 rounded-full mt-1">
+                        {isRtl ? 'إعلان' : 'Sponsored'}
+                      </div>
+                    </div>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ─── FEATURED COURSES ───────────────────────────────── */}
       <section className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -249,13 +302,22 @@ export default function Home() {
 
                       {/* Content */}
                       <div className="p-6 flex flex-col flex-1 gap-3">
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1.5 font-medium">
                             <BookOpen className="w-3.5 h-3.5 text-primary" />
                             {course.lessonCount} {isRtl ? 'درس' : 'Lessons'}
                           </span>
                           <span className="w-1 h-1 rounded-full bg-border" />
                           <span>{Math.round(course.totalDuration / 60)}h</span>
+                          {(course as any).rating > 0 && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-border" />
+                              <span className="flex items-center gap-1 text-amber-600 font-bold">
+                                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                                {Number((course as any).rating).toFixed(1)}
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         <h3 className={`font-display font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight flex-1 ${isRtl ? 'text-right' : ''}`}>

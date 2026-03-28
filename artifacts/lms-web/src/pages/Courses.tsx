@@ -5,7 +5,7 @@ import { useGetCourses, useGetCategories, type GetCoursesLevel, type GetCoursesL
 import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, PlayCircle, BookOpen } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, PlayCircle } from 'lucide-react';
 
 export default function Courses() {
   const { t, language } = useLanguage();
@@ -142,10 +142,29 @@ export default function Courses() {
                         <h3 className="font-display font-bold text-lg mb-2 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
                           {language === 'ar' ? course.titleAr : course.title}
                         </h3>
-                        <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground truncate pe-2">{course.teacherName}</span>
-                          <div className="font-bold text-primary shrink-0">
-                            {course.price === 0 ? t('course.free') : `${course.price} LYD`}
+                        <div className="mt-auto pt-4 border-t border-border flex flex-col gap-2">
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <BookOpen className="w-3.5 h-3.5 text-primary" />
+                              {course.lessonCount} Lessons
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-border" />
+                            <span>{Math.round(course.totalDuration / 60)}h</span>
+                            {Number((course as any).rating) > 0 && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-border" />
+                                <span className="flex items-center gap-1 text-amber-600 font-bold">
+                                  <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                                  {Number((course as any).rating).toFixed(1)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                             <span className="text-sm font-medium text-muted-foreground truncate pe-2">{course.teacherName}</span>
+                             <div className="font-bold text-primary shrink-0">
+                               {course.price === 0 ? t('course.free') : `${course.price} LYD`}
+                             </div>
                           </div>
                         </div>
                       </div>

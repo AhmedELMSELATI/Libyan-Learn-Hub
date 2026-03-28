@@ -4,11 +4,12 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { useGetCourse, useEnrollCourse } from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Clock, PlayCircle, FileText, CheckCircle2, ShieldAlert, Flag } from 'lucide-react';
+import { Clock, PlayCircle, FileText, CheckCircle2, ShieldAlert, Flag, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useSEO } from '@/hooks/useSEO';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { useApi } from '@/hooks/useApi';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,10 +23,21 @@ export default function CourseDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const api = useApi();
+  const queryClient = useQueryClient();
   const [reportCourse, setReportCourse] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
+  
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
 
   const { data: course, isLoading, refetch } = useGetCourse(courseId, { query: { enabled: !!courseId } });
+  
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['/api/courses', courseId, 'reviews'],
+    queryFn: () => api.get(`/courses/${courseId}/reviews`),
+    enabled: !!courseId,
+  });
   const { mutate: enroll, isPending: enrolling } = useEnrollCourse({
     mutation: {
       onSuccess: () => {
@@ -55,6 +67,20 @@ export default function CourseDetail() {
       toast({ title: 'Error submitting report', description: err.message, variant: 'destructive' });
     }
   };
+
+  const submitReview = useMutation({
+    mutationFn: () => api.post(`/courses/${courseId}/reviews`, { rating: reviewRating, comment: reviewComment }),
+    onSuccess: () => {
+      toast({ title: "Review submitted!", description: "Thank you for your feedback." });
+      queryClient.invalidateQueries({ queryKey: ['/api/courses', courseId, 'reviews'] });
+      setShowReviewModal(false);
+      setReviewComment("");
+      refetch();
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to submit review", description: err.message, variant: "destructive" });
+    }
+  });
 
   const title = course ? (language === 'ar' ? course.titleAr : course.title) : 'Loading Course...';
   const description = course ? (language === 'ar' ? course.descriptionAr : course.description) : 'Libyan Learn Hub Course';
@@ -158,10 +184,18 @@ export default function CourseDetail() {
                 
                 {course.isEnrolled ? (
                   <Link href={`/courses/${course.id}/learn`}>
-                    <Button className="w-full h-14 text-lg rounded-xl mb-4 bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                    <Button className="w-full h-14 text-lg rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90">
                       Go to Lessons
                     </Button>
                   </Link>
+                  <Button 
+                    variant="outline"
+                    className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
+                    onClick={() => setShowReviewModal(true)}
+                  >
+                    <Star className="w-4 h-4 fill-amber-500" /> Write a Review
+                  </Button>
+                </>
                 ) : (
                   <Button 
                     onClick={handleEnroll} 
@@ -239,6 +273,40 @@ export default function CourseDetail() {
               </div>
             )}
           </div>
+
+          <div className="mt-16">
+            <h2 className="text-2xl font-display font-bold mb-6 flex items-center gap-2">
+              <Star className="w-6 h-6 text-amber-500 fill-amber-500" /> 
+              {language === 'ar' ? 'مراجعات الطلاب' : 'Student Reviews'}
+            </h2>
+            {reviews.length === 0 ? (
+               <div className="p-8 text-center bg-card rounded-2xl border border-border">
+                 <p className="text-muted-foreground">{language === 'ar' ? 'لا توجد مراجعات حتى الآن. كن أول من يكتب مراجعة!' : 'No reviews yet. Be the first to review this course!'}</p>
+               </div>
+            ) : (
+               <div className="space-y-4">
+                 {reviews.map((review: any) => (
+                   <div key={review.id} className="p-5 bg-card rounded-2xl border border-border shadow-sm flex gap-4">
+                     <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 overflow-hidden">
+                       {review.user?.avatarUrl ? <img src={review.user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : review.user?.fullName?.charAt(0) || 'S'}
+                     </div>
+                     <div className="flex-1">
+                       <div className="flex items-center justify-between mb-1">
+                         <h4 className="font-bold">{language === 'ar' ? (review.user?.fullNameAr || review.user?.fullName) : review.user?.fullName}</h4>
+                         <span className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</span>
+                       </div>
+                       <div className="flex gap-0.5 mb-2">
+                         {[...Array(5)].map((_, i) => (
+                           <Star key={i} className={`w-3.5 h-3.5 ${i < review.rating ? 'text-amber-500 fill-amber-500' : 'text-border fill-muted'}`} />
+                         ))}
+                       </div>
+                       {review.comment && <p className="text-sm text-foreground/80 whitespace-pre-line">{review.comment}</p>}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -269,6 +337,48 @@ export default function CourseDetail() {
               <Button type="submit" variant="destructive" className="flex-1">Submit Report</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Write a Review Modal */}
+      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Write a Review</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 flex flex-col items-center">
+            <p className="text-sm text-muted-foreground mb-4 text-center">How would you rate your experience with this course?</p>
+            <div className="flex gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button 
+                  key={star} 
+                  type="button"
+                  className="focus:outline-none transition-transform hover:scale-110"
+                  onClick={() => setReviewRating(star)}
+                >
+                  <Star className={`w-10 h-10 ${star <= reviewRating ? 'text-amber-500 fill-amber-500' : 'text-border fill-muted'}`} />
+                </button>
+              ))}
+            </div>
+            <div className="w-full">
+              <label className="text-sm font-medium mb-1 block">Your Recommendation</label>
+              <Textarea 
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="What did you like about this course? Would you recommend it?" 
+                rows={4} 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReviewModal(false)}>Cancel</Button>
+            <Button 
+              onClick={() => submitReview.mutate()} 
+              disabled={submitReview.isPending}
+            >
+              {submitReview.isPending ? 'Submitting...' : 'Submit Review'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PageContainer>

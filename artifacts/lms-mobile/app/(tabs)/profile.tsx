@@ -202,6 +202,8 @@ export default function ProfileScreen() {
             <MenuRow icon="users" label={t("الطلاب", "Students")} onPress={() => {}} />
             <View style={styles.menuSeparator} />
             <MenuRow icon="video" label={t("جلساتي المباشرة", "My Live Sessions")} onPress={() => router.push("/live")} />
+            <View style={styles.menuSeparator} />
+            <MenuRow icon="star" label={t("الترويج والإعلانات (Pro)", "Promote & Ads (Pro)")} onPress={() => router.push("/teacher-profile/promote" as any)} />
           </View>
         </View>
       )}

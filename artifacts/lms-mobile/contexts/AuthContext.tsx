@@ -13,6 +13,8 @@ export interface User {
   role: "student" | "teacher" | "admin";
   avatarUrl?: string | null;
   bio?: string | null;
+  tier?: string | null;
+  proExpiry?: string | null;
   language: "ar" | "en";
   createdAt: string;
 }
@@ -24,6 +26,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   apiBase: string;
 }
 
@@ -99,8 +102,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem("auth_user");
   }
 
+  async function refreshUser() {
+    if (!token) return;
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setUser(data.user);
+      await AsyncStorage.setItem("auth_user", JSON.stringify(data.user));
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, apiBase: API_BASE }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, refreshUser, apiBase: API_BASE }}>
       {children}
     </AuthContext.Provider>
   );

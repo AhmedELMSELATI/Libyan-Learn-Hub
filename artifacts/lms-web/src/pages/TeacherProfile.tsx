@@ -185,6 +185,37 @@ export default function TeacherProfile() {
           </div>
         )}
 
+        {/* Student Reviews */}
+        {teacher.reviews && teacher.reviews.length > 0 && (
+          <div>
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+              {language === 'ar' ? 'مراجعات الطلاب' : 'Student Reviews'}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {teacher.reviews.map((review: any) => (
+                <div key={review.id} className="p-5 bg-card rounded-2xl border border-border flex gap-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0 overflow-hidden">
+                    {review.user?.avatarUrl ? <img src={review.user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : review.user?.fullName?.charAt(0) || 'S'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-bold text-sm">{language === 'ar' ? (review.user?.fullNameAr || review.user?.fullName) : review.user?.fullName}</h4>
+                      <span className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex gap-0.5 mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-3 h-3 ${i < review.rating ? 'text-amber-500 fill-amber-500' : 'text-border fill-muted'}`} />
+                      ))}
+                    </div>
+                    {review.comment && <p className="text-sm text-muted-foreground italic">&ldquo;{review.comment}&rdquo;</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Courses */}
         <div>
           <h2 className="text-xl font-bold mb-6">{language === 'ar' ? 'الدورات' : 'Courses'}</h2>

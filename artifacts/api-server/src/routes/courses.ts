@@ -9,7 +9,7 @@ import {
   reviewsTable,
   progressTable,
 } from "@workspace/db";
-import { eq, and, ilike, count, avg, sum, sql } from "drizzle-orm";
+import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 
 const router = Router();
@@ -399,13 +399,15 @@ router.get("/:courseId/reviews", async (req, res) => {
         const [user] = await db.select().from(usersTable).where(eq(usersTable.id, r.userId)).limit(1);
         return {
           id: r.id,
-          courseId: r.courseId,
-          userId: r.userId,
-          userName: user?.fullName || "Unknown",
-          userAvatar: user?.avatarUrl || null,
           rating: r.rating,
           comment: r.comment,
           createdAt: r.createdAt,
+          user: {
+            id: r.userId,
+            fullName: user?.fullName || "Unknown",
+            fullNameAr: user?.fullNameAr || user?.fullName || "Unknown",
+            avatarUrl: user?.avatarUrl || null,
+          }
         };
       })
     );
@@ -424,13 +426,15 @@ router.post("/:courseId/reviews", requireAuth, async (req, res) => {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     res.status(201).json({
       id: review.id,
-      courseId: review.courseId,
-      userId: review.userId,
-      userName: user?.fullName || "Unknown",
-      userAvatar: user?.avatarUrl || null,
       rating: review.rating,
       comment: review.comment,
       createdAt: review.createdAt,
+      user: {
+        id: review.userId,
+        fullName: user?.fullName || "Unknown",
+        fullNameAr: user?.fullNameAr || user?.fullName || "Unknown",
+        avatarUrl: user?.avatarUrl || null,
+      }
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

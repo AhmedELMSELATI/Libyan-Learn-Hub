@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator, FlatList, Linking, Platform, Pressable, ScrollView,
-  Share, StyleSheet, Text, View,
+  Share, StyleSheet, Text, View, Image
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -140,6 +140,40 @@ export default function TeacherProfileScreen() {
           </View>
         )}
 
+        {/* Student Reviews */}
+        {teacher.reviews && teacher.reviews.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>مراجعات الطلاب</Text>
+            <View style={styles.reviewList}>
+              {teacher.reviews.map((r: any) => (
+                <View key={r.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewUser}>
+                      {r.user?.avatarUrl ? (
+                        <Image source={{ uri: r.user.avatarUrl }} style={styles.reviewAvatar} />
+                      ) : (
+                        <View style={[styles.reviewAvatar, { backgroundColor: C.pill, alignItems: "center", justifyContent: "center" }]}>
+                          <Feather name="user" size={14} color={C.tint} />
+                        </View>
+                      )}
+                      <View>
+                        <Text style={styles.reviewName}>{r.user?.fullNameAr || r.user?.fullName}</Text>
+                        <Text style={styles.reviewDate}>{new Date(r.createdAt).toLocaleDateString()}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.reviewStars}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Feather key={s} name="star" size={12} color={s <= r.rating ? C.star : C.cardBorder} />
+                      ))}
+                    </View>
+                  </View>
+                  {r.comment && <Text style={styles.reviewCommentText}>&ldquo;{r.comment}&rdquo;</Text>}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Courses */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>الدورات ({teacher.courses?.length || 0})</Text>
@@ -202,4 +236,13 @@ const styles = StyleSheet.create({
   levelText: { fontFamily: "Inter_500Medium", fontSize: 10, color: C.textMuted },
   emptyState: { padding: 40, alignItems: "center" },
   emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: C.text, marginTop: 12 },
+  reviewList: { gap: 12 },
+  reviewCard: { backgroundColor: C.backgroundSecondary, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.cardBorder },
+  reviewHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
+  reviewUser: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  reviewAvatar: { width: 36, height: 36, borderRadius: 18 },
+  reviewName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text, textAlign: "right" },
+  reviewDate: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right", marginTop: 2 },
+  reviewStars: { flexDirection: "row-reverse", gap: 2 },
+  reviewCommentText: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "right", lineHeight: 20, fontStyle: "italic" },
 });

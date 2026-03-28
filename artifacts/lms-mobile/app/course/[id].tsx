@@ -11,6 +11,8 @@ import {
   Text,
   View,
   Linking,
+  TextInput,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -128,10 +130,31 @@ export default function CourseDetailScreen() {
   const queryClient = useQueryClient();
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
 
   const { data: course, isLoading } = useQuery<CourseDetail>({
     queryKey: ["course", id],
     queryFn: () => apiFetch(`/courses/${id}`),
+  });
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["course", id, "reviews"],
+    queryFn: () => apiFetch(`/courses/${id}/reviews`),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: () => apiFetch(`/courses/${id}/reviews`, {
+      method: "POST",
+      body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
+    }),
+    onSuccess: () => {
+      Alert.alert("نجاح", "تم إرسال تقييمك بنجاح. شكراً لك!");
+      setReviewComment("");
+      queryClient.invalidateQueries({ queryKey: ["course", id, "reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["course", id] });
+    },
+    onError: (e: any) => Alert.alert("خطأ", e.message),
   });
 
   const enrollMutation = useMutation({
@@ -270,6 +293,74 @@ export default function CourseDetailScreen() {
                 />
               ))}
             </View>
+          </View>
+
+          {/* Student Reviews */}
+          <View style={styles.section}>
+             <Text style={styles.sectionTitle}>تقييمات الطلاب</Text>
+
+             {/* Add a review inline if enrolled */}
+             {course.isEnrolled && (
+               <View style={styles.addReviewBox}>
+                 <Text style={styles.addReviewTitle}>أضف تقييمك</Text>
+                 <View style={styles.starPickerRow}>
+                   {[1, 2, 3, 4, 5].map((star) => (
+                     <Pressable key={star} onPress={() => setReviewRating(star)}>
+                       <Feather name="star" size={32} color={star <= reviewRating ? C.star : C.cardBorder} />
+                     </Pressable>
+                   ))}
+                 </View>
+                 <TextInput
+                   style={styles.reviewInput}
+                   placeholder="ما رأيك في هذه الدورة؟ اترك تعليقك..."
+                   value={reviewComment}
+                   onChangeText={setReviewComment}
+                   multiline
+                   textAlign="right"
+                 />
+                 <Pressable
+                   style={styles.submitReviewBtn}
+                   onPress={() => reviewMutation.mutate()}
+                   disabled={reviewMutation.isPending}
+                 >
+                   <Text style={styles.submitReviewText}>
+                     {reviewMutation.isPending ? "جاري الإرسال..." : "إرسال التقييم"}
+                   </Text>
+                 </Pressable>
+               </View>
+             )}
+
+             {reviews.length === 0 ? (
+               <Text style={styles.noReviews}>لا توجد تقييمات حتى الآن.</Text>
+             ) : (
+               <View style={styles.reviewList}>
+                 {reviews.map((r: any) => (
+                   <View key={r.id} style={styles.reviewCard}>
+                     <View style={styles.reviewHeader}>
+                       <View style={styles.reviewUser}>
+                         {r.user?.avatarUrl ? (
+                           <Image source={{ uri: r.user.avatarUrl }} style={styles.reviewAvatar} />
+                         ) : (
+                           <View style={[styles.reviewAvatar, { backgroundColor: C.pill, alignItems: "center", justifyContent: "center" }]}>
+                             <Feather name="user" size={14} color={C.tint} />
+                           </View>
+                         )}
+                         <View>
+                           <Text style={styles.reviewName}>{r.user?.fullNameAr || r.user?.fullName}</Text>
+                           <Text style={styles.reviewDate}>{new Date(r.createdAt).toLocaleDateString()}</Text>
+                         </View>
+                       </View>
+                       <View style={styles.reviewStars}>
+                         {[1, 2, 3, 4, 5].map((s) => (
+                           <Feather key={s} name="star" size={12} color={s <= r.rating ? C.star : C.cardBorder} />
+                         ))}
+                       </View>
+                     </View>
+                     {r.comment && <Text style={styles.reviewCommentText}>{r.comment}</Text>}
+                   </View>
+                 ))}
+               </View>
+             )}
           </View>
         </View>
       </ScrollView>
@@ -434,4 +525,20 @@ const styles = StyleSheet.create({
   },
   enrollBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
   errorMsg: { fontFamily: "Inter_500Medium", fontSize: 15, color: C.textMuted },
+  addReviewBox: { backgroundColor: C.backgroundSecondary, borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: C.cardBorder },
+  addReviewTitle: { fontFamily: "Inter_700Bold", fontSize: 15, color: C.text, textAlign: "right", marginBottom: 12 },
+  starPickerRow: { flexDirection: "row-reverse", justifyContent: "center", gap: 12, marginBottom: 16 },
+  reviewInput: { backgroundColor: C.background, borderWidth: 1, borderColor: C.cardBorder, borderRadius: 12, padding: 12, minHeight: 80, fontFamily: "Inter_400Regular", fontSize: 14, color: C.text, textAlignVertical: "top", marginBottom: 12 },
+  submitReviewBtn: { backgroundColor: C.tint, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  submitReviewText: { fontFamily: "Inter_600SemiBold", color: "#fff", fontSize: 14 },
+  noReviews: { fontFamily: "Inter_400Regular", fontSize: 14, color: C.textMuted, textAlign: "center", marginTop: 10 },
+  reviewList: { gap: 12 },
+  reviewCard: { backgroundColor: C.backgroundSecondary, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.cardBorder },
+  reviewHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
+  reviewUser: { flexDirection: "row-reverse", alignItems: "center", gap: 10 },
+  reviewAvatar: { width: 36, height: 36, borderRadius: 18 },
+  reviewName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text, textAlign: "right" },
+  reviewDate: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right", marginTop: 2 },
+  reviewStars: { flexDirection: "row-reverse", gap: 2 },
+  reviewCommentText: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "right", lineHeight: 20 },
 });

@@ -9,7 +9,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BarChart, BookOpen, Calendar,
   Globe, Lock, Trash2, Eye, Radio, Clock, DollarSign, GraduationCap,
-  Settings, ChevronRight, PlayCircle, Star
+  Settings, ChevronRight, PlayCircle, Star, TrendingUp, Megaphone, CheckCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -351,6 +351,7 @@ export default function TeacherDashboard() {
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> My Courses</TabsTrigger>
             <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> Live Sessions</TabsTrigger>
             <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> Students</TabsTrigger>
+            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> Promote & Analytics</TabsTrigger>
           </TabsList>
 
           {/* COURSES TAB */}
@@ -518,6 +519,11 @@ export default function TeacherDashboard() {
           <TabsContent value="students">
             <TeacherStudentsList api={api} />
           </TabsContent>
+
+          {/* PROMOTE TAB */}
+          <TabsContent value="promote">
+            <TeacherPromoteTab api={api} user={user} />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -622,3 +628,187 @@ function TeacherStudentsList({ api }: { api: any }) {
     </div>
   );
 }
+
+function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [loadingPro, setLoadingPro] = React.useState(false);
+  const [loadingAd, setLoadingAd] = React.useState(false);
+  const [ads, setAds] = React.useState<any[]>([]);
+  const [stats, setStats] = React.useState<any[]>([]);
+
+  const fetchData = React.useCallback(async () => {
+    try {
+      const [adsData, statsData] = await Promise.all([
+        api.get('/advertisements/my').catch(() => []),
+        api.get('/teacher-profile/analytics/summary').catch(() => [])
+      ]);
+      setAds(adsData || []);
+      setStats(statsData || []);
+    } catch (err) {}
+  }, [api]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleUpgradePro = async () => {
+    setLoadingPro(true);
+    try {
+      await api.post('/teacher-profile/upgrade-pro', {});
+      toast({ title: "Upgraded to Pro!", description: "You are now a Pro teacher." });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] }); // refresh user context
+      window.location.reload(); // Quick refresh to show badge everywhere
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: 'destructive' });
+    } finally {
+      setLoadingPro(false);
+    }
+  };
+
+  const handleBuyAd = async (adType: 'banner' | 'featured_search') => {
+    setLoadingAd(true);
+    try {
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 7); // 7 day ad
+
+      await api.post('/advertisements', {
+        adType,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        budgetPaid: '50' // Placeholder 50 LYD
+      });
+      toast({ title: "Ad Campaign Started!", description: "Your ad is now active for 7 days." });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: 'destructive' });
+    } finally {
+      setLoadingAd(false);
+    }
+  };
+
+  const profileViews = stats.find(s => s.eventType === 'profile_view')?.count || 0;
+
+  return (
+    <div className="space-y-8">
+      {/* Overview Analytics */}
+      <div>
+        <h2 className="text-xl font-display font-bold mb-4">Analytics Overview</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+              <Eye className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{profileViews}</div>
+              <div className="text-sm text-muted-foreground">Profile Views</div>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+              <Star className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{user.tier === 'pro' ? 'Active' : 'Free'}</div>
+              <div className="text-sm text-muted-foreground">Pro Status</div>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+              <Megaphone className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{ads.filter(a => a.isActive).length}</div>
+              <div className="text-sm text-muted-foreground">Active Ad Campaigns</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pro Subscription Block */}
+        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm flex flex-col">
+          <div className="p-6 border-b border-border bg-gradient-to-br from-amber-50 to-transparent">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-xl font-bold font-display">Pro Subscription</h3>
+              {user.tier === 'pro' && <Badge className="bg-amber-500 hover:bg-amber-600">PRO ACTIVE</Badge>}
+            </div>
+            <p className="text-muted-foreground text-sm">Stand out with a Pro badge and advanced features.</p>
+          </div>
+          <div className="p-6 flex-1 flex flex-col">
+            <ul className="space-y-3 mb-6 flex-1 text-sm">
+              <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Premium "Pro" Badge on profile</li>
+              <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Ranking boost in searches</li>
+              <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Advanced student analytics</li>
+              <li className="flex items-center gap-2 text-muted-foreground"><CheckCircle className="w-4 h-4 opacity-50" /> 0% commission on direct courses (coming soon)</li>
+            </ul>
+            {user.tier !== 'pro' ? (
+              <Button 
+                onClick={handleUpgradePro} 
+                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                disabled={loadingPro}
+              >
+                <Star className="w-4 h-4" /> Get Pro (Placeholder: Free Demo)
+              </Button>
+            ) : (
+              <div className="text-center p-3 bg-muted rounded-xl text-sm font-medium text-muted-foreground">
+                Your Pro subscription is active until {new Date(user.proExpiry || Date.now()).toLocaleDateString()}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Advertisements Block */}
+        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm flex flex-col">
+          <div className="p-6 border-b border-border">
+            <h3 className="text-xl font-bold font-display tracking-tight mb-2">Promote & Advertise</h3>
+            <p className="text-muted-foreground text-sm">Boost your visibility to thousands of students across the platform.</p>
+          </div>
+          <div className="p-6 space-y-4 flex-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border border-border rounded-xl p-4 flex flex-col items-center text-center">
+                <Globe className="w-8 h-8 text-primary mb-2 opacity-80" />
+                <h4 className="font-bold text-sm">Homepage Banner</h4>
+                <p className="text-xs text-muted-foreground mt-1 mb-4 flex-1">Features your profile on the main landing page.</p>
+                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleBuyAd('banner')} disabled={loadingAd}>
+                  Buy (50 LYD / wk)
+                </Button>
+              </div>
+              <div className="border border-border rounded-xl p-4 flex flex-col items-center text-center">
+                <TrendingUp className="w-8 h-8 text-blue-500 mb-2 opacity-80" />
+                <h4 className="font-bold text-sm">Search Featured</h4>
+                <p className="text-xs text-muted-foreground mt-1 mb-4 flex-1">Always appear at the top of category searches.</p>
+                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleBuyAd('featured_search')} disabled={loadingAd}>
+                  Buy (30 LYD / wk)
+                </Button>
+              </div>
+            </div>
+
+            {ads.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-bold text-sm mb-3">Your Campaigns</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  {ads.map((ad, i) => (
+                    <div key={i} className="flex justify-between items-center bg-muted/50 p-3 rounded-xl border border-border/50 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={ad.isActive ? "bg-green-100 text-green-700" : ""}>
+                          {ad.isActive ? 'Active' : 'Ended'}
+                        </Badge>
+                        <span className="font-medium capitalize">{ad.adType.replace('_', ' ')}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Until {new Date(ad.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

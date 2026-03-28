@@ -110,6 +110,28 @@ function CategoryChip({ cat, onPress }: { cat: Category; onPress: () => void }) 
   );
 }
 
+function AdCard({ ad }: { ad: any }) {
+  const { t, language } = useLanguage();
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.adCard, pressed && { opacity: 0.85 }]}
+      onPress={() => router.push(`/teacher-profile/${ad.teacherSlug}` as any)}
+    >
+      <View style={styles.adAvatarBox}>
+        {ad.teacherAvatar ? (
+          <Image source={{ uri: ad.teacherAvatar }} style={styles.adAvatar} />
+        ) : (
+          <Text style={styles.adAvatarText}>{ad.teacherName?.charAt(0)}</Text>
+        )}
+      </View>
+      <Text style={styles.adName} numberOfLines={1}>{language === 'ar' ? (ad.teacherNameAr || ad.teacherName) : ad.teacherName}</Text>
+      <View style={styles.adBadge}>
+        <Text style={styles.adBadgeText}>{t("مميز", "Sponsored")}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -125,6 +147,12 @@ export default function HomeScreen() {
     queryKey: ["categories"],
     queryFn: () => apiFetch("/categories"),
   });
+
+  const { data: activeAds } = useQuery({
+    queryKey: ["active-ads"],
+    queryFn: () => apiFetch("/advertisements/active"),
+  });
+  const bannerAds = (activeAds as any[])?.filter(ad => ad.adType === "banner") || [];
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -184,6 +212,23 @@ export default function HomeScreen() {
           <Feather name="book-open" size={70} color="rgba(255,255,255,0.2)" />
         </View>
       </LinearGradient>
+
+      {/* Sponsored Instructors */}
+      {bannerAds.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Feather name="star" size={16} color="#eab308" />
+              <Text style={styles.sectionTitle}>{t("معلمون مميزون", "Featured Instructors")}</Text>
+            </View>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 20 }}>
+            {bannerAds.map((ad: any) => (
+              <AdCard key={ad.id} ad={ad} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Categories */}
       <View style={styles.section}>
@@ -365,4 +410,34 @@ const styles = StyleSheet.create({
   ctaBtn: { backgroundColor: C.tint, borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14, width: "100%" },
   ctaBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff", textAlign: "center" },
   ctaLogin: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.tint, marginTop: 14 },
+  
+  adCard: {
+    backgroundColor: C.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(234,179,8,0.3)", // amber/yellow border
+    padding: 16,
+    width: 140,
+    alignItems: "center",
+  },
+  adAvatarBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: C.tint,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  adAvatar: { width: "100%", height: "100%", resizeMode: "cover" },
+  adAvatarText: { fontFamily: "Inter_700Bold", fontSize: 24, color: "#fff" },
+  adName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text, textAlign: "center", marginBottom: 6 },
+  adBadge: {
+    backgroundColor: "rgba(234,179,8,0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  adBadgeText: { fontFamily: "Inter_500Medium", fontSize: 10, color: "#ca8a04" },
 });

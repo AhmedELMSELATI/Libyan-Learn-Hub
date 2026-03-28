@@ -4,7 +4,7 @@ import {
   usersTable, coursesTable, enrollmentsTable, reviewsTable, lessonsTable,
   profileAnalyticsTable, studentEndorsementsTable,
 } from "@workspace/db";
-import { eq, count, avg, and, sql } from "drizzle-orm";
+import { eq, count, avg, and, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
@@ -97,6 +97,24 @@ router.get("/:slug", async (req, res) => {
       .where(eq(studentEndorsementsTable.teacherId, teacher.id))
       .groupBy(studentEndorsementsTable.trait);
 
+    // Get recent student reviews
+    const recentReviews = await db.select({
+      id: reviewsTable.id,
+      rating: reviewsTable.rating,
+      comment: reviewsTable.comment,
+      createdAt: reviewsTable.createdAt,
+      user: {
+        id: usersTable.id,
+        fullName: usersTable.fullName,
+        fullNameAr: usersTable.fullNameAr,
+        avatarUrl: usersTable.avatarUrl,
+      }
+    }).from(reviewsTable)
+      .innerJoin(usersTable, eq(reviewsTable.userId, usersTable.id))
+      .where(sql`${reviewsTable.courseId} IN (SELECT id FROM courses WHERE teacher_id = ${teacher.id})`)
+      .orderBy(desc(reviewsTable.createdAt))
+      .limit(10);
+
     res.json({
       id: teacher.id,
       fullName: teacher.fullName,
@@ -117,6 +135,7 @@ router.get("/:slug", async (req, res) => {
       rating: parseFloat(reviewData.avg || "0"),
       reviewCount: Number(reviewData.cnt),
       endorsements,
+      reviews: recentReviews,
       courses: courses.map((c) => ({
         id: c.id,
         title: c.title,
@@ -314,6 +333,27 @@ router.get("/analytics/summary", requireAuth, requireRole("teacher", "admin"), a
       .groupBy(profileAnalyticsTable.eventType);
 
     res.json(stats);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Teacher: Upgrade to Pro (Placeholder for future payment flow) ───
+router.post("/upgrade-pro", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    
+    // For now, immediately upgrade to Pro for 30 days
+    const proExpiry = new Date();
+    proExpiry.setDate(proExpiry.getDate() + 30);
+    
+    await db.update(usersTable).set({ 
+      tier: "pro", 
+      proExpiry, 
+      updatedAt: new Date() 
+    }).where(eq(usersTable.id, userId));
+    
+    res.json({ success: true, message: "Upgraded to Pro successfully" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
