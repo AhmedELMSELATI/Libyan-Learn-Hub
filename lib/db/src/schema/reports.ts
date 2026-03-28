@@ -5,7 +5,8 @@ export const reportTypeEnum = pgEnum("report_type", ["lesson", "session", "teach
 export const reportStatusEnum = pgEnum("report_status", ["open", "under_review", "resolved", "dismissed"]);
 export const reportReasonEnum = pgEnum("report_reason", [
   "wrong_content", "offensive", "technical_issue", "no_show",
-  "inappropriate_behavior", "copyright", "spam", "other"
+  "inappropriate_behavior", "copyright", "spam",
+  "stolen_identity", "stolen_material", "other"
 ]);
 
 export const reportsTable = pgTable("reports", {

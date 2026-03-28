@@ -88,19 +88,32 @@ router.get("/", async (_req, res) => {
       return {
         id: t.id,
         fullName: t.fullName,
+        fullNameAr: t.fullNameAr,
         bio: t.bio,
+        bioAr: t.bioAr,
         expertise: t.expertise,
         avatarUrl: t.avatarUrl,
         isVerified: t.isVerified,
         isTutoringEnabled: t.isTutoringEnabled,
         tutoringHourlyRate: parseFloat(t.tutoringHourlyRate || "0"),
+        isSponsored: t.isSponsored && t.sponsoredUntil && new Date(t.sponsoredUntil) > new Date(),
+        tier: t.tier,
+        profileSlug: t.profileSlug,
         courseCount: Number(cc.total),
         studentCount: Number(sc.total),
         rating: parseFloat(er.avg || "0"),
         reviewCount: Number(er.cnt),
       };
     }));
-    res.json(result.filter(t => t.courseCount > 0 || t.isTutoringEnabled));
+    // Sort: sponsored first, then by rating
+    const sorted = result
+      .filter(t => t.courseCount > 0 || t.isTutoringEnabled)
+      .sort((a, b) => {
+        if (a.isSponsored && !b.isSponsored) return -1;
+        if (!a.isSponsored && b.isSponsored) return 1;
+        return b.rating - a.rating;
+      });
+    res.json(sorted);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

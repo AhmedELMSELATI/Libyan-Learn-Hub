@@ -20,3 +20,11 @@ export * from "./tutoring-requests.ts";
 export * from "./tutoring-listings.ts";
 export * from "./session-questions.ts";
 export * from "./wishlists.ts";
+// New platform improvement schemas
+export * from "./advertisements.ts";
+export * from "./content-verification-jobs.ts";
+export * from "./copyright-complaints.ts";
+export * from "./profile-analytics.ts";
+export * from "./student-endorsements.ts";
+export * from "./teacher-devices.ts";
+

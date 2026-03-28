@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { BookOpen, Mail, Phone, MapPin } from 'lucide-react';
+import { Link } from 'wouter';
 
 export function Footer() {
   const { t, dir } = useLanguage();
@@ -38,7 +39,7 @@ export function Footer() {
             <ul className="space-y-3">
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</a></li>
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Content Protection</a></li>
+              <li><Link href="/dmca" className="text-sm text-muted-foreground hover:text-primary transition-colors">Copyright / DMCA</Link></li>
             </ul>
           </div>
 

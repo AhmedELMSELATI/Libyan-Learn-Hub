@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useParams } from 'wouter';
 import {
   Plus, Edit, Trash2, ArrowLeft, Video, FileText, Upload,
-  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip
+  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -132,7 +132,8 @@ export default function ManageCourse() {
   const lessonForm = useForm({
     defaultValues: {
       title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '',
-      content: '', contentAr: '', duration: 0, isFree: false, type: 'video'
+      content: '', contentAr: '', duration: 0, isFree: false, type: 'video',
+      bookName: '', bookNameAr: '', schoolYear: '', chapter: '', pageNumber: '', subjectTags: '',
     }
   });
 
@@ -264,6 +265,9 @@ export default function ManageCourse() {
       content: lesson.content || '',
       contentAr: lesson.contentAr || '', duration: lesson.duration,
       isFree: lesson.isFree, type: lesson.type || 'video',
+      bookName: lesson.bookName || '', bookNameAr: lesson.bookNameAr || '',
+      schoolYear: lesson.schoolYear || '', chapter: lesson.chapter || '',
+      pageNumber: lesson.pageNumber || '', subjectTags: Array.isArray(lesson.subjectTags) ? lesson.subjectTags.join(', ') : (lesson.subjectTags || ''),
     });
     setVideoFile(null);
     setDocumentFile(null);
@@ -429,6 +433,58 @@ export default function ManageCourse() {
         <label className="text-sm font-medium mb-1 block">المحتوى / الملاحظات (عربي)</label>
         <Textarea {...lessonForm.register('contentAr')} dir="rtl" placeholder="ملاحظات إضافية..." rows={2} />
       </div>
+
+      {/* ── Lesson Metadata (Search & Discovery) ──────────────── */}
+      <div className="border border-primary/20 rounded-xl p-4 bg-primary/5 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-primary mb-1">
+          <BookOpen className="w-4 h-4" /> Lesson Metadata / بيانات الدرس
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium mb-1 block">Book Name (EN)</label>
+            <Input {...lessonForm.register('bookName')} placeholder="e.g. Mathematics Grade 3" className="h-9 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block">اسم الكتاب (عربي)</label>
+            <Input {...lessonForm.register('bookNameAr')} dir="rtl" placeholder="مثال: الرياضيات الصف الثالث" className="h-9 text-sm" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-medium mb-1 block">School Year / السنة</label>
+            <select {...lessonForm.register('schoolYear')} className="w-full h-9 px-2 rounded-md border border-input bg-background text-xs">
+              <option value="">— Select —</option>
+              <option value="1-primary">1st Primary / أول ابتدائي</option>
+              <option value="2-primary">2nd Primary / ثاني ابتدائي</option>
+              <option value="3-primary">3rd Primary / ثالث ابتدائي</option>
+              <option value="4-primary">4th Primary / رابع ابتدائي</option>
+              <option value="5-primary">5th Primary / خامس ابتدائي</option>
+              <option value="6-primary">6th Primary / سادس ابتدائي</option>
+              <option value="1-preparatory">1st Prep / أول إعدادي</option>
+              <option value="2-preparatory">2nd Prep / ثاني إعدادي</option>
+              <option value="3-preparatory">3rd Prep / ثالث إعدادي</option>
+              <option value="1-secondary">1st Secondary / أول ثانوي</option>
+              <option value="2-secondary">2nd Secondary / ثاني ثانوي</option>
+              <option value="3-secondary">3rd Secondary / ثالث ثانوي</option>
+              <option value="university">University / جامعي</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block">Chapter / الفصل</label>
+            <Input {...lessonForm.register('chapter')} placeholder="e.g. Chapter 3" className="h-9 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-medium mb-1 block">Page # / الصفحة</label>
+            <Input type="number" min="1" {...lessonForm.register('pageNumber')} placeholder="42" className="h-9 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium mb-1 block">Subject Tags / الموضوعات</label>
+          <Input {...lessonForm.register('subjectTags')} placeholder="algebra, equations, quadratic (comma separated)" className="h-9 text-sm" />
+          <p className="text-xs text-muted-foreground mt-1">Helps students find this lesson via search</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium mb-1 block">Duration (seconds)</label>
@@ -602,7 +658,7 @@ export default function ManageCourse() {
                         className="gap-2 mt-4 w-full border-dashed"
                         onClick={() => {
                           setIsAddLessonOpen(section.id);
-                          lessonForm.reset({ title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '', content: '', contentAr: '', duration: 0, isFree: false, type: 'video' });
+                          lessonForm.reset({ title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '', content: '', contentAr: '', duration: 0, isFree: false, type: 'video', bookName: '', bookNameAr: '', schoolYear: '', chapter: '', pageNumber: '', subjectTags: '' });
                         setVideoFile(null);
                         setDocumentFile(null);
                         }}

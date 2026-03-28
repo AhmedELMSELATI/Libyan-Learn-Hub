@@ -6,7 +6,7 @@ import {
   Users, BookOpen, CreditCard, CheckCircle, XCircle, Trash2,
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
-  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2
+  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,6 +104,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
             <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" /> Finance</TabsTrigger>
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
+            <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} /></TabsContent>
@@ -113,6 +114,7 @@ export default function AdminDashboard() {
           <TabsContent value="payments"><PaymentsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="finance"><FinanceTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="dmca"><DMCAComplaintsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
         </Tabs>
       </div>
     </PageContainer>
@@ -1028,7 +1030,7 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-bold">{teacher.fullName}</h3>
-                      {teacher.isVerified && <BadgeCheck className="w-4 h-4 text-primary" title="Verified" />}
+                      {teacher.isVerified && <BadgeCheck className="w-4 h-4 text-primary" />}
                       {teacher.isTutoringEnabled && <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Tutoring</span>}
                     </div>
                     {teacher.expertise && <p className="text-xs text-muted-foreground">{teacher.expertise}</p>}
@@ -1444,6 +1446,184 @@ function CategoriesTab({ api, queryClient, toast }: any) {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── DMCA COMPLAINTS TAB ──────────────────────────────────────────────────────
+
+function DMCAComplaintsTab({ api, queryClient, toast }: any) {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [activeComplaint, setActiveComplaint] = useState<any>(null);
+  const [adminNotes, setAdminNotes] = useState('');
+
+  const { data: complaints, isLoading } = useQuery({
+    queryKey: ['/api/copyright-complaints'],
+    queryFn: () => api.get('/copyright-complaints'),
+    refetchInterval: 30000,
+  });
+
+  const updateStatus = async (id: number, status: string) => {
+    try {
+      await api.patch(`/copyright-complaints/${id}`, { status, adminNotes });
+      toast({ title: `Complaint marked as ${status}` });
+      queryClient.invalidateQueries({ queryKey: ['/api/copyright-complaints'] });
+      setActiveComplaint(null);
+      setAdminNotes('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const filtered = (complaints || []).filter((c: any) => {
+    return statusFilter === 'all' || c.status === statusFilter;
+  });
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    reviewing: 'bg-blue-100 text-blue-800 border-blue-200',
+    resolved: 'bg-green-100 text-green-700 border-green-200',
+    rejected: 'bg-red-100 text-red-700 border-red-200',
+  };
+
+  const pendingCount = (complaints || []).filter((c: any) => c.status === 'pending').length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 flex-wrap justify-between items-center">
+        <div className="flex items-center gap-3">
+          <h2 className="font-bold text-lg">DMCA Complaints</h2>
+          {pendingCount > 0 && (
+            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount} pending</span>
+          )}
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-background text-sm">
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="reviewing">Under Review</option>
+          <option value="resolved">Resolved / Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      {isLoading ? (
+        <div className="p-10 text-center text-muted-foreground">Loading complaints...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 bg-card rounded-2xl border border-dashed border-border">
+          <ShieldAlert className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-20" />
+          <h3 className="font-bold">No DMCA complaints</h3>
+        </div>
+      ) : (
+        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted/40 border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reporter</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reported Teacher</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium">{c.reporterName}</div>
+                      <div className="text-xs text-muted-foreground">{c.reporterEmail}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-bold text-primary">ID: {c.reportedTeacherId}</div>
+                      <div className="text-xs text-muted-foreground">{c.reportedTeacherName || 'Unknown Teacher'}</div>
+                      {c.reportedLessonId && <div className="text-[10px] text-muted-foreground bg-muted inline-block px-1 mt-0.5 rounded">Lesson: {c.reportedLessonId}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-sm max-w-[200px] truncate" title={c.description}>
+                      {c.description}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[c.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {c.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setActiveComplaint(c); setAdminNotes(c.adminNotes || ''); }}>
+                        Review
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={!!activeComplaint} onOpenChange={(o) => { if (!o) { setActiveComplaint(null); setAdminNotes(''); } }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Review DMCA Complaint #{activeComplaint?.id}</DialogTitle></DialogHeader>
+          {activeComplaint && (
+            <div className="space-y-4 mt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 space-y-2 text-sm">
+                  <h4 className="font-bold text-amber-900 border-b border-amber-200 pb-1 mb-2">Reporter Details</h4>
+                  <div><span className="font-semibold">Name:</span> {activeComplaint.reporterName}</div>
+                  <div><span className="font-semibold">Email:</span> {activeComplaint.reporterEmail}</div>
+                  {activeComplaint.proofUrl && (
+                    <div><span className="font-semibold">Proof Link:</span> <a href={activeComplaint.proofUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline break-all">{activeComplaint.proofUrl}</a></div>
+                  )}
+                </div>
+                <div className="bg-red-50 rounded-xl p-4 border border-red-100 space-y-2 text-sm">
+                  <h4 className="font-bold text-red-900 border-b border-red-200 pb-1 mb-2">Reported Target</h4>
+                  <div><span className="font-semibold">Teacher ID:</span> {activeComplaint.reportedTeacherId} ({activeComplaint.reportedTeacherName})</div>
+                  {activeComplaint.reportedLessonId && <div><span className="font-semibold">Lesson ID:</span> {activeComplaint.reportedLessonId}</div>}
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <h4 className="font-bold">Infringement Description</h4>
+                <div className="bg-muted p-3 rounded-lg text-sm whitespace-pre-wrap leading-relaxed border">
+                  {activeComplaint.description}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold mb-1 block">Internal Admin Notes</label>
+                <textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Record your investigation results here..."
+                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none"
+                />
+              </div>
+
+              <div className="bg-card border rounded-xl p-4">
+                <h4 className="font-bold text-sm mb-3">Resolution Actions</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => updateStatus(activeComplaint.id, 'reviewing')}>
+                    ⏳ Mark as Under Review
+                  </Button>
+                  <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => updateStatus(activeComplaint.id, 'resolved')}>
+                    ✓ Approve (Take Down Content)
+                  </Button>
+                  <Button variant="outline" className="text-destructive border-destructive" onClick={() => updateStatus(activeComplaint.id, 'rejected')}>
+                    ✗ Reject (Baseless)
+                  </Button>
+                  <Button variant="ghost" onClick={() => setActiveComplaint(null)}>
+                    Cancel
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  Note: Taking down content currently requires you to manually navigate to the Courses tab and unpublish the reported course or delete the lesson.
+                </p>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

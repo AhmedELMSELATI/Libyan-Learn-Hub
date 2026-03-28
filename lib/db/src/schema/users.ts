@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const userRoleEnum = pgEnum("user_role", ["student", "teacher", "admin"]);
 export const languageEnum = pgEnum("language", ["ar", "en"]);
+export const teacherTierEnum = pgEnum("teacher_tier", ["free", "pro"]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -26,6 +27,18 @@ export const usersTable = pgTable("users", {
   isTutoringEnabled: boolean("is_tutoring_enabled").notNull().default(false),
   tutoringHourlyRate: numeric("tutoring_hourly_rate", { precision: 10, scale: 2 }).default("0"),
   tutoringSubjects: text("tutoring_subjects"),
+  // Teacher profile & verification fields
+  cvUrl: text("cv_url"),
+  facePhotoUrl: text("face_photo_url"),
+  voiceSampleUrl: text("voice_sample_url"),
+  copyrightAgreedAt: timestamp("copyright_agreed_at"),
+  profileSlug: varchar("profile_slug", { length: 255 }).unique(),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  // Monetization / subscription
+  tier: teacherTierEnum("tier").notNull().default("free"),
+  proExpiry: timestamp("pro_expiry"),
+  isSponsored: boolean("is_sponsored").notNull().default(false),
+  sponsoredUntil: timestamp("sponsored_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

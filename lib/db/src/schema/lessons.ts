@@ -23,6 +23,15 @@ export const lessonsTable = pgTable("lessons", {
   order: integer("order").notNull().default(0),
   isFree: boolean("is_free").notNull().default(false),
   type: lessonTypeEnum("type").notNull().default("video"),
+  // Lesson metadata for search & discovery
+  bookName: varchar("book_name", { length: 255 }),
+  bookNameAr: varchar("book_name_ar", { length: 255 }),
+  schoolYear: varchar("school_year", { length: 50 }),
+  chapter: varchar("chapter", { length: 100 }),
+  pageNumber: varchar("page_number", { length: 50 }),
+  subjectTags: text("subject_tags"),
+  // Anti-piracy: perceptual hash for duplicate detection
+  videoFingerprint: text("video_fingerprint"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

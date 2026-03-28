@@ -22,6 +22,11 @@ import expensesRouter from "./expenses.js";
 import lessonProgressRouter from "./lesson-progress.js";
 import wishlistsRouter from "./wishlists.js";
 import uploadRouter from "./upload.js";
+// New platform improvement routes
+import teacherProfileRouter from "./teacher-profile.js";
+import advertisementsRouter from "./advertisements.js";
+import copyrightComplaintsRouter from "./copyright-complaints.js";
+import verificationRouter from "./verification.js";
 
 const router: IRouter = Router();
 
@@ -49,5 +54,10 @@ router.use("/expenses", expensesRouter);
 router.use("/lesson-progress", lessonProgressRouter);
 router.use("/wishlists", wishlistsRouter);
 router.use("/upload", uploadRouter);
+// New platform improvement routes
+router.use("/teacher-profile", teacherProfileRouter);
+router.use("/ads", advertisementsRouter);
+router.use("/copyright-complaints", copyrightComplaintsRouter);
+router.use("/verification", verificationRouter);
 
 export default router;

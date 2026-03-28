@@ -19,6 +19,9 @@ import LiveSessions from "@/pages/LiveSessions";
 import SessionRoom from "@/pages/SessionRoom";
 import Tutoring from "@/pages/Tutoring";
 import Teachers from "@/pages/Teachers";
+import TeacherProfile from "@/pages/TeacherProfile";
+import SearchPage from "@/pages/Search";
+import DMCAComplaint from "@/pages/DMCAComplaint";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +43,9 @@ function Router() {
       <Route path="/session/:id" component={SessionRoom} />
       <Route path="/tutoring" component={Tutoring} />
       <Route path="/teachers" component={Teachers} />
+      <Route path="/teachers/:slug" component={TeacherProfile} />
+      <Route path="/search" component={SearchPage} />
+      <Route path="/dmca" component={DMCAComplaint} />
       <Route path="/login" component={Auth} />
       <Route path="/register" component={Auth} />
       <Route path="/dashboard" component={Dashboard} />

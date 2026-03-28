@@ -42,7 +42,11 @@ export default function ManageCourseScreen() {
 
   // Forms
   const [sectionForm, setSectionForm] = useState({ title: "", titleAr: "", description: "", descriptionAr: "" });
-  const [lessonForm, setLessonForm] = useState({ title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+  const [lessonForm, setLessonForm] = useState({ 
+    title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", 
+    content: "", contentAr: "", duration: "0", isFree: false, type: "video",
+    bookName: "", bookNameAr: "", schoolYear: "", chapter: "", pageNumber: "", subjectTags: "" 
+  });
 
   // File upload state
   const [videoFile, setVideoFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
@@ -230,7 +234,11 @@ export default function ManageCourseScreen() {
       Alert.alert(t("تم!", "Done!"), t("تمت إضافة الدرس.", "Lesson added."));
       queryClient.invalidateQueries({ queryKey: ["course-sections", courseId] });
       setAddLessonSectionId(null);
-      setLessonForm({ title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+      setLessonForm({ 
+        title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", 
+        content: "", contentAr: "", duration: "0", isFree: false, type: "video",
+        bookName: "", bookNameAr: "", schoolYear: "", chapter: "", pageNumber: "", subjectTags: "" 
+      });
       setVideoFile(null);
       setDocumentFile(null);
     } catch (err: any) {
@@ -489,7 +497,11 @@ export default function ManageCourseScreen() {
                     )}
                     <Pressable style={styles.addLessonBtn} onPress={() => {
                       setAddLessonSectionId(section.id);
-                      setLessonForm({ title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", content: "", contentAr: "", duration: "0", isFree: false, type: "video" });
+                      setLessonForm({ 
+                        title: "", titleAr: "", videoUrl: "", videoFilePath: "", documentFilePath: "", documentFileName: "", 
+                        content: "", contentAr: "", duration: "0", isFree: false, type: "video",
+                        bookName: "", bookNameAr: "", schoolYear: "", chapter: "", pageNumber: "", subjectTags: "" 
+                      });
                       setVideoFile(null);
                       setDocumentFile(null);
                     }}>
@@ -618,6 +630,35 @@ export default function ManageCourseScreen() {
               <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://example.com/..." />
               <Text style={[styles.fileInfo, { marginBottom: 6 }]}>{t("رابط خارجي لمعلومات إضافية", "External link for additional info")}</Text>
 
+              {/* ── Lesson Metadata ───────────────────────────────────── */}
+              <View style={styles.metadataBox}>
+                <Text style={styles.metadataTitle}>{t("بيانات الدرس (للبحث)", "Lesson Metadata (Search)")}</Text>
+                
+                <Text style={styles.inputLabel}>{t("اسم الكتاب (عربي)", "Book Name (AR)")}</Text>
+                <TextInput style={styles.input} value={lessonForm.bookNameAr} onChangeText={v => setLessonForm(f => ({ ...f, bookNameAr: v }))} placeholder={t("مثال: الرياضيات الصف الثالث", "e.g. Math Grade 3")} textAlign="right" />
+                
+                <Text style={styles.inputLabel}>{t("Book Name (EN)", "Book Name (EN)")}</Text>
+                <TextInput style={styles.input} value={lessonForm.bookName} onChangeText={v => setLessonForm(f => ({ ...f, bookName: v }))} placeholder="e.g. Math Grade 3" />
+                
+                <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                     <Text style={styles.inputLabel}>{t("السنة الدراسية", "School Year")}</Text>
+                     <TextInput style={styles.input} value={lessonForm.schoolYear} onChangeText={v => setLessonForm(f => ({ ...f, schoolYear: v }))} placeholder={t("مثال: 3-primary", "e.g. 3-primary")} textAlign="right" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                     <Text style={styles.inputLabel}>{t("الفصل", "Chapter")}</Text>
+                     <TextInput style={styles.input} value={lessonForm.chapter} onChangeText={v => setLessonForm(f => ({ ...f, chapter: v }))} placeholder={t("الفصل 3", "Chapter 3")} textAlign="right" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                     <Text style={styles.inputLabel}>{t("الصفحة", "Page")}</Text>
+                     <TextInput style={styles.input} value={lessonForm.pageNumber} onChangeText={v => setLessonForm(f => ({ ...f, pageNumber: v }))} keyboardType="numeric" placeholder="42" textAlign="center" />
+                  </View>
+                </View>
+
+                <Text style={styles.inputLabel}>{t("الكلمات المفتاحية", "Subject Tags")}</Text>
+                <TextInput style={styles.input} value={lessonForm.subjectTags} onChangeText={v => setLessonForm(f => ({ ...f, subjectTags: v }))} placeholder={t("مفصولة بفاصلة (جبر، معادلات)", "Comma separated tags")} textAlign="right" />
+              </View>
+
               <Text style={styles.inputLabel}>{t("المحتوى / الملاحظات", "Content / Notes")}</Text>
               <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} placeholder={t("ملاحظات إضافية...", "Additional notes...")} textAlign="right" />
               <View style={{ flexDirection: "row", gap: 10 }}>
@@ -699,6 +740,35 @@ export default function ManageCourseScreen() {
             <Text style={styles.inputLabel}>{t("رابط مرجعي (اختياري)", "Reference Link (optional)")}</Text>
             <TextInput style={styles.input} value={lessonForm.videoUrl} onChangeText={v => setLessonForm(f => ({ ...f, videoUrl: v }))} placeholder="https://example.com/..." />
             <Text style={[styles.fileInfo, { marginBottom: 6 }]}>{t("رابط خارجي لمعلومات إضافية", "External link for additional info")}</Text>
+
+            {/* ── Lesson Metadata ───────────────────────────────────── */}
+            <View style={styles.metadataBox}>
+              <Text style={styles.metadataTitle}>{t("بيانات الدرس (للبحث)", "Lesson Metadata (Search)")}</Text>
+              
+              <Text style={styles.inputLabel}>{t("اسم الكتاب (عربي)", "Book Name (AR)")}</Text>
+              <TextInput style={styles.input} value={lessonForm.bookNameAr} onChangeText={v => setLessonForm(f => ({ ...f, bookNameAr: v }))} placeholder={t("مثال: الرياضيات الصف الثالث", "e.g. Math Grade 3")} textAlign="right" />
+              
+              <Text style={styles.inputLabel}>{t("Book Name (EN)", "Book Name (EN)")}</Text>
+              <TextInput style={styles.input} value={lessonForm.bookName} onChangeText={v => setLessonForm(f => ({ ...f, bookName: v }))} placeholder="e.g. Math Grade 3" />
+              
+              <View style={{ flexDirection: "row-reverse", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                   <Text style={styles.inputLabel}>{t("السنة الدراسية", "School Year")}</Text>
+                   <TextInput style={styles.input} value={lessonForm.schoolYear} onChangeText={v => setLessonForm(f => ({ ...f, schoolYear: v }))} placeholder={t("مثال: 3-primary", "e.g. 3-primary")} textAlign="right" />
+                </View>
+                <View style={{ flex: 1 }}>
+                   <Text style={styles.inputLabel}>{t("الفصل", "Chapter")}</Text>
+                   <TextInput style={styles.input} value={lessonForm.chapter} onChangeText={v => setLessonForm(f => ({ ...f, chapter: v }))} placeholder={t("الفصل 3", "Chapter 3")} textAlign="right" />
+                </View>
+                <View style={{ flex: 1 }}>
+                   <Text style={styles.inputLabel}>{t("الصفحة", "Page")}</Text>
+                   <TextInput style={styles.input} value={lessonForm.pageNumber} onChangeText={v => setLessonForm(f => ({ ...f, pageNumber: v }))} keyboardType="numeric" placeholder="42" textAlign="center" />
+                </View>
+              </View>
+
+              <Text style={styles.inputLabel}>{t("الكلمات المفتاحية", "Subject Tags")}</Text>
+              <TextInput style={styles.input} value={lessonForm.subjectTags} onChangeText={v => setLessonForm(f => ({ ...f, subjectTags: v }))} placeholder={t("مفصولة بفاصلة (جبر، معادلات)", "Comma separated tags")} textAlign="right" />
+            </View>
 
             <Text style={styles.inputLabel}>{t("المحتوى / الملاحظات", "Content / Notes")}</Text>
             <TextInput style={[styles.input, { height: 60 }]} multiline value={lessonForm.contentAr} onChangeText={v => setLessonForm(f => ({ ...f, contentAr: v }))} textAlign="right" />
@@ -790,4 +860,6 @@ const styles = StyleSheet.create({
   fileInfo: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right", marginBottom: 2 },
   uploadingBar: { flexDirection: "row-reverse", alignItems: "center", gap: 10, backgroundColor: `${C.tint}10`, borderRadius: 12, padding: 12, marginTop: 8 },
   uploadingText: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.tint },
+  metadataBox: { backgroundColor: `${C.tint}05`, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: `${C.tint}20`, marginVertical: 10, gap: 4 },
+  metadataTitle: { fontFamily: "Inter_700Bold", fontSize: 13, color: C.tint, textAlign: "right" },
 });

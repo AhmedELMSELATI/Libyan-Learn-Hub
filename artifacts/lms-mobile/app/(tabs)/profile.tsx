@@ -216,6 +216,8 @@ export default function ProfileScreen() {
           <MenuRow icon="info" label={t("عن التطبيق", "About")} onPress={() => {}} />
           <View style={styles.menuSeparator} />
           <MenuRow icon="shield" label={t("سياسة الخصوصية", "Privacy Policy")} onPress={() => {}} />
+          <View style={styles.menuSeparator} />
+          <MenuRow icon="file-text" label={t("بلاغ حقوق ملكية (DMCA)", "DMCA Copyright")} onPress={() => router.push("/dmca" as any)} />
         </View>
       </View>
 
