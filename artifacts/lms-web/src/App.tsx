@@ -53,6 +53,7 @@ function Router() {
       <Route path="/teachers/:slug" component={TeacherProfile} />
       <Route path="/search" component={SearchPage} />
       <Route path="/dmca" component={DMCAComplaint} />
+      <Route path="/login" component={Auth} />
       <Route path="/register" component={Auth} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/profile" component={Profile} />
