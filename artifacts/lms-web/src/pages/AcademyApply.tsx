@@ -37,7 +37,16 @@ export default function AcademyApply() {
   const { data: existingApp, isLoading: loadingApp } = useQuery({
     queryKey: ['academy-application'],
     queryFn: () => api.get('/academy/my-application'),
+    // Only fetch if user is authenticated; avoids 401 errors for guests
+    enabled: !!user,
   });
+
+  // Redirect unauthenticated visitors to login with redirect param
+  useEffect(() => {
+    if (user === null) {
+      setLocation('/login?redirect=/academy/apply');
+    }
+  }, [user, setLocation]);
 
   const applyMutation = useMutation({
     mutationFn: (data: any) => api.post('/academy/apply', data),

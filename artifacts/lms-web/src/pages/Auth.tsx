@@ -26,7 +26,14 @@ const registerSchema = z.object({
 
 export default function Auth() {
   const [location, setLocation] = useLocation();
-  const isLogin = location === '/login';
+  const isLogin = location.startsWith('/login');
+
+  // Extract redirect param from query string (e.g. /login?redirect=/academy/apply)
+  const redirectTo = (() => {
+    const search = window.location.search;
+    const params = new URLSearchParams(search);
+    return params.get('redirect') || null;
+  })();
   const { login: setAuthContext } = useAuth();
   const api = useApi();
   const [errorMsg, setErrorMsg] = useState('');
@@ -51,7 +58,12 @@ export default function Auth() {
     mutation: {
       onSuccess: (data) => {
         setAuthContext(data.token);
-        setLocation(data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+        // Honor redirect param, otherwise go to role-based default
+        if (redirectTo) {
+          setLocation(redirectTo);
+        } else {
+          setLocation(data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+        }
       },
       onError: (err) => setErrorMsg(err.message || 'Login failed')
     }
