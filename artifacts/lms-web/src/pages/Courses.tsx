@@ -32,10 +32,10 @@ export default function Courses() {
           
           <div className="flex flex-col md:flex-row gap-4 mt-8">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+              <Search className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <Input 
                 placeholder="Search courses, topics, or teachers..." 
-                className="pl-12 h-14 bg-card rounded-2xl text-lg shadow-sm"
+                className="ps-12 h-14 bg-card rounded-2xl text-lg shadow-sm"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

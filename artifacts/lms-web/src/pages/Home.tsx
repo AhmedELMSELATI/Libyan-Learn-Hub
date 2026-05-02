@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
 import { useApi } from '@/hooks/useApi';
 import { useQuery } from '@tanstack/react-query';
+import { PageContainer } from '@/components/layout/PageContainer';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 32 },
@@ -46,10 +47,10 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-background">
+    <PageContainer>
 
       {/* ─── HERO ───────────────────────────────────────────── */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+      <section className="relative flex items-center overflow-hidden py-16 sm:py-20 lg:min-h-[92vh] lg:py-0">
 
         {/* Animated mesh background */}
         <div className="absolute inset-0 -z-10">
@@ -65,7 +66,7 @@ export default function Home() {
           </svg>
         </div>
 
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-24">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
             {/* Left — Text */}
@@ -75,7 +76,7 @@ export default function Home() {
                 {isRtl ? 'منصة رقم ١ للتعلم في ليبيا' : 'The #1 E-Learning Platform in Libya'}
               </motion.div>
 
-              <motion.h1 {...fadeUp(0.1)} className="text-5xl lg:text-6xl xl:text-7xl font-display font-extrabold leading-[1.1] text-foreground mb-6">
+              <motion.h1 {...fadeUp(0.1)} className="text-3xl sm:text-4xl lg:text-6xl xl:text-7xl font-display font-extrabold leading-[1.1] text-foreground mb-6">
                 {isRtl ? (
                   <>
                     تعلّم من<br />
@@ -227,11 +228,11 @@ export default function Home() {
       </section>
 
       {/* ─── CATEGORIES ─────────────────────────────────────── */}
-      <section className="py-24 bg-muted/30">
+      <section className="py-12 sm:py-16 lg:py-24 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div {...fadeUp()} className={`mb-12 ${isRtl ? 'text-right' : ''}`}>
             <p className="text-primary font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'استكشف' : 'Explore'}</p>
-            <h2 className="text-4xl font-display font-bold text-foreground">{isRtl ? 'تصفح حسب التخصص' : 'Browse by Subject'}</h2>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground">{isRtl ? 'تصفح حسب التخصص' : 'Browse by Subject'}</h2>
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -262,7 +263,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             {...fadeUp()}
-            className="relative overflow-hidden rounded-[2.5rem] border border-amber-500/20 bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-rose-50/30 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-rose-950/10 p-10 lg:p-14"
+            className="relative overflow-hidden rounded-[2rem] lg:rounded-[2.5rem] border border-amber-500/20 bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-rose-50/30 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-rose-950/10 p-6 sm:p-8 lg:p-14"
           >
             <div className="absolute top-4 end-4 lg:top-8 lg:end-8">
               <span className="px-3 py-1.5 text-xs font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg">
@@ -276,7 +277,7 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
                   <GraduationCap className="w-6 h-6 text-white" />
                 </div>
-                <h2 className="text-3xl lg:text-4xl font-display font-extrabold text-foreground">
+                <h2 className="text-xl sm:text-2xl lg:text-4xl font-display font-extrabold text-foreground">
                   {isRtl ? 'أكاديمية EduLibya' : 'EduLibya Academy'}
                 </h2>
               </div>
@@ -453,11 +454,11 @@ export default function Home() {
       </section>
 
       {/* ─── CTA BANNER ─────────────────────────────────────── */}
-      <section className="py-24">
+      <section className="py-12 sm:py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             {...fadeUp()}
-            className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-primary via-violet-600 to-cyan-500 p-12 text-center text-white"
+            className="relative overflow-hidden rounded-[2rem] lg:rounded-[3rem] bg-gradient-to-br from-primary via-violet-600 to-cyan-500 p-8 sm:p-10 lg:p-12 text-center text-white"
           >
             {/* Background noise texture */}
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} />
@@ -465,7 +466,7 @@ export default function Home() {
             <div className="absolute bottom-0 end-0 w-72 h-72 bg-cyan-400/20 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl" />
 
             <div className="relative">
-              <h2 className="text-4xl lg:text-5xl font-display font-extrabold mb-4">
+              <h2 className="text-2xl sm:text-3xl lg:text-5xl font-display font-extrabold mb-4">
                 {isRtl ? 'جاهز لتبدأ رحلتك؟' : 'Ready to Start Learning?'}
               </h2>
               <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
@@ -482,6 +483,6 @@ export default function Home() {
         </div>
       </section>
 
-    </div>
+    </PageContainer>
   );
 }

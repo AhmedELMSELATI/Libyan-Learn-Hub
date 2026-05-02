@@ -123,13 +123,13 @@ export default function Academy() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_80%_80%,rgba(124,58,237,0.08),transparent)]" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24 text-center">
           <motion.div {...fadeUp(0)} className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-bold">
             <Sparkles className="w-4 h-4" />
             {isRtl ? 'التسجيل مفتوح الآن' : 'Enrollment Now Open'}
           </motion.div>
 
-          <motion.h1 {...fadeUp(0.1)} className="text-5xl lg:text-7xl font-display font-extrabold leading-[1.1] text-foreground mb-6">
+          <motion.h1 {...fadeUp(0.1)} className="text-3xl sm:text-5xl lg:text-7xl font-display font-extrabold leading-[1.1] text-foreground mb-6">
             {isRtl ? (
               <>أكاديمية <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500">EduLibya</span></>
             ) : (

@@ -177,7 +177,7 @@ export default function Auth() {
     <div className="min-h-screen flex bg-background">
       {/* Form Side */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:flex-none lg:w-[620px] xl:w-[700px] bg-card z-10 relative shadow-2xl">
-        <div className="absolute top-8 left-8">
+        <div className="absolute top-8 start-8">
           <Link href="/">
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="w-4 h-4" /> Back to Home
@@ -185,7 +185,7 @@ export default function Auth() {
           </Link>
         </div>
 
-        <div className="mx-auto w-full max-w-md">
+        <div className="mx-auto w-full max-w-md pt-20 sm:pt-0">
           <div className="mb-8 text-center lg:text-start">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-teal-400 flex items-center justify-center text-white shadow-lg mx-auto lg:mx-0 mb-5">
               <span className="font-display font-bold text-2xl">L</span>

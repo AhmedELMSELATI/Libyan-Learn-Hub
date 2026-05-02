@@ -188,8 +188,10 @@ export function Navbar() {
 
           {/* Mobile Menu Toggle */}
           <button 
-            className="md:hidden p-2 text-foreground"
+            className="md:hidden p-2 text-foreground rounded-lg hover:bg-muted transition-colors"
             onClick={() => setIsMobileOpen(!isMobileOpen)}
+            aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMobileOpen}
           >
             {isMobileOpen ? <X /> : <Menu />}
           </button>

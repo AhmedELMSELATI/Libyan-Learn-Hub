@@ -129,14 +129,14 @@ export default function CourseDetail() {
   return (
     <PageContainer>
       {/* Header Banner */}
-      <div className="bg-foreground text-background py-16 lg:py-24">
+      <div className="bg-foreground text-background py-10 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-6">
               <span className="px-3 py-1 rounded-full bg-white/10 text-sm font-medium">{course.category?.name}</span>
               <span className="px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-sm font-medium capitalize">{course.level}</span>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-display font-bold mb-6 leading-tight">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold mb-6 leading-tight">
               {language === 'ar' ? course.titleAr : course.title}
             </h1>
             <p className="text-lg text-background/80 mb-8 max-w-2xl leading-relaxed">
