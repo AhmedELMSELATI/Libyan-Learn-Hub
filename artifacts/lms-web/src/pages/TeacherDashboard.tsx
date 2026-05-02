@@ -166,8 +166,8 @@ export default function TeacherDashboard() {
   const publishedCount = courses?.filter((c: any) => c.isPublished).length || 0;
 
   const CourseForm = ({ onSubmit, submitLabel }: { onSubmit: (d: any) => void, submitLabel: string }) => (
-    <form onSubmit={courseForm.handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
-      <div className="grid grid-cols-2 gap-3">
+    <form onSubmit={courseForm.handleSubmit(onSubmit)} className="space-y-4 mt-2 max-h-[75svh] overflow-y-auto pr-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium mb-1 block">Title (English) *</label>
           <Input {...courseForm.register('title', { required: true })} placeholder="e.g. Mathematics Grade 12" />
@@ -189,7 +189,7 @@ export default function TeacherDashboard() {
         <label className="text-sm font-medium mb-1 block">Thumbnail Image URL</label>
         <Input {...courseForm.register('thumbnailUrl')} placeholder="https://..." type="url" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium mb-1 block">Category *</label>
           <select
@@ -207,7 +207,7 @@ export default function TeacherDashboard() {
           <Input type="number" min="0" step="0.5" {...courseForm.register('price', { valueAsNumber: true })} placeholder="0 = Free" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium mb-1 block">Level</label>
           <select {...courseForm.register('level')} className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm">
@@ -251,7 +251,7 @@ export default function TeacherDashboard() {
                     <Plus className="w-4 h-4" /> New Course
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="w-[95vw] max-w-full sm:max-w-[600px]">
                   <DialogHeader>
                     <DialogTitle className="text-xl font-display">Create New Course</DialogTitle>
                   </DialogHeader>
@@ -264,12 +264,12 @@ export default function TeacherDashboard() {
                     <Radio className="w-4 h-4" /> Schedule Live Session
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[580px]">
+                <DialogContent className="w-[95vw] max-w-full sm:max-w-[580px]">
                   <DialogHeader>
                     <DialogTitle className="text-xl font-display">Schedule Live Session</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={sessionForm.handleSubmit(handleCreateSession)} className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-sm font-medium mb-1 block">Session Title (EN) *</label>
                         <Input {...sessionForm.register('title', { required: true })} placeholder="e.g. Live Q&A — Chapter 5" />
@@ -283,7 +283,7 @@ export default function TeacherDashboard() {
                       <label className="text-sm font-medium mb-1 block">Description</label>
                       <Textarea {...sessionForm.register('description')} placeholder="What will you cover in this session?" rows={2} />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-sm font-medium mb-1 block">Date & Time *</label>
                         <Input type="datetime-local" {...sessionForm.register('scheduledAt', { required: true })} />
@@ -293,7 +293,7 @@ export default function TeacherDashboard() {
                         <Input type="number" min="15" max="360" {...sessionForm.register('durationMinutes', { valueAsNumber: true })} />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-sm font-medium mb-1 block">Max Participants</label>
                         <Input type="number" min="1" {...sessionForm.register('maxParticipants', { valueAsNumber: true })} />
@@ -378,7 +378,7 @@ export default function TeacherDashboard() {
                           <PlayCircle className="w-12 h-12 text-primary/40" />
                         </div>
                       )}
-                      <div className="absolute top-3 left-3 flex gap-2">
+                      <div className="absolute top-3 start-3 flex gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${course.isPublished ? 'bg-green-500 text-white' : 'bg-yellow-400 text-yellow-900'}`}>
                           {course.isPublished ? '✓ Published' : '⏸ Draft'}
                         </span>
@@ -529,7 +529,7 @@ export default function TeacherDashboard() {
 
       {/* Edit Course Modal */}
       <Dialog open={!!editingCourse} onOpenChange={(o) => !o && setEditingCourse(null)}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-full sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Edit Course</DialogTitle>
           </DialogHeader>
