@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useGetCurrentUser, type User } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -7,6 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string) => void;
   logout: () => void;
+  refetchUser: () => void;
   isAuthenticated: boolean;
 }
 
@@ -56,11 +57,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('lms_token');
     setToken(null);
     queryClient.setQueryData(['/api/auth/me'], null);
-  };
+    queryClient.clear();
+  }, [queryClient]);
+
+  const refetchUser = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider value={{ 
@@ -68,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading: isLoading && !!token, 
       login, 
       logout,
+      refetchUser,
       isAuthenticated: !!user 
     }}>
       {children}

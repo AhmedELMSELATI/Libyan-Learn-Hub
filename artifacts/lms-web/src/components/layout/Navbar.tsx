@@ -161,7 +161,13 @@ export function Navbar() {
 
                       <div className="border-t border-border py-1">
                         <button 
-                          onClick={() => { logout(); setIsUserMenuOpen(false); }}
+                          onClick={() => { 
+                            setIsUserMenuOpen(false); 
+                            setTimeout(() => {
+                              logout();
+                              setLocation('/login');
+                            }, 150);
+                          }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors text-start"
                         >
                           <LogOut className="w-4 h-4" />
@@ -249,7 +255,13 @@ export function Navbar() {
                       </Button>
                     </Link>
                   )}
-                  <Button variant="ghost" onClick={() => { logout(); setIsMobileOpen(false); }} className="w-full justify-start text-destructive">
+                  <Button variant="ghost" onClick={() => { 
+                    setIsMobileOpen(false); 
+                    setTimeout(() => {
+                      logout();
+                      setLocation('/login');
+                    }, 300); // Wait for mobile menu animation
+                  }} className="w-full justify-start text-destructive">
                     <LogOut className="w-4 h-4 me-2" /> {language === 'ar' ? 'تسجيل الخروج' : 'Sign Out'}
                   </Button>
                 </>

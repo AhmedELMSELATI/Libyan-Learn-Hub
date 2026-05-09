@@ -14,6 +14,9 @@ import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import TeacherDashboard from "@/pages/TeacherDashboard";
+import CreateCourse from "@/pages/CreateCourse";
+import EditCourse from "@/pages/EditCourse";
+import CreateSession from "@/pages/CreateSession";
 import ManageCourse from "@/pages/ManageCourse";
 import AdminDashboard from "@/pages/AdminDashboard";
 import LiveSessions from "@/pages/LiveSessions";
@@ -58,7 +61,10 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/profile" component={Profile} />
       <Route path="/teacher/dashboard" component={TeacherDashboard} />
+      <Route path="/teacher/courses/new" component={CreateCourse} />
+      <Route path="/teacher/courses/:id/edit" component={EditCourse} />
       <Route path="/teacher/courses/:id/lessons" component={ManageCourse} />
+      <Route path="/teacher/sessions/new" component={CreateSession} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>

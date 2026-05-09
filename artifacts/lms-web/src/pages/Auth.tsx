@@ -102,6 +102,8 @@ export default function Auth() {
       localStorage.setItem('lms_token', pendingToken);
       await api.post('/auth/verify-otp', { code: otpCode, type: 'phone' });
       setAuthContext(pendingToken);
+      // Allow auth state to settle before navigating
+      await new Promise(r => setTimeout(r, 100));
       setLocation(pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard');
     } catch (err: any) {
       localStorage.removeItem('lms_token');
@@ -113,7 +115,10 @@ export default function Auth() {
 
   const handleSkipVerification = () => {
     setAuthContext(pendingToken);
-    setLocation(pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+    // Allow auth state to settle before navigating
+    setTimeout(() => {
+      setLocation(pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+    }, 100);
   };
 
   if (step === 'otp') {
