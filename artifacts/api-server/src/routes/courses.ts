@@ -107,11 +107,12 @@ router.get("/", async (req, res) => {
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId } = req.body;
+    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId, isPublished } = req.body;
     const [course] = await db.insert(coursesTable).values({
       title, titleAr, description, descriptionAr, thumbnailUrl,
       price: price.toString(),
       level, language, categoryId,
+      isPublished: isPublished || false,
       teacherId: userId,
     }).returning();
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
