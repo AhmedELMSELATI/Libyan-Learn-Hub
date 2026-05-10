@@ -109,7 +109,7 @@ export default function Home() {
                 </Link>
                 <Link href="/register">
                   <Button size="lg" variant="outline" className="h-14 px-8 text-base font-medium rounded-2xl border-2 gap-2 hover:bg-primary/5">
-                    {isRtl ? 'سجّل كمعلم' : 'Teach With Us'}
+                    {isRtl ? 'تعلّم / علّم معنا' : 'Learn/Teach With Us'}
                   </Button>
                 </Link>
               </motion.div>
