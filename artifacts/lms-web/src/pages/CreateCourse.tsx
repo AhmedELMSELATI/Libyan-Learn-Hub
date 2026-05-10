@@ -134,6 +134,13 @@ export default function CreateCourse() {
                 </select>
               </div>
             </div>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer pt-2">
+                <input type="checkbox" {...courseForm.register('isPublished')} className="w-5 h-5 rounded accent-primary border-primary" />
+                <span className="text-sm font-medium">Publish Course Immediately</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1 ps-7">If unchecked, the course will be saved as a draft and hidden from students.</p>
+            </div>
             <div className="flex gap-3 pt-2">
               <Link href="/teacher/dashboard" className="flex-1">
                 <Button type="button" variant="outline" className="w-full h-11">Cancel</Button>
