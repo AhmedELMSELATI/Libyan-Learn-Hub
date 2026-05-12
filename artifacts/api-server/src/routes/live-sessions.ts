@@ -23,6 +23,7 @@ async function formatSession(session: any) {
     status: session.status,
     price: parseFloat(session.price || "0"),
     participantCount: 0,
+    cancellationReason: session.cancellationReason,
     createdAt: session.createdAt,
   };
 }
@@ -75,6 +76,46 @@ router.post("/:sessionId/join", requireAuth, async (req, res) => {
       meetingUrl: session.meetingUrl || `https://meet.jit.si/lms-libya-${session.id}`,
       accessToken: null,
       message: "Join the session using the provided link",
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    const { reason, notifyStudents } = req.body;
+    
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseInt(req.params.sessionId))).limit(1);
+    
+    if (!session) { 
+      res.status(404).json({ error: "Session not found" }); 
+      return; 
+    }
+    
+    if (session.teacherId !== userId && role !== "admin") {
+      res.status(403).json({ error: "Forbidden: You are not the teacher of this session" });
+      return;
+    }
+
+    const [updatedSession] = await db.update(liveSessionsTable)
+      .set({ 
+        status: "cancelled", 
+        cancellationReason: reason || null 
+      })
+      .where(eq(liveSessionsTable.id, parseInt(req.params.sessionId)))
+      .returning();
+
+    if (notifyStudents) {
+      // Simulate sending notifications
+      console.log(`Notification: Live Session ${session.id} cancelled. Reason: ${reason || 'No reason provided'}`);
+    }
+
+    res.json({
+      success: true,
+      message: "Session cancelled successfully",
+      session: await formatSession(updatedSession)
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

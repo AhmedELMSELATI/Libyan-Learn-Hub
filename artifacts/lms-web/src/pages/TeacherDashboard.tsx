@@ -9,7 +9,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
   Globe, Lock, Trash2, Eye, Radio, Clock, DollarSign, GraduationCap,
-  PlayCircle, Star, TrendingUp, Megaphone, CheckCircle
+  PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/useApi';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function TeacherDashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -24,6 +27,11 @@ export default function TeacherDashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const api = useApi();
+  const [cancelModalOpen, setCancelModalOpen] = React.useState(false);
+  const [sessionToCancel, setSessionToCancel] = React.useState<any>(null);
+  const [cancelReason, setCancelReason] = React.useState('');
+  const [notifyStudents, setNotifyStudents] = React.useState(true);
+  const [isCancelling, setIsCancelling] = React.useState(false);
 
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -34,7 +42,7 @@ export default function TeacherDashboard() {
     query: { enabled: !!user && user.role === 'teacher' }
   });
   const { data: categories } = useGetCategories();
-  const { data: liveSessions } = useGetLiveSessions({
+  const { data: liveSessions } = useGetLiveSessions(undefined, {
     query: { enabled: !!user && user.role === 'teacher' }
   });
 
@@ -66,6 +74,34 @@ export default function TeacherDashboard() {
     } catch (err: any) {
       toast({ title: 'Error deleting course', description: err.message, variant: 'destructive' });
     }
+  };
+
+  const handleCancelSession = async () => {
+    if (!sessionToCancel) return;
+    setIsCancelling(true);
+    try {
+      await api.post(`/live-sessions/${sessionToCancel.id}/cancel`, {
+        reason: cancelReason,
+        notifyStudents
+      });
+      toast({ title: 'Session cancelled successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/live-sessions'] });
+      setCancelModalOpen(false);
+      setSessionToCancel(null);
+      setCancelReason('');
+      setNotifyStudents(true);
+    } catch (err: any) {
+      toast({ title: 'Error cancelling session', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const openCancelModal = (session: any) => {
+    setSessionToCancel(session);
+    setCancelReason('');
+    setNotifyStudents(true);
+    setCancelModalOpen(true);
   };
 
   if (authLoading || isLoading) {
@@ -293,12 +329,22 @@ export default function TeacherDashboard() {
                           <div className="text-xs text-muted-foreground">Price</div>
                         </div>
                       </div>
-                      {session.meetingUrl && (
+                      {session.meetingUrl && session.status !== 'cancelled' && (
                         <a href={session.meetingUrl} target="_blank" rel="noopener noreferrer">
                           <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
                             <Radio className="w-3.5 h-3.5" /> Open Meeting Link
                           </Button>
                         </a>
+                      )}
+                      {session.status === 'scheduled' && (
+                        <Button 
+                          variant="outline" 
+                          className="w-full gap-2 mt-2 text-destructive border-destructive/30 hover:bg-destructive/5" 
+                          size="sm" 
+                          onClick={() => openCancelModal(session)}
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Cancel Session
+                        </Button>
                       )}
                     </div>
                   ))}
@@ -318,6 +364,47 @@ export default function TeacherDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Live Session</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to cancel the session <strong>{sessionToCancel?.title}</strong>? 
+              This action cannot be undone.
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Cancellation Reason (Optional)</label>
+              <Textarea 
+                placeholder="Briefly explain why this session is being cancelled..." 
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox 
+                id="notify-students" 
+                checked={notifyStudents}
+                onCheckedChange={(checked) => setNotifyStudents(checked as boolean)}
+              />
+              <label htmlFor="notify-students" className="text-sm font-medium cursor-pointer">
+                Notify enrolled students about this cancellation
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelModalOpen(false)} disabled={isCancelling}>
+              Keep Session
+            </Button>
+            <Button variant="destructive" onClick={handleCancelSession} disabled={isCancelling}>
+              {isCancelling ? 'Cancelling...' : 'Confirm Cancellation'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

@@ -19,6 +19,7 @@ export const liveSessionsTable = pgTable("live_sessions", {
   meetingUrl: text("meeting_url"),
   status: sessionStatusEnum("status").notNull().default("scheduled"),
   price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"),
+  cancellationReason: text("cancellation_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
