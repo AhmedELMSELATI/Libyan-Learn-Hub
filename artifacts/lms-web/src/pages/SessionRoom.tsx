@@ -23,6 +23,7 @@ export default function SessionRoom() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState('');
+  const [isEnding, setIsEnding] = useState(false);
   
   // State for Jitsi
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
@@ -167,6 +168,20 @@ export default function SessionRoom() {
       resetReport();
     } catch (err: any) {
       toast({ title: 'Error submitting report', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const endSession = async () => {
+    if (!confirm('Are you sure you want to end this session for all participants?')) return;
+    setIsEnding(true);
+    try {
+      await api.post(`/live-sessions/${sessionId}/end`, {});
+      toast({ title: 'Session ended' });
+      // Tell everyone else to leave (this is basic, usually WebSockets handle this, but marking it ended stops new joins)
+      setLocation('/dashboard');
+    } catch (err: any) {
+      toast({ title: 'Error ending session', description: err.message, variant: 'destructive' });
+      setIsEnding(false);
     }
   };
 
@@ -320,6 +335,18 @@ export default function SessionRoom() {
             <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md"><Clock className="w-4 h-4 text-primary" />{session.durationMinutes} min</span>
             <span className="text-white/60 bg-white/5 px-2.5 py-1 rounded-md">Teacher: <span className="text-white">{session.teacherName}</span></span>
           </div>
+          {session.isTeacher && session.status === 'live' && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="ml-2 gap-2 h-8"
+              onClick={endSession}
+              disabled={isEnding}
+            >
+              <CheckCircle className="w-4 h-4" />
+              {isEnding ? 'Ending...' : 'End Session'}
+            </Button>
+          )}
         </div>
       </div>
 

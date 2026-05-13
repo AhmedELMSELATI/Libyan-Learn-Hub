@@ -135,4 +135,35 @@ router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), 
   }
 });
 
+router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseInt(req.params.sessionId))).limit(1);
+    
+    if (!session) { 
+      res.status(404).json({ error: "Session not found" }); 
+      return; 
+    }
+    
+    if (session.teacherId !== userId && role !== "admin") {
+      res.status(403).json({ error: "Forbidden: You are not the teacher of this session" });
+      return;
+    }
+
+    const [updatedSession] = await db.update(liveSessionsTable)
+      .set({ status: "ended" })
+      .where(eq(liveSessionsTable.id, parseInt(req.params.sessionId)))
+      .returning();
+
+    res.json({
+      success: true,
+      message: "Session ended successfully",
+      session: await formatSession(updatedSession)
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 export default router;

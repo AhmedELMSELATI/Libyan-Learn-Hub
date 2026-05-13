@@ -80,18 +80,21 @@ export default function TeacherDashboard() {
     if (!sessionToCancel) return;
     setIsCancelling(true);
     try {
-      await api.post(`/live-sessions/${sessionToCancel.id}/cancel`, {
+      const isLive = sessionToCancel.status === 'live';
+      const endpoint = isLive ? `/live-sessions/${sessionToCancel.id}/end` : `/live-sessions/${sessionToCancel.id}/cancel`;
+      
+      await api.post(endpoint, {
         reason: cancelReason,
         notifyStudents
       });
-      toast({ title: 'Session cancelled successfully' });
+      toast({ title: isLive ? 'Session ended successfully' : 'Session cancelled successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/live-sessions'] });
       setCancelModalOpen(false);
       setSessionToCancel(null);
       setCancelReason('');
       setNotifyStudents(true);
     } catch (err: any) {
-      toast({ title: 'Error cancelling session', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error processing request', description: err.message, variant: 'destructive' });
     } finally {
       setIsCancelling(false);
     }
@@ -330,11 +333,24 @@ export default function TeacherDashboard() {
                         </div>
                       </div>
                       {session.status !== 'cancelled' && (
-                        <Link href={`/session/${session.id}`}>
-                          <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
-                            <Radio className="w-3.5 h-3.5" /> Join Session
-                          </Button>
-                        </Link>
+                        <div className="flex gap-2">
+                          <Link href={`/session/${session.id}`} className="flex-1">
+                            <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
+                              <Radio className="w-3.5 h-3.5" /> Join Session
+                            </Button>
+                          </Link>
+                          {session.status === 'live' && (
+                            <Button 
+                              variant="outline" 
+                              className="text-destructive border-destructive/30 hover:bg-destructive/5 shrink-0 px-3" 
+                              size="sm" 
+                              onClick={() => openCancelModal(session)}
+                              title="End Session"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
                       )}
                       {session.status === 'scheduled' && (
                         <Button 
@@ -368,11 +384,13 @@ export default function TeacherDashboard() {
       <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Live Session</DialogTitle>
+            <DialogTitle>
+              {sessionToCancel?.status === 'live' ? 'End Live Session' : 'Cancel Live Session'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to cancel the session <strong>{sessionToCancel?.title}</strong>? 
+              Are you sure you want to {sessionToCancel?.status === 'live' ? 'end' : 'cancel'} the session <strong>{sessionToCancel?.title}</strong>? 
               This action cannot be undone.
             </p>
             <div className="space-y-2">
@@ -400,7 +418,7 @@ export default function TeacherDashboard() {
               Keep Session
             </Button>
             <Button variant="destructive" onClick={handleCancelSession} disabled={isCancelling}>
-              {isCancelling ? 'Cancelling...' : 'Confirm Cancellation'}
+              {isCancelling ? 'Processing...' : (sessionToCancel?.status === 'live' ? 'Confirm End Session' : 'Confirm Cancellation')}
             </Button>
           </DialogFooter>
         </DialogContent>
