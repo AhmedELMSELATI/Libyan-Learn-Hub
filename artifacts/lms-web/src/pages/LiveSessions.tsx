@@ -126,7 +126,7 @@ export default function LiveSessions() {
                         {/* Seats indicator */}
                         <div className={`flex items-center gap-1.5 text-sm font-medium ${isFull ? 'text-red-500' : 'text-muted-foreground'}`}>
                           <Users className="w-4 h-4" />
-                          <span>{session.participantCount || 0} / {session.maxParticipants}</span>
+                          <span dir="ltr" className="inline-block">{session.participantCount || 0} / {session.maxParticipants}</span>
                           {!isEnded && (
                             <span className={`text-xs px-1.5 py-0.5 rounded-full ${isFull ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
                               {isFull ? 'Full' : `${seatsLeft} left`}

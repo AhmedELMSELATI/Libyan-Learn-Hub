@@ -20,7 +20,7 @@ export function Footer() {
                 Edu<span className="text-primary">Libya</span>
               </span>
             </div>
-            <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
+            <p dir="ltr" className={`text-muted-foreground text-sm leading-relaxed max-w-xs ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
               Empowering Libyan students and teachers through modern, accessible, and high-quality online education.
             </p>
           </div>
@@ -64,7 +64,7 @@ export function Footer() {
         </div>
         
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
+          <p dir="ltr" className={`text-sm text-muted-foreground ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
             &copy; {new Date().getFullYear()} EduLibya. All rights reserved.
           </p>
           <div className="flex gap-4">

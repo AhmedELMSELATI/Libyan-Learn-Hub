@@ -100,15 +100,15 @@ export default function Home() {
                 {t('home.hero.subtitle')}
               </motion.p>
 
-              <motion.div {...fadeUp(0.3)} className="flex flex-wrap gap-4">
-                <Link href="/courses">
-                  <Button size="lg" className="h-14 px-8 text-base font-bold rounded-2xl bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/30 gap-2">
+              <motion.div {...fadeUp(0.3)} className="flex flex-col sm:flex-row gap-4">
+                <Link href="/courses" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base font-bold rounded-2xl bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/30 gap-2 flex items-center justify-center">
                     {isRtl ? 'استكشف الدورات' : 'Explore Courses'}
-                    <Arrow className="w-5 h-5" />
+                    <Arrow className="w-5 h-5 shrink-0" />
                   </Button>
                 </Link>
-                <Link href="/register">
-                  <Button size="lg" variant="outline" className="h-14 px-8 text-base font-medium rounded-2xl border-2 gap-2 hover:bg-primary/5">
+                <Link href="/register" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-base font-medium rounded-2xl border-2 gap-2 hover:bg-primary/5 flex items-center justify-center">
                     {isRtl ? 'تعلّم / علّم معنا' : 'Learn/Teach With Us'}
                   </Button>
                 </Link>
@@ -235,7 +235,7 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground">{isRtl ? 'تصفح حسب التخصص' : 'Browse by Subject'}</h2>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
             {categories?.map((cat, i) => (
               <motion.div key={cat.id} {...fadeUp(i * 0.06)}>
                 <Link href={`/courses?categoryId=${cat.id}`}>
