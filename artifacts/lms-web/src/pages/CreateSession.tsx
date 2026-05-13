@@ -118,8 +118,11 @@ export default function CreateSession() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Meeting URL (Zoom / Jitsi / Google Meet)</label>
+              <label className="text-sm font-medium mb-1.5 block text-foreground">External Meeting Link (Optional)</label>
               <Input type="url" {...sessionForm.register('meetingUrl')} placeholder="https://zoom.us/j/..." className="h-11" />
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed bg-primary/5 p-2 rounded-lg border border-primary/10">
+                💡 <strong>EduLibya Live Classroom:</strong> If you leave this blank, the platform will automatically generate a fully featured, embedded live room for you and your students.
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium mb-1.5 block">Link to Course (optional)</label>

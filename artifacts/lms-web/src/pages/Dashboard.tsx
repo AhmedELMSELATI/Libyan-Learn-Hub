@@ -58,11 +58,8 @@ export default function Dashboard() {
     } catch {}
   };
 
-  const handleJoinSession = async (sessionId: number) => {
-    try {
-      const data = await api.post(`/live-sessions/${sessionId}/join`, {});
-      if (data.meetingUrl) window.open(data.meetingUrl, '_blank');
-    } catch {}
+  const handleJoinSession = (sessionId: number) => {
+    setLocation(`/session/${sessionId}`);
   };
 
   if (authLoading || isLoading) {
@@ -311,8 +308,8 @@ export default function Dashboard() {
                     size="sm"
                     onClick={() => handleJoinSession(session.id)}
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    {session.status === 'live' ? 'Join Live Session' : 'Get Session Link'}
+                    <Video className="w-3.5 h-3.5" />
+                    {session.status === 'live' ? 'Join Live Session' : 'Enter Room'}
                   </Button>
                 </div>
               ))}

@@ -69,13 +69,26 @@ router.get("/:sessionId", async (req, res) => {
 
 router.post("/:sessionId/join", requireAuth, async (req, res) => {
   try {
-    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseInt(req.params.sessionId))).limit(1);
+    const { userId } = (req as any).user;
+    const sessionId = parseInt(req.params.sessionId);
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
+    
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+    if (session.status === "cancelled") {
+      res.status(403).json({ error: "This session has been cancelled", cancellationReason: session.cancellationReason });
+      return;
+    }
+
+    const isTeacher = session.teacherId === userId;
+    // Return stable internal roomId
+    const roomId = session.meetingUrl || `edulibya-legacy-${sessionId}`;
+    
     res.json({
       sessionId: session.id,
-      meetingUrl: session.meetingUrl || `https://meet.jit.si/lms-libya-${session.id}`,
-      accessToken: null,
-      message: "Join the session using the provided link",
+      roomId: roomId,
+      isTeacher,
+      message: "Success",
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

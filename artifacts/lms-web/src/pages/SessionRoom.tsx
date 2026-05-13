@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ThumbsUp, CheckCircle, Send, MessageSquare, Users, Clock,
-  Video, ArrowLeft, Maximize2, Minimize2, Radio, Flag
+  Video, ArrowLeft, Radio, Flag, AlertCircle
 } from 'lucide-react';
 
 export default function SessionRoom() {
@@ -23,8 +23,12 @@ export default function SessionRoom() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [question, setQuestion] = useState('');
+  
+  // State for Jitsi
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  
   const jitsiRef = useRef<any>(null);
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +43,7 @@ export default function SessionRoom() {
     queryKey: ['/api/room/sessions', sessionId],
     queryFn: () => api.get(`/room/sessions/${sessionId}`),
     enabled: !!sessionId && !!user,
-    refetchInterval: 30000,
+    refetchInterval: (data) => (data?.status === 'live' || hasJoined) ? 60000 : 5000, // Poll faster if waiting
   });
 
   const { data: questions, refetch: refetchQuestions } = useQuery({
@@ -49,14 +53,17 @@ export default function SessionRoom() {
     refetchInterval: 5000,
   });
 
-  // Load Jitsi iframe API and start the call
+  // Cleanup Jitsi when leaving
   useEffect(() => {
-    if (!session?.meetingUrl && !session?.isRegistered) return;
-    if (jitsiLoaded) return;
+    return () => {
+      if (jitsiRef.current) {
+        jitsiRef.current.dispose?.();
+      }
+    };
+  }, []);
 
-    const roomName = session.meetingUrl
-      ? session.meetingUrl.split('/').pop()
-      : `edulibya-session-${sessionId}`;
+  const initJitsi = (roomId: string) => {
+    if (jitsiLoaded || !jitsiContainerRef.current) return;
 
     const script = document.createElement('script');
     script.src = 'https://meet.jit.si/external_api.js';
@@ -65,17 +72,23 @@ export default function SessionRoom() {
       if (!jitsiContainerRef.current) return;
       const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
       if (!JitsiMeetExternalAPI) return;
-      jitsiRef.current = new JitsiMeetExternalAPI('meet.jit.si', {
-        roomName,
+      
+      const domain = 'meet.jit.si';
+      const options = {
+        roomName: roomId,
         parentNode: jitsiContainerRef.current,
         width: '100%',
         height: '100%',
-        userInfo: { displayName: user?.fullName || 'Student', email: user?.email || '' },
+        userInfo: { 
+          displayName: user?.fullName || 'Student', 
+          email: user?.email || '' 
+        },
         configOverwrite: {
-          startWithAudioMuted: !session.isTeacher,
-          startWithVideoMuted: !session.isTeacher,
+          startWithAudioMuted: !session?.isTeacher,
+          startWithVideoMuted: !session?.isTeacher,
           disableDeepLinking: true,
           enableClosePage: false,
+          prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: [
@@ -87,22 +100,30 @@ export default function SessionRoom() {
           SHOW_WATERMARK_FOR_GUESTS: false,
           DEFAULT_REMOTE_DISPLAY_NAME: 'Student',
         },
+      };
+      
+      jitsiRef.current = new JitsiMeetExternalAPI(domain, options);
+      
+      // Handle hangup event to return to dashboard
+      jitsiRef.current.addListener('videoConferenceLeft', () => {
+        setLocation('/dashboard');
       });
+
       setJitsiLoaded(true);
     };
     document.head.appendChild(script);
-    return () => {
-      if (jitsiRef.current) {
-        jitsiRef.current.dispose?.();
-      }
-    };
-  }, [session?.meetingUrl, session?.isRegistered]);
+  };
 
   const joinSession = async () => {
     try {
       const data = await api.post(`/room/sessions/${sessionId}/join`, {});
+      setActiveRoomId(data.roomId);
+      setHasJoined(true);
       queryClient.invalidateQueries({ queryKey: ['/api/room/sessions', sessionId] });
-      toast({ title: 'Joined session!' });
+      
+      // Initialize Jitsi immediately with the received roomId
+      setTimeout(() => initJitsi(data.roomId), 100);
+      
     } catch (err: any) {
       toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
     }
@@ -171,169 +192,258 @@ export default function SessionRoom() {
     );
   }
 
+  if (session.status === 'cancelled') {
+    return (
+      <div className="h-screen flex flex-col bg-slate-900 text-white">
+        <div className="p-4 border-b border-white/10 flex items-center">
+          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white mr-4" onClick={() => setLocation('/live-sessions')}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="font-bold">{session.title}</h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md px-6 bg-slate-800 p-8 rounded-2xl border border-red-500/30">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-red-400 mb-2">Session Cancelled</h2>
+            <p className="text-white/70 mb-6">This live session has been cancelled by the teacher.</p>
+            {session.cancellationReason && (
+              <div className="bg-slate-900/50 p-4 rounded-xl text-sm text-white/80 mb-6 text-left border border-white/5">
+                <span className="text-white/50 block mb-1 text-xs uppercase tracking-wider">Reason provided:</span>
+                {session.cancellationReason}
+              </div>
+            )}
+            <Button className="w-full bg-slate-700 hover:bg-slate-600 text-white" onClick={() => setLocation('/live-sessions')}>
+              Return to Sessions
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const canJoin = session.isRegistered || session.isTeacher;
   const unanswered = (questions || []).filter((q: any) => !q.answered);
   const answered = (questions || []).filter((q: any) => q.answered);
 
+  // Define waiting room state
+  const renderWaitingRoom = () => {
+    if (!canJoin) {
+      return (
+        <div className="flex-1 flex items-center justify-center bg-slate-800">
+          <div className="text-center max-w-md px-6 bg-slate-900/50 p-8 rounded-3xl border border-white/5">
+            <Video className="w-16 h-16 text-white/20 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Ready to Join?</h2>
+            <p className="text-white/60 mb-6">
+              {session.isFull
+                ? 'This session is full. No seats available.'
+                : `${session.seatsLeft} seats available. Register to join this session.`}
+            </p>
+            {!session.isFull && (
+              <Button className="bg-primary hover:bg-primary/90 px-8 py-6 text-lg w-full rounded-xl shadow-lg shadow-primary/20" onClick={joinSession}>
+                Join Session ({session.seatsLeft} seats left)
+              </Button>
+            )}
+            {session.isFull && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+                Session is full — no seats available
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Registered user / teacher waiting room
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-800">
+        <div className="text-center max-w-md px-6 bg-slate-900/50 p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+          {session.status === 'live' && !session.isTeacher && (
+             <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
+          )}
+          
+          <Radio className={`w-20 h-20 mx-auto mb-6 ${session.status === 'live' ? 'text-red-500 animate-pulse' : 'text-primary/50'}`} />
+          
+          <h2 className="text-2xl font-bold mb-2">
+            {session.isTeacher ? 'Ready to Teach?' : (session.status === 'live' ? 'Session is Live!' : 'Waiting Room')}
+          </h2>
+          
+          <p className="text-white/60 mb-8 text-lg">
+            {session.isTeacher 
+              ? 'Start the video call when you are ready to admit students.'
+              : (session.status === 'live' 
+                  ? 'The teacher has started the session. You can join now.' 
+                  : 'The session has not started yet. Please wait for the teacher.')}
+          </p>
+          
+          {(session.isTeacher || session.status === 'live') ? (
+            <Button 
+              className="bg-primary hover:bg-primary/90 px-8 py-6 text-lg w-full rounded-xl shadow-lg shadow-primary/20" 
+              onClick={joinSession}
+            >
+              {session.isTeacher ? 'Start Session' : 'Enter Classroom'}
+            </Button>
+          ) : (
+            <div className="bg-slate-800 border border-white/10 rounded-xl p-4 flex items-center justify-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-white/80 font-medium">Waiting for teacher...</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-slate-900 text-white overflow-hidden">
+    <div className="h-screen flex flex-col bg-slate-900 text-white overflow-hidden font-sans">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white" onClick={() => setLocation('/live-sessions')}>
-            <ArrowLeft className="w-4 h-4" />
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-white/10 shrink-0 z-10 shadow-sm">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="text-white/70 hover:text-white rounded-full bg-white/5 hover:bg-white/10" onClick={() => setLocation('/live-sessions')}>
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-bold uppercase tracking-widest text-red-400">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className={`w-2.5 h-2.5 rounded-full ${session.status === 'live' ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-amber-500'}`} />
+              <span className={`text-xs font-bold uppercase tracking-widest ${session.status === 'live' ? 'text-red-400' : 'text-amber-400'}`}>
                 {session.status === 'live' ? 'Live' : session.status}
               </span>
             </div>
-            <h1 className="font-bold text-sm">{session.title}</h1>
+            <h1 className="font-bold text-base">{session.title}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-white/60">
-          <Button variant="ghost" size="sm" className="hidden sm:flex px-2 text-white/50 hover:text-red-400 gap-1 h-7" onClick={() => setReportSession(true)}>
-             <Flag className="w-3.5 h-3.5" /> <span className="sr-only sm:not-sr-only">Report</span>
+        <div className="flex items-center gap-6 text-sm text-white/70">
+          <Button variant="ghost" size="sm" className="hidden sm:flex px-2 text-white/50 hover:text-red-400 gap-1.5 h-8 hover:bg-red-500/10 rounded-lg transition-colors" onClick={() => setReportSession(true)}>
+             <Flag className="w-3.5 h-3.5" /> <span className="sr-only sm:not-sr-only font-medium">Report</span>
           </Button>
-          <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{session.registeredCount} / {session.maxParticipants}</span>
-          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{session.durationMinutes} min</span>
-          <span className="text-white/40">Teacher: {session.teacherName}</span>
+          <div className="hidden md:flex items-center gap-4 border-l border-white/10 pl-6">
+            <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md"><Users className="w-4 h-4 text-primary" />{session.registeredCount} / {session.maxParticipants}</span>
+            <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md"><Clock className="w-4 h-4 text-primary" />{session.durationMinutes} min</span>
+            <span className="text-white/60 bg-white/5 px-2.5 py-1 rounded-md">Teacher: <span className="text-white">{session.teacherName}</span></span>
+          </div>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main video area */}
-        <div className="flex-1 flex flex-col">
-          {canJoin ? (
-            <div ref={jitsiContainerRef} className="flex-1 bg-black">
-              {!jitsiLoaded && (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <Video className="w-16 h-16 text-white/20 mx-auto mb-4 animate-pulse" />
-                    <p className="text-white/60">Connecting to video call...</p>
-                    <Button className="mt-4 bg-primary hover:bg-primary/90" onClick={joinSession}>
-                      Start Session
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
+        <div className="flex-1 flex flex-col relative bg-black">
+          {!hasJoined ? (
+            renderWaitingRoom()
           ) : (
-            <div className="flex-1 flex items-center justify-center bg-slate-800">
-              <div className="text-center max-w-md px-6">
-                <Video className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                <h2 className="text-xl font-bold mb-2">Ready to Join?</h2>
-                <p className="text-white/60 mb-6">
-                  {session.isFull
-                    ? 'This session is full. No seats available.'
-                    : `${session.seatsLeft} seats available. Register to join this session.`}
-                </p>
-                {!session.isFull && (
-                  <Button className="bg-primary hover:bg-primary/90 px-8" onClick={joinSession}>
-                    Join Session ({session.seatsLeft} seats left)
-                  </Button>
-                )}
-                {session.isFull && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
-                    Session is full — no seats available
-                  </div>
-                )}
-              </div>
-            </div>
+            <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
           )}
         </div>
 
         {/* Q&A Sidebar */}
-        <div className="w-80 bg-slate-800 border-l border-white/10 flex flex-col shrink-0">
-          <div className="p-4 border-b border-white/10">
+        <div className="w-80 md:w-96 bg-slate-800 border-l border-white/10 flex flex-col shrink-0 shadow-[-4px_0_15px_rgba(0,0,0,0.1)] z-10">
+          <div className="p-4 border-b border-white/10 bg-slate-800/80 backdrop-blur-sm">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              <h3 className="font-bold text-sm">Live Q&A</h3>
+              <div className="p-1.5 bg-primary/20 rounded-md text-primary">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <h3 className="font-bold text-sm uppercase tracking-wider">Live Q&A</h3>
               {unanswered.length > 0 && (
-                <span className="bg-primary text-white text-xs px-1.5 py-0.5 rounded-full ml-auto">
+                <span className="bg-primary text-white text-xs font-bold px-2 py-0.5 rounded-full ml-auto shadow-sm">
                   {unanswered.length}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
             {unanswered.length === 0 && answered.length === 0 && (
-              <div className="text-center py-8 text-white/30 text-sm">
-                No questions yet. Be the first to ask!
+              <div className="text-center py-12 flex flex-col items-center">
+                <MessageSquare className="w-12 h-12 text-white/10 mb-3" />
+                <p className="text-white/40 text-sm">No questions yet.</p>
+                <p className="text-white/30 text-xs mt-1">Be the first to ask!</p>
               </div>
             )}
+            
             {unanswered.map((q: any) => (
-              <div key={q.id} className="bg-slate-700 rounded-xl p-3">
-                <p className="text-sm text-white mb-2">{q.question}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-white/50">
-                    <span>{q.userName}</span>
-                    <button
-                      onClick={() => upvoteQuestion(q.id)}
-                      className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                    >
-                      <ThumbsUp className="w-3 h-3" /> {q.upvotes}
-                    </button>
-                  </div>
+              <div key={q.id} className="bg-slate-700/60 hover:bg-slate-700 transition-colors rounded-2xl p-4 shadow-sm border border-white/5">
+                <div className="flex items-center gap-2 mb-2">
+                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-[10px] font-bold shadow-sm">
+                     {q.userName.charAt(0).toUpperCase()}
+                   </div>
+                   <span className="text-xs font-medium text-white/70">{q.userName}</span>
+                </div>
+                <p className="text-sm text-white mb-3 leading-relaxed">{q.question}</p>
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <button
+                    onClick={() => upvoteQuestion(q.id)}
+                    className="flex items-center gap-1.5 text-xs text-white/50 hover:text-primary transition-colors bg-white/5 hover:bg-primary/10 px-2 py-1 rounded-md"
+                  >
+                    <ThumbsUp className="w-3.5 h-3.5" /> <span className="font-medium">{q.upvotes}</span>
+                  </button>
                   {session.isTeacher && (
                     <button
                       onClick={() => markAnswered(q.id)}
-                      className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+                      className="text-xs text-green-400 hover:text-green-300 hover:bg-green-400/10 px-2 py-1 rounded-md flex items-center gap-1.5 transition-colors font-medium"
                     >
-                      <CheckCircle className="w-3 h-3" /> Mark Answered
+                      <CheckCircle className="w-3.5 h-3.5" /> Answered
                     </button>
                   )}
                 </div>
               </div>
             ))}
+            
             {answered.length > 0 && (
-              <div className="border-t border-white/10 pt-3 mt-3">
-                <p className="text-xs text-white/30 mb-2">Answered</p>
-                {answered.map((q: any) => (
-                  <div key={q.id} className="bg-slate-700/50 rounded-xl p-3 mb-2 opacity-60">
-                    <div className="flex items-center gap-1 text-green-400 text-xs mb-1">
-                      <CheckCircle className="w-3 h-3" /> Answered
+              <div className="pt-4 mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-px bg-white/10 flex-1" />
+                  <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Answered ({answered.length})</p>
+                  <div className="h-px bg-white/10 flex-1" />
+                </div>
+                <div className="space-y-2">
+                  {answered.map((q: any) => (
+                    <div key={q.id} className="bg-slate-800/80 rounded-xl p-3 opacity-60 border border-white/5 border-l-2 border-l-green-500/50">
+                      <div className="flex items-center gap-1.5 text-green-400 text-[10px] mb-1.5 font-medium uppercase tracking-wider">
+                        <CheckCircle className="w-3 h-3" /> Answered
+                      </div>
+                      <p className="text-sm text-white/70 line-clamp-2">{q.question}</p>
                     </div>
-                    <p className="text-sm text-white/70">{q.question}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
           {/* Submit question */}
-          <div className="p-3 border-t border-white/10">
+          <div className="p-4 bg-slate-800/95 backdrop-blur-md border-t border-white/10">
             <div className="flex gap-2">
               <Input
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && submitQuestion()}
                 placeholder="Ask a question..."
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-white/30 text-sm h-9"
+                className="bg-slate-900 border-slate-700 focus:border-primary text-white placeholder:text-white/30 text-sm h-11 rounded-xl shadow-inner"
               />
-              <Button size="icon" className="h-9 w-9 bg-primary hover:bg-primary/90 shrink-0" onClick={submitQuestion}>
-                <Send className="w-3.5 h-3.5" />
+              <Button 
+                size="icon" 
+                className="h-11 w-11 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-md shadow-primary/20 transition-transform active:scale-95" 
+                onClick={submitQuestion}
+                disabled={!question.trim()}
+              >
+                <Send className="w-4 h-4 ml-0.5" />
               </Button>
             </div>
-            <p className="text-xs text-white/30 mt-1">Press Enter to send</p>
+            <p className="text-[10px] text-white/30 mt-2 text-center uppercase tracking-wider font-medium">Press Enter to send directly to speaker</p>
           </div>
         </div>
       </div>
 
       {/* Report Session Modal */}
       <Dialog open={reportSession} onOpenChange={setReportSession}>
-        <DialogContent className="sm:max-w-[425px] bg-slate-900 text-white border-slate-700">
+        <DialogContent className="sm:max-w-[425px] bg-slate-900 text-white border-slate-700 shadow-2xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Report Session</DialogTitle>
+            <DialogTitle className="text-xl">Report Session</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleReportSubmit(submitReport)} className="space-y-4 mt-4">
-            <div className="text-sm text-white/70 mb-4">You are reporting this session. Please select a reason below.</div>
+          <form onSubmit={handleReportSubmit(submitReport)} className="space-y-5 mt-4">
+            <div className="text-sm text-white/70 mb-2 bg-slate-800 p-3 rounded-lg border border-slate-700">
+              You are reporting this session. Please select a reason below.
+            </div>
             <div>
-              <label className="text-sm font-medium mb-1 block text-white/80">Reason *</label>
-              <select {...registerReport('reason', { required: true })} className="w-full h-10 px-3 rounded-md border border-slate-700 bg-slate-800 text-sm text-white focus:outline-none focus:border-primary">
+              <label className="text-sm font-medium mb-1.5 block text-white/80">Reason *</label>
+              <select {...registerReport('reason', { required: true })} className="w-full h-11 px-3 rounded-xl border border-slate-700 bg-slate-800 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow">
                 <option value="">Select a reason</option>
                 <option value="inappropriate_behavior">Inappropriate Behavior</option>
                 <option value="offensive">Offensive Content</option>
@@ -342,16 +452,32 @@ export default function SessionRoom() {
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block text-white/80">Description (optional)</label>
-              <Textarea {...registerReport('description')} placeholder="Please provide more details..." rows={3} className="bg-slate-800 border-slate-700 text-white placeholder:text-white/40 focus:border-primary" />
+              <label className="text-sm font-medium mb-1.5 block text-white/80">Description (optional)</label>
+              <Textarea {...registerReport('description')} placeholder="Please provide more details..." rows={4} className="bg-slate-800 border-slate-700 text-white placeholder:text-white/40 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl resize-none transition-shadow" />
             </div>
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" className="flex-1 bg-transparent border-slate-700 text-white hover:bg-slate-800" onClick={() => setReportSession(false)}>Cancel</Button>
-              <Button type="submit" variant="destructive" className="flex-1">Submit Report</Button>
+            <div className="flex gap-3 pt-4">
+              <Button type="button" variant="outline" className="flex-1 bg-transparent border-slate-700 text-white hover:bg-slate-800 rounded-xl" onClick={() => setReportSession(false)}>Cancel</Button>
+              <Button type="submit" variant="destructive" className="flex-1 rounded-xl shadow-md shadow-red-500/20">Submit Report</Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
     </div>
   );
 }

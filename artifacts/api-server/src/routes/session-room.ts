@@ -67,13 +67,19 @@ router.post("/sessions/:id/register", requireAuth, async (req, res) => {
   }
 });
 
-// Join session — returns Jitsi meeting URL (only if registered or teacher)
+// Join session — returns embedded room info (only if registered or teacher)
 router.post("/sessions/:id/join", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
     const sessionId = parseInt(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+    // Block joining cancelled sessions
+    if (session.status === "cancelled") {
+      res.status(403).json({ error: "This session has been cancelled", cancellationReason: session.cancellationReason });
+      return;
+    }
 
     const isTeacher = session.teacherId === userId;
     const existing = await db.select().from(sessionRegistrationsTable)
@@ -98,15 +104,22 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
         .where(and(eq(sessionRegistrationsTable.sessionId, sessionId), eq(sessionRegistrationsTable.userId, userId)));
     }
 
-    // Generate or use existing Jitsi room URL
-    let meetingUrl = session.meetingUrl;
-    if (!meetingUrl) {
-      const roomId = `edulibya-session-${sessionId}-${crypto.createHash("md5").update(sessionId.toString()).digest("hex").slice(0, 8)}`;
-      meetingUrl = `https://meet.jit.si/${roomId}`;
-      await db.update(liveSessionsTable).set({ meetingUrl, status: "live" }).where(eq(liveSessionsTable.id, sessionId));
+    // Generate a stable, deterministic room ID for this session.
+    // This is used by the frontend Jitsi IFrame API — no external URL redirect needed.
+    const roomId = `edulibya-${sessionId}-${crypto.createHash("md5").update(sessionId.toString()).digest("hex").slice(0, 8)}`;
+
+    // Persist the room ID and mark session as live when teacher joins
+    if (isTeacher && session.status !== "live") {
+      await db.update(liveSessionsTable)
+        .set({ meetingUrl: roomId, status: "live" })
+        .where(eq(liveSessionsTable.id, sessionId));
+    } else if (!session.meetingUrl) {
+      await db.update(liveSessionsTable)
+        .set({ meetingUrl: roomId })
+        .where(eq(liveSessionsTable.id, sessionId));
     }
 
-    res.json({ meetingUrl, sessionId });
+    res.json({ roomId, sessionId, isTeacher });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

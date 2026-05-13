@@ -329,12 +329,12 @@ export default function TeacherDashboard() {
                           <div className="text-xs text-muted-foreground">Price</div>
                         </div>
                       </div>
-                      {session.meetingUrl && session.status !== 'cancelled' && (
-                        <a href={session.meetingUrl} target="_blank" rel="noopener noreferrer">
+                      {session.status !== 'cancelled' && (
+                        <Link href={`/session/${session.id}`}>
                           <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
-                            <Radio className="w-3.5 h-3.5" /> Open Meeting Link
+                            <Radio className="w-3.5 h-3.5" /> Join Session
                           </Button>
-                        </a>
+                        </Link>
                       )}
                       {session.status === 'scheduled' && (
                         <Button 
