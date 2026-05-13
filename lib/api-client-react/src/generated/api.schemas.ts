@@ -41,6 +41,7 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   fullNameAr?: string;
+  phoneNumber?: string;
   role: RegisterRequestRole;
   language?: RegisterRequestLanguage;
 }

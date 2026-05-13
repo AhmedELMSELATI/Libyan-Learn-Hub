@@ -26,6 +26,7 @@ export const RegisterBody = zod.object({
   password: zod.string().min(registerBodyPasswordMin),
   fullName: zod.string(),
   fullNameAr: zod.string().optional(),
+  phoneNumber: zod.string().optional(),
   role: zod.enum(["student", "teacher"]),
   language: zod.enum(["ar", "en"]).default(registerBodyLanguageDefault),
 });

@@ -706,6 +706,8 @@ components:
           type: string
         fullNameAr:
           type: string
+        phoneNumber:
+          type: string
         role:
           type: string
           enum: [student, teacher]

@@ -14,7 +14,13 @@ function generateOtp(): string {
 
 router.post("/register", async (req, res) => {
   try {
-    const body = RegisterBody.parse(req.body);
+    if (!req.body) {
+      res.status(400).json({ error: "Missing request body. Check Content-Type headers." });
+      return;
+    }
+    
+    // Support phoneNumber in the validation gracefully
+    const body = RegisterBody.passthrough().parse(req.body);
     const existing = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);
     if (existing.length > 0) {
       res.status(400).json({ error: "Email already registered" });
