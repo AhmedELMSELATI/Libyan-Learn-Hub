@@ -20,13 +20,13 @@ export function Footer() {
                 Edu<span className="text-primary">Libya</span>
               </span>
             </div>
-            <p dir="ltr" className={`text-muted-foreground text-sm leading-relaxed max-w-xs ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
-              Empowering Libyan students and teachers through modern, accessible, and high-quality online education.
+            <p className={`text-muted-foreground text-sm leading-relaxed max-w-xs ${dir === 'rtl' ? 'text-start' : 'text-start'}`}>
+              {t('footer.description')}
             </p>
           </div>
 
           <div>
-            <h3 className="font-display font-semibold text-foreground mb-4">Explore</h3>
+            <h3 className="font-display font-semibold text-foreground mb-4">{t('footer.explore')}</h3>
             <ul className="space-y-3">
               <li><a href="/courses" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t('nav.courses')}</a></li>
               <li><a href="/live-sessions" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t('nav.live')}</a></li>
@@ -35,16 +35,16 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-display font-semibold text-foreground mb-4">Legal</h3>
+            <h3 className="font-display font-semibold text-foreground mb-4">{t('footer.legal')}</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Privacy Policy</a></li>
-              <li><Link href="/dmca" className="text-sm text-muted-foreground hover:text-primary transition-colors">Copyright / DMCA</Link></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t('footer.terms')}</a></li>
+              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t('footer.privacy')}</a></li>
+              <li><Link href="/dmca" className="text-sm text-muted-foreground hover:text-primary transition-colors">{t('footer.dmca')}</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-display font-semibold text-foreground mb-4">Contact</h3>
+            <h3 className="font-display font-semibold text-foreground mb-4">{t('footer.contact')}</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-3 text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-secondary" />
@@ -64,8 +64,8 @@ export function Footer() {
         </div>
         
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p dir="ltr" className={`text-sm text-muted-foreground ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
-            &copy; {new Date().getFullYear()} EduLibya. All rights reserved.
+          <p className="text-sm text-muted-foreground text-start">
+            &copy; {new Date().getFullYear()} {t('footer.allRightsReserved')}
           </p>
           <div className="flex gap-4">
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-white transition-all cursor-pointer">

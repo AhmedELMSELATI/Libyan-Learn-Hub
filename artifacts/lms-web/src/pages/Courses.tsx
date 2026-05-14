@@ -28,20 +28,20 @@ export default function Courses() {
     <PageContainer>
       <div className="bg-primary/5 py-12 border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-display font-bold text-foreground mb-4">Explore Courses</h1>
+          <h1 className="text-4xl font-display font-bold text-foreground mb-4">{t('courses.explore')}</h1>
           
           <div className="flex flex-col md:flex-row gap-4 mt-8">
             <div className="relative flex-1">
               <Search className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
               <Input 
-                placeholder="Search courses, topics, or teachers..." 
+                placeholder={t('courses.search')} 
                 className="ps-12 h-14 bg-card rounded-2xl text-lg shadow-sm"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <Button size="lg" className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90">
-              Search
+              {t('courses.searchBtn')}
             </Button>
           </div>
         </div>
@@ -52,17 +52,17 @@ export default function Courses() {
         {/* Filters Sidebar */}
         <div className="w-full md:w-64 shrink-0 space-y-8">
           <div className="flex items-center gap-2 font-display font-bold text-lg mb-4">
-            <Filter className="w-5 h-5 text-primary" /> Filters
+            <Filter className="w-5 h-5 text-primary" /> {t('courses.filters')}
           </div>
 
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Category</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">{t('courses.category')}</h3>
             <div className="space-y-2">
               <button 
                 onClick={() => setCategoryId(undefined)}
                 className={`text-sm w-full text-start px-3 py-2 rounded-lg transition-colors ${!categoryId ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground'}`}
               >
-                All Categories
+                {t('courses.allCategories')}
               </button>
               {categories?.map(cat => (
                 <button 
@@ -77,7 +77,7 @@ export default function Courses() {
           </div>
 
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Level</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">{t('courses.level')}</h3>
             <div className="space-y-2">
               {['beginner', 'intermediate', 'advanced'].map((lvl) => (
                 <label key={lvl} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-muted rounded-lg">
@@ -95,7 +95,7 @@ export default function Courses() {
                       }
                     }}
                   />
-                  <span className="text-sm capitalize">{lvl}</span>
+                  <span className="text-sm capitalize">{t(`courses.${lvl}`)}</span>
                 </label>
               ))}
             </div>
@@ -111,16 +111,16 @@ export default function Courses() {
           ) : coursesData?.courses.length === 0 ? (
             <div className="text-center py-20 bg-card rounded-3xl border border-border border-dashed">
               <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-              <h3 className="text-xl font-bold text-foreground">No courses found</h3>
-              <p className="text-muted-foreground mt-2">Try adjusting your filters or search term.</p>
+              <h3 className="text-xl font-bold text-foreground">{t('courses.noCourses')}</h3>
+              <p className="text-muted-foreground mt-2">{t('courses.adjustFilters')}</p>
               <Button variant="outline" className="mt-6" onClick={() => {setSearch(''); setCategoryId(undefined); setLevel(undefined);}}>
-                Clear Filters
+                {t('courses.clearFilters')}
               </Button>
             </div>
           ) : (
             <>
               <div className="mb-6 text-sm text-muted-foreground">
-                Showing {coursesData?.courses.length} of {coursesData?.total} results
+                {t('courses.showingResults', { count: String(coursesData?.courses.length || 0), total: String(coursesData?.total || 0) })}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {coursesData?.courses.map((course) => (
@@ -146,7 +146,7 @@ export default function Courses() {
                           <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1.5 font-medium">
                               <BookOpen className="w-3.5 h-3.5 text-primary" />
-                              {course.lessonCount} Lessons
+                              {course.lessonCount} {t('courses.lessons')}
                             </span>
                             <span className="w-1 h-1 rounded-full bg-border" />
                             <span>{Math.round(course.totalDuration / 60)}h</span>
