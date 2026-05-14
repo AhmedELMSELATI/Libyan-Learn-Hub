@@ -9,12 +9,13 @@ import {
 } from "@workspace/db";
 import { eq, and, asc, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router({ mergeParams: true });
 
 router.get("/", async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam((req.params as any).courseId);
     const sections = await db
       .select()
       .from(sectionsTable)
@@ -72,7 +73,7 @@ router.get("/", async (req, res) => {
 
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { title, titleAr, description, descriptionAr, order } = req.body;
     const [section] = await db
       .insert(sectionsTable)
@@ -86,7 +87,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
 router.put("/:sectionId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const sectionId = parseInt(req.params.sectionId);
+    const sectionId = parseParam(req.params.sectionId);
     const { title, titleAr, description, descriptionAr, order } = req.body;
     const [updated] = await db
       .update(sectionsTable)
@@ -102,8 +103,8 @@ router.put("/:sectionId", requireAuth, requireRole("teacher", "admin"), async (r
 
 router.delete("/:sectionId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
-    const sectionId = parseInt(req.params.sectionId);
+    const courseId = parseParam(req.params.courseId);
+    const sectionId = parseParam(req.params.sectionId);
 
     // Block deletion if students are enrolled in the parent course
     const [{ value: enrollCount }] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, courseId));
@@ -123,8 +124,8 @@ router.delete("/:sectionId", requireAuth, requireRole("teacher", "admin"), async
 
 router.get("/:sectionId/lessons", async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
-    const sectionId = parseInt(req.params.sectionId);
+    const courseId = parseParam((req.params as any).courseId);
+    const sectionId = parseParam(req.params.sectionId);
     const lessons = await db
       .select()
       .from(lessonsTable)
@@ -172,8 +173,8 @@ router.get("/:sectionId/lessons", async (req, res) => {
 
 router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
-    const sectionId = parseInt(req.params.sectionId);
+    const courseId = parseParam(req.params.courseId);
+    const sectionId = parseParam(req.params.sectionId);
     const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, notes, notesAr, duration, order, isFree, type, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
     const [lesson] = await db
       .insert(lessonsTable)

@@ -5,14 +5,23 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth.js";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
+import { rateLimit } from "express-rate-limit";
 
 const router = Router();
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: { error: "Too many login/registration attempts. Please try again after 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-router.post("/register", async (req, res) => {
+router.post("/register", authLimiter, async (req, res) => {
   try {
     if (!req.body) {
       res.status(400).json({ error: "Missing request body. Check Content-Type headers." });
@@ -126,7 +135,7 @@ router.post("/verify-otp", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   try {
     const body = LoginBody.parse(req.body);
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);

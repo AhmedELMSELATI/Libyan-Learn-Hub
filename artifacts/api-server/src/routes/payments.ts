@@ -46,21 +46,21 @@ router.post("/create-session", requireAuth, async (req, res) => {
 
     if (type === "course") {
       [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, itemId)).limit(1);
-      if (!course) return res.status(404).json({ error: "Course not found" });
+      if (!course) { res.status(404).json({ error: "Course not found" }); return; }
       
       const existing = await db.select().from(enrollmentsTable)
         .where(and(eq(enrollmentsTable.courseId, itemId), eq(enrollmentsTable.userId, userId)))
         .limit(1);
-      if (existing.length > 0) return res.status(400).json({ error: "Already enrolled" });
+      if (existing.length > 0) { res.status(400).json({ error: "Already enrolled" }); return; }
       
       amount = parseFloat(course.price);
       currency = course.currency || "LYD";
     } else if (type === "session") {
       [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, itemId)).limit(1);
-      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (!session) { res.status(404).json({ error: "Session not found" }); return; }
       amount = parseFloat(session.price);
     } else {
-      return res.status(400).json({ error: "Invalid type" });
+      res.status(400).json({ error: "Invalid type" }); return;
     }
 
     if (amount === 0) {
@@ -68,7 +68,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
       if (type === "course") {
         await db.insert(enrollmentsTable).values({ courseId: itemId, userId, progress: "0" });
       }
-      return res.json({ url: "/dashboard?success=true" });
+      return void res.json({ url: "/dashboard?success=true" });
     }
 
     // Paid item, create pending payment session
@@ -78,7 +78,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
       sessionId: type === "session" ? itemId : null,
       amount: amount.toFixed(2),
       currency,
-      method: "gateway",
+      method: "bank_transfer",
       status: "pending",
       reference: `SESS-${Date.now()}`,
     }).returning();
@@ -134,15 +134,15 @@ router.get("/callback", async (req, res) => {
     const paymentId = parseInt(req.query.paymentId as string);
     const status = req.query.status as string; // 'success' or 'cancel'
 
-    if (isNaN(paymentId)) return res.status(400).send("Invalid payment ID");
+    if (isNaN(paymentId)) { res.status(400).send("Invalid payment ID"); return; }
 
     const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
-    if (!payment) return res.status(404).send("Payment not found");
-    if (payment.status === "completed") return res.redirect('/dashboard?success=true');
+    if (!payment) { res.status(404).send("Payment not found"); return; }
+    if (payment.status === "completed") { res.redirect('/dashboard?success=true'); return; }
 
     if (status === "cancel") {
       await db.update(paymentsTable).set({ status: "failed" }).where(eq(paymentsTable.id, paymentId));
-      return res.redirect('/dashboard?error=payment_cancelled');
+      res.redirect('/dashboard?error=payment_cancelled'); return;
     }
 
     // Success flow

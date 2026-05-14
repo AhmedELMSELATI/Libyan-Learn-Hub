@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/useApi';
 import { Textarea } from '@/components/ui/textarea';
+import DOMPurify from 'dompurify';
 
 export default function Learn() {
   const [, params] = useRoute('/courses/:id/learn');
@@ -135,7 +136,7 @@ export default function Learn() {
               ) : lesson.type === 'text' ? (
                 <div className="bg-card rounded-2xl p-8 shadow-sm border border-border protection-overlay min-h-[50vh] prose prose-slate dark:prose-invert max-w-none">
                   <h2 className="font-display text-3xl mb-6 mt-0">{language === 'ar' ? lesson.titleAr : lesson.title}</h2>
-                  <div dangerouslySetInnerHTML={{ __html: (language === 'ar' ? lesson.contentAr : lesson.content) || '' }} />
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((language === 'ar' ? lesson.contentAr : lesson.content) || '') }} />
                   
                   {!lesson.isCompleted && (
                     <Button 
@@ -157,7 +158,7 @@ export default function Learn() {
                 <div className="mt-8 bg-card p-6 rounded-2xl border border-border shadow-sm">
                   <h3 className="font-display font-bold text-2xl mb-4">{language === 'ar' ? lesson.titleAr : lesson.title}</h3>
                   {lesson.content && (
-                    <div className="prose prose-sm dark:prose-invert max-w-none mt-4 text-muted-foreground" dangerouslySetInnerHTML={{ __html: language === 'ar' ? lesson.contentAr! : lesson.content }} />
+                    <div className="prose prose-sm dark:prose-invert max-w-none mt-4 text-muted-foreground" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(language === 'ar' ? lesson.contentAr! : lesson.content) }} />
                   )}
                 </div>
               )}

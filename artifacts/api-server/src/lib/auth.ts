@@ -1,7 +1,13 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
-const JWT_SECRET = process.env.JWT_SECRET || "lms-libya-secret-2024";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET environment variable is required in production");
+}
+
+const SECRET = JWT_SECRET || "lms-libya-secret-2024-dev";
 
 export interface AuthPayload {
   userId: number;
@@ -9,11 +15,11 @@ export interface AuthPayload {
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(payload, SECRET, { expiresIn: "7d" });
 }
 
 export function verifyToken(token: string): AuthPayload {
-  return jwt.verify(token, JWT_SECRET) as AuthPayload;
+  return jwt.verify(token, SECRET) as AuthPayload;
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {

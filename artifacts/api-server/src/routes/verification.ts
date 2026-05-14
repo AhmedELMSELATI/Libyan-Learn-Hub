@@ -3,13 +3,14 @@ import { db } from "@workspace/db";
 import { contentVerificationJobsTable, usersTable, lessonsTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
 // ── Admin: Trigger face check for a teacher ──────────────────────
 router.post("/face-check/:teacherId", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const teacherId = parseInt(req.params.teacherId);
+    const teacherId = parseParam(req.params.teacherId);
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
     if (!teacher || !teacher.facePhotoUrl) {
       res.status(400).json({ error: "Teacher has no face photo on file" });
@@ -31,7 +32,7 @@ router.post("/face-check/:teacherId", requireAuth, requireRole("admin"), async (
 // ── Admin: Trigger voice check for a teacher ─────────────────────
 router.post("/voice-check/:teacherId", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const teacherId = parseInt(req.params.teacherId);
+    const teacherId = parseParam(req.params.teacherId);
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
     if (!teacher || !teacher.voiceSampleUrl) {
       res.status(400).json({ error: "Teacher has no voice sample on file" });
@@ -89,7 +90,7 @@ router.get("/jobs", requireAuth, requireRole("admin"), async (req, res) => {
 // ── Admin: Update verification job ───────────────────────────────
 router.patch("/jobs/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     const { userId } = (req as any).user;
     const { status, adminNotes, matchScore } = req.body;
 

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { copyrightComplaintsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
 // ── Admin: Update complaint status ───────────────────────────────
 router.patch("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     const { userId } = (req as any).user;
     const { status, adminNotes } = req.body;
 

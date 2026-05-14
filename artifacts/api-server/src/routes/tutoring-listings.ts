@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { tutoringListingsTable, tutoringApplicationsTable, usersTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
 
 const router = Router();
@@ -33,7 +34,7 @@ router.get("/", async (req, res) => {
 
     if (subject) listings = listings.filter(l => l.subject.toLowerCase().includes(subject.toLowerCase()));
     if (gradeLevel) listings = listings.filter(l => l.gradeLevel === gradeLevel);
-    if (teacherId) listings = listings.filter(l => l.teacherId === parseInt(teacherId));
+    if (teacherId) listings = listings.filter(l => l.teacherId === parseParam(teacherId));
 
     const result = await Promise.all(listings.map(formatListing));
     res.json(result);
@@ -61,7 +62,7 @@ router.get("/my", requireAuth, requireRole("teacher", "admin"), async (req, res)
 // Get single listing with applications (teacher) or just listing (student)
 router.get("/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     const [listing] = await db.select().from(tutoringListingsTable).where(eq(tutoringListingsTable.id, id)).limit(1);
     if (!listing) { res.status(404).json({ error: "Listing not found" }); return; }
     res.json(await formatListing(listing));
@@ -106,7 +107,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 router.put("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     const { title, titleAr, subject, subjectAr, gradeLevel, gradeLevelAr, description, descriptionAr, hourlyRate, maxStudents, availableDays, availableTimeFrom, availableTimeTo, sessionDurationMinutes, status } = req.body;
     const [updated] = await db.update(tutoringListingsTable)
       .set({ title, titleAr, subject, subjectAr, gradeLevel, gradeLevelAr, description, descriptionAr, hourlyRate: hourlyRate?.toString(), maxStudents, availableDays, availableTimeFrom, availableTimeTo, sessionDurationMinutes, status, updatedAt: new Date() })
@@ -123,7 +124,7 @@ router.put("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res
 router.delete("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     await db.delete(tutoringListingsTable).where(and(eq(tutoringListingsTable.id, id), eq(tutoringListingsTable.teacherId, userId)));
     res.json({ success: true });
   } catch (err: any) {
@@ -135,7 +136,7 @@ router.delete("/:id", requireAuth, requireRole("teacher", "admin"), async (req, 
 router.post("/:id/apply", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const listingId = parseInt(req.params.id);
+    const listingId = parseParam(req.params.id);
     const { message, preferredAt } = req.body;
 
     const [listing] = await db.select().from(tutoringListingsTable).where(eq(tutoringListingsTable.id, listingId)).limit(1);
@@ -169,7 +170,7 @@ router.post("/:id/apply", requireAuth, async (req, res) => {
 router.get("/:id/applications", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const listingId = parseInt(req.params.id);
+    const listingId = parseParam(req.params.id);
 
     const [listing] = await db.select().from(tutoringListingsTable)
       .where(and(eq(tutoringListingsTable.id, listingId), eq(tutoringListingsTable.teacherId, userId))).limit(1);
@@ -200,7 +201,7 @@ router.get("/:id/applications", requireAuth, requireRole("teacher", "admin"), as
 router.post("/applications/:appId/accept", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const appId = parseInt(req.params.appId);
+    const appId = parseParam(req.params.appId);
     const { teacherNote } = req.body;
     const roomId = `edulibya-tutoring-${appId}-${crypto.randomBytes(4).toString("hex")}`;
     const meetingUrl = `https://meet.jit.si/${roomId}`;
@@ -226,7 +227,7 @@ router.post("/applications/:appId/accept", requireAuth, requireRole("teacher", "
 router.post("/applications/:appId/decline", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const appId = parseInt(req.params.appId);
+    const appId = parseParam(req.params.appId);
     const { teacherNote } = req.body;
 
     const [app] = await db.select().from(tutoringApplicationsTable).where(eq(tutoringApplicationsTable.id, appId)).limit(1);
@@ -270,7 +271,7 @@ router.get("/my-applications/list", requireAuth, async (req, res) => {
 router.post("/applications/:appId/cancel", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const appId = parseInt(req.params.appId);
+    const appId = parseParam(req.params.appId);
     await db.update(tutoringApplicationsTable).set({ status: "cancelled", updatedAt: new Date() })
       .where(and(eq(tutoringApplicationsTable.id, appId), eq(tutoringApplicationsTable.studentId, userId)));
     res.json({ success: true });

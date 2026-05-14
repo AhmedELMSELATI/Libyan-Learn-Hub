@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { reportsTable, usersTable, coursesTable, liveSessionsTable, lessonsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -45,7 +46,7 @@ router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
 
 router.put("/:reportId/status", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const reportId = parseInt(req.params.reportId);
+    const reportId = parseParam(req.params.reportId);
     const { userId } = (req as any).user;
     const { status, adminNote } = req.body;
     const [updated] = await db.update(reportsTable)

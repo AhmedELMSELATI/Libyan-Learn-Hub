@@ -8,12 +8,13 @@ import {
 } from "@workspace/db";
 import { eq, and, asc, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
 router.get("/course/:courseId", async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const quizzes = await db
       .select()
       .from(quizzesTable)
@@ -27,7 +28,7 @@ router.get("/course/:courseId", async (req, res) => {
 
 router.get("/:quizId", async (req, res) => {
   try {
-    const quizId = parseInt(req.params.quizId);
+    const quizId = parseParam(req.params.quizId);
     const [quiz] = await db
       .select()
       .from(quizzesTable)
@@ -105,7 +106,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
 router.put("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const quizId = parseInt(req.params.quizId);
+    const quizId = parseParam(req.params.quizId);
     const { title, titleAr, description, descriptionAr, passingScore, timeLimitMinutes } = req.body;
     const [updated] = await db
       .update(quizzesTable)
@@ -121,7 +122,7 @@ router.put("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req,
 
 router.post("/:quizId/attempt", requireAuth, async (req, res) => {
   try {
-    const quizId = parseInt(req.params.quizId);
+    const quizId = parseParam(req.params.quizId);
     const { userId } = (req as any).user;
     const { answers } = req.body;
 
@@ -193,7 +194,7 @@ router.post("/:quizId/attempt", requireAuth, async (req, res) => {
 
 router.get("/:quizId/attempts", requireAuth, async (req, res) => {
   try {
-    const quizId = parseInt(req.params.quizId);
+    const quizId = parseParam(req.params.quizId);
     const { userId, role } = (req as any).user;
     const whereClause = role === "student"
       ? and(eq(quizAttemptsTable.quizId, quizId), eq(quizAttemptsTable.userId, userId))
@@ -213,7 +214,7 @@ router.get("/:quizId/attempts", requireAuth, async (req, res) => {
 
 router.post("/:quizId/questions", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const quizId = parseInt(req.params.quizId);
+    const quizId = parseParam(req.params.quizId);
     const { question, questionAr, type, points, explanation, explanationAr, order, options } = req.body;
     const [q] = await db
       .insert(quizQuestionsTable)

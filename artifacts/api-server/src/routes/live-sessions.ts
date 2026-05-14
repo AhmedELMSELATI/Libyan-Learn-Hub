@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { liveSessionsTable, usersTable, enrollmentsTable } from "@workspace/db";
 import { eq, gte, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -32,7 +33,7 @@ router.get("/", async (req, res) => {
   try {
     const { courseId, upcoming } = req.query as any;
     let sessions = await db.select().from(liveSessionsTable);
-    if (courseId) sessions = sessions.filter(s => s.courseId === parseInt(courseId));
+    if (courseId) sessions = sessions.filter(s => s.courseId === parseParam(courseId));
     if (upcoming === "true") sessions = sessions.filter(s => new Date(s.scheduledAt) >= new Date());
     const result = await Promise.all(sessions.map(formatSession));
     res.json(result);
@@ -59,7 +60,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
 router.get("/:sessionId", async (req, res) => {
   try {
-    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseInt(req.params.sessionId))).limit(1);
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
     res.json(await formatSession(session));
   } catch (err: any) {
@@ -70,7 +71,7 @@ router.get("/:sessionId", async (req, res) => {
 router.post("/:sessionId/join", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const sessionId = parseInt(req.params.sessionId);
+    const sessionId = parseParam(req.params.sessionId);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
@@ -100,7 +101,7 @@ router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), 
     const { userId, role } = (req as any).user;
     const { reason, notifyStudents } = req.body;
     
-    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseInt(req.params.sessionId))).limit(1);
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
     
     if (!session) { 
       res.status(404).json({ error: "Session not found" }); 
@@ -117,7 +118,7 @@ router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), 
         status: "cancelled", 
         cancellationReason: reason || null 
       })
-      .where(eq(liveSessionsTable.id, parseInt(req.params.sessionId)))
+      .where(eq(liveSessionsTable.id, parseParam(req.params.sessionId)))
       .returning();
 
     if (notifyStudents) {
@@ -139,7 +140,7 @@ router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), asy
   try {
     const { userId, role } = (req as any).user;
     
-    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseInt(req.params.sessionId))).limit(1);
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
     
     if (!session) { 
       res.status(404).json({ error: "Session not found" }); 
@@ -153,7 +154,7 @@ router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), asy
 
     const [updatedSession] = await db.update(liveSessionsTable)
       .set({ status: "ended" })
-      .where(eq(liveSessionsTable.id, parseInt(req.params.sessionId)))
+      .where(eq(liveSessionsTable.id, parseParam(req.params.sessionId)))
       .returning();
 
     res.json({

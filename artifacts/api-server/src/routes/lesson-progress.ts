@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { lessonProgressTable, lessonsTable, enrollmentsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -10,7 +11,7 @@ const router = Router();
 router.get("/courses/:courseId", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const progress = await db.select().from(lessonProgressTable)
       .where(and(eq(lessonProgressTable.userId, userId), eq(lessonProgressTable.courseId, courseId)));
     const [totalLessons] = await db.select({ total: count() }).from(lessonsTable).where(eq(lessonsTable.courseId, courseId));
@@ -30,7 +31,7 @@ router.get("/courses/:courseId", requireAuth, async (req, res) => {
 router.post("/lessons/:lessonId/complete", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const lessonId = parseInt(req.params.lessonId);
+    const lessonId = parseParam(req.params.lessonId);
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
 

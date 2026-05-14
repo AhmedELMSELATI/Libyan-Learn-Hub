@@ -12,6 +12,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.get("/programs", async (_req, res) => {
 // GET /academy/programs/:id — Program details with subjects
 router.get("/programs/:id", async (req, res) => {
   try {
-    const programId = parseInt(req.params.id);
+    const programId = parseParam(req.params.id);
     const [program] = await db
       .select()
       .from(academyProgramsTable)
@@ -323,7 +324,7 @@ router.get("/parent/children", requireAuth, async (req, res) => {
 router.get("/parent/child/:studentId/progress", requireAuth, async (req, res) => {
   try {
     const parentUserId = (req as any).user.userId;
-    const studentId = parseInt(req.params.studentId);
+    const studentId = parseParam(req.params.studentId);
 
     // Verify link exists and is approved
     const [link] = await db
@@ -429,7 +430,7 @@ router.get("/admin/applications", requireAuth, requireRole("admin"), async (req,
 // PUT /academy/admin/applications/:id — Approve or reject
 router.put("/admin/applications/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const applicationId = parseInt(req.params.id);
+    const applicationId = parseParam(req.params.id);
     const adminId = (req as any).user.userId;
     const { status, reviewNotes } = req.body;
 
@@ -529,7 +530,7 @@ router.post("/admin/programs", requireAuth, requireRole("admin"), async (req, re
 // PUT /academy/admin/programs/:id — Update a program
 router.put("/admin/programs/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const programId = parseInt(req.params.id);
+    const programId = parseParam(req.params.id);
     const { name, nameAr, description, descriptionAr, type, gradeLevel, durationYears, tuitionPerSemester, currency, isActive } = req.body;
 
     const [updated] = await db
@@ -583,7 +584,7 @@ router.post("/admin/subjects", requireAuth, requireRole("admin"), async (req, re
 // PUT /academy/admin/subjects/:id — Update a subject
 router.put("/admin/subjects/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const subjectId = parseInt(req.params.id);
+    const subjectId = parseParam(req.params.id);
     const updates = req.body;
 
     const [updated] = await db
@@ -633,7 +634,7 @@ router.get("/admin/enrollments", requireAuth, requireRole("admin"), async (req, 
 // PUT /academy/admin/registrations/:id/grade — Post a grade
 router.put("/admin/registrations/:id/grade", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const registrationId = parseInt(req.params.id);
+    const registrationId = parseParam(req.params.id);
     const { grade, status } = req.body;
 
     const [updated] = await db
@@ -659,7 +660,7 @@ router.put("/admin/registrations/:id/grade", requireAuth, requireRole("admin"), 
 // POST /academy/admin/parent-links/:id/approve — Approve parent link
 router.put("/admin/parent-links/:id/approve", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const linkId = parseInt(req.params.id);
+    const linkId = parseParam(req.params.id);
     const { isApproved } = req.body;
 
     const [updated] = await db

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { tutoringRequestsTable, usersTable, paymentsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
 
 const router = Router();
@@ -99,7 +100,7 @@ router.get("/requests", requireAuth, async (req, res) => {
 router.post("/requests/:id/accept", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const requestId = parseInt(req.params.id);
+    const requestId = parseParam(req.params.id);
     const roomId = `edulibya-tutoring-${requestId}-${crypto.randomBytes(4).toString("hex")}`;
     const meetingUrl = `https://meet.jit.si/${roomId}`;
     const [updated] = await db.update(tutoringRequestsTable)
@@ -117,7 +118,7 @@ router.post("/requests/:id/accept", requireAuth, async (req, res) => {
 router.post("/requests/:id/decline", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const requestId = parseInt(req.params.id);
+    const requestId = parseParam(req.params.id);
     await db.update(tutoringRequestsTable)
       .set({ status: "declined", updatedAt: new Date() })
       .where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.teacherId, userId)));
@@ -131,7 +132,7 @@ router.post("/requests/:id/decline", requireAuth, async (req, res) => {
 router.post("/requests/:id/rate", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const requestId = parseInt(req.params.id);
+    const requestId = parseParam(req.params.id);
     const { rating, review } = req.body;
     await db.update(tutoringRequestsTable)
       .set({ studentRating: rating, studentReview: review, status: "completed", updatedAt: new Date() })
@@ -146,7 +147,7 @@ router.post("/requests/:id/rate", requireAuth, async (req, res) => {
 router.post("/requests/:id/propose-time", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const requestId = parseInt(req.params.id);
+    const requestId = parseParam(req.params.id);
     const { proposedAt } = req.body;
     if (!proposedAt) { res.status(400).json({ error: "proposedAt is required" }); return; }
     
@@ -165,7 +166,7 @@ router.post("/requests/:id/propose-time", requireAuth, async (req, res) => {
 router.post("/requests/:id/accept-proposed-time", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const requestId = parseInt(req.params.id);
+    const requestId = parseParam(req.params.id);
     
     const [request] = await db.select().from(tutoringRequestsTable).where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.studentId, userId)));
     if (!request || request.status !== "rescheduled_by_teacher" || !request.proposedAt) {
@@ -197,7 +198,7 @@ router.post("/requests/:id/accept-proposed-time", requireAuth, async (req, res) 
 router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const requestId = parseInt(req.params.id);
+    const requestId = parseParam(req.params.id);
     await db.update(tutoringRequestsTable)
       .set({ status: "cancelled", updatedAt: new Date() })
       .where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.studentId, userId)));

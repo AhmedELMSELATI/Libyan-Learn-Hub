@@ -6,6 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, count, avg, and, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { Readable } from "stream";
@@ -278,7 +279,7 @@ router.post("/complete-onboarding", requireAuth, requireRole("teacher", "admin")
 router.post("/endorse/:teacherId", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const teacherId = parseInt(req.params.teacherId);
+    const teacherId = parseParam(req.params.teacherId);
     const { trait } = req.body;
     if (!trait) { res.status(400).json({ error: "Trait is required" }); return; }
 

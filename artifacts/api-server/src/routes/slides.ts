@@ -3,12 +3,13 @@ import { db } from "@workspace/db";
 import { slidesTable, lessonsTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
 router.get("/lesson/:lessonId", async (req, res) => {
   try {
-    const lessonId = parseInt(req.params.lessonId);
+    const lessonId = parseParam(req.params.lessonId);
     const slides = await db
       .select()
       .from(slidesTable)
@@ -22,7 +23,7 @@ router.get("/lesson/:lessonId", async (req, res) => {
 
 router.post("/lesson/:lessonId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const lessonId = parseInt(req.params.lessonId);
+    const lessonId = parseParam(req.params.lessonId);
     const { title, titleAr, content, contentAr, imageUrl, order } = req.body;
     const [slide] = await db
       .insert(slidesTable)
@@ -36,7 +37,7 @@ router.post("/lesson/:lessonId", requireAuth, requireRole("teacher", "admin"), a
 
 router.put("/:slideId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const slideId = parseInt(req.params.slideId);
+    const slideId = parseParam(req.params.slideId);
     const { title, titleAr, content, contentAr, imageUrl, order } = req.body;
     const [updated] = await db
       .update(slidesTable)
@@ -52,7 +53,7 @@ router.put("/:slideId", requireAuth, requireRole("teacher", "admin"), async (req
 
 router.delete("/:slideId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const slideId = parseInt(req.params.slideId);
+    const slideId = parseParam(req.params.slideId);
     await db.delete(slidesTable).where(eq(slidesTable.id, slideId));
     res.json({ success: true });
   } catch (err: any) {

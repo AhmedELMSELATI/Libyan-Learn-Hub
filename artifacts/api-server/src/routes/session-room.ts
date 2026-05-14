@@ -5,6 +5,7 @@ import {
 } from "@workspace/db";
 import { eq, and, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
 
 const router = Router();
@@ -13,7 +14,7 @@ const router = Router();
 router.get("/sessions/:id", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const sessionId = parseInt(req.params.id);
+    const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
 
@@ -45,7 +46,7 @@ router.get("/sessions/:id", requireAuth, async (req, res) => {
 router.post("/sessions/:id/register", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const sessionId = parseInt(req.params.id);
+    const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
 
@@ -71,7 +72,7 @@ router.post("/sessions/:id/register", requireAuth, async (req, res) => {
 router.post("/sessions/:id/join", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const sessionId = parseInt(req.params.id);
+    const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
 
@@ -128,7 +129,7 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
 // Q&A — get questions for a session
 router.get("/sessions/:id/questions", requireAuth, async (req, res) => {
   try {
-    const sessionId = parseInt(req.params.id);
+    const sessionId = parseParam(req.params.id);
     const questions = await db.select().from(sessionQuestionsTable)
       .where(eq(sessionQuestionsTable.sessionId, sessionId))
       .orderBy(desc(sessionQuestionsTable.upvotes));
@@ -146,7 +147,7 @@ router.get("/sessions/:id/questions", requireAuth, async (req, res) => {
 router.post("/sessions/:id/questions", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const sessionId = parseInt(req.params.id);
+    const sessionId = parseParam(req.params.id);
     const { question } = req.body;
     const [q] = await db.insert(sessionQuestionsTable).values({ sessionId, userId, question }).returning();
     res.status(201).json(q);
@@ -158,7 +159,7 @@ router.post("/sessions/:id/questions", requireAuth, async (req, res) => {
 // Q&A — upvote question
 router.post("/sessions/:id/questions/:qId/upvote", requireAuth, async (req, res) => {
   try {
-    const qId = parseInt(req.params.qId);
+    const qId = parseParam(req.params.qId);
     const [q] = await db.select().from(sessionQuestionsTable).where(eq(sessionQuestionsTable.id, qId)).limit(1);
     if (!q) { res.status(404).json({ error: "Question not found" }); return; }
     await db.update(sessionQuestionsTable).set({ upvotes: q.upvotes + 1 }).where(eq(sessionQuestionsTable.id, qId));
@@ -171,7 +172,7 @@ router.post("/sessions/:id/questions/:qId/upvote", requireAuth, async (req, res)
 // Q&A — mark answered (teacher only)
 router.post("/sessions/:id/questions/:qId/answer", requireAuth, async (req, res) => {
   try {
-    await db.update(sessionQuestionsTable).set({ answered: true }).where(eq(sessionQuestionsTable.id, parseInt(req.params.qId)));
+    await db.update(sessionQuestionsTable).set({ answered: true }).where(eq(sessionQuestionsTable.id, parseParam(req.params.qId)));
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

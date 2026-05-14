@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -124,7 +125,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
 router.get("/:courseId", async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
 
@@ -206,7 +207,7 @@ router.get("/:courseId", async (req, res) => {
 
 router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { userId, role } = (req as any).user;
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
@@ -231,7 +232,7 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
 
 router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { userId, role } = (req as any).user;
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
@@ -276,7 +277,7 @@ router.get("/:courseId/lessons", async (req, res) => {
 
 router.post("/:courseId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, type, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
     const [lesson] = await db.insert(lessonsTable).values({
       courseId, title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr,
@@ -295,18 +296,19 @@ router.post("/:courseId/lessons", requireAuth, requireRole("teacher", "admin"), 
 
 router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
   try {
-    const { courseId, lessonId } = req.params;
+    const courseId = parseParam(req.params.courseId);
+    const lessonId = parseParam(req.params.lessonId);
     const { userId } = (req as any).user;
     const [lesson] = await db.select().from(lessonsTable)
-      .where(and(eq(lessonsTable.id, parseInt(lessonId)), eq(lessonsTable.courseId, parseInt(courseId))))
+      .where(and(eq(lessonsTable.id, lessonId), eq(lessonsTable.courseId, courseId)))
       .limit(1);
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
 
     if (!lesson.isFree) {
       const [enrollment] = await db.select().from(enrollmentsTable)
-        .where(and(eq(enrollmentsTable.courseId, parseInt(courseId)), eq(enrollmentsTable.userId, userId)))
+        .where(and(eq(enrollmentsTable.courseId, courseId), eq(enrollmentsTable.userId, userId)))
         .limit(1);
-      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, parseInt(courseId))).limit(1);
+      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
       if (!enrollment && course?.teacherId !== userId) {
         res.status(403).json({ error: "Not enrolled in this course" });
         return;
@@ -314,7 +316,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
     }
 
     const [prog] = await db.select().from(progressTable)
-      .where(and(eq(progressTable.lessonId, parseInt(lessonId)), eq(progressTable.userId, userId)))
+      .where(and(eq(progressTable.lessonId, lessonId), eq(progressTable.userId, userId)))
       .limit(1);
 
     res.json({
@@ -340,7 +342,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
 
 router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { lessonId } = req.params;
+    const lessonId = parseParam(req.params.lessonId);
     const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
     const [updated] = await db.update(lessonsTable)
       .set({ 
@@ -348,7 +350,7 @@ router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "
         bookName: bookName || null, bookNameAr: bookNameAr || null, schoolYear: schoolYear || null,
         chapter: chapter || null, pageNumber: pageNumber || null, subjectTags: subjectTags || null
       })
-      .where(eq(lessonsTable.id, parseInt(lessonId)))
+      .where(eq(lessonsTable.id, lessonId))
       .returning();
     res.json(updated);
   } catch (err: any) {
@@ -358,8 +360,8 @@ router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "
 
 router.delete("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { lessonId } = req.params;
-    await db.delete(lessonsTable).where(eq(lessonsTable.id, parseInt(lessonId)));
+    const lessonId = parseParam(req.params.lessonId);
+    await db.delete(lessonsTable).where(eq(lessonsTable.id, lessonId));
     res.json({ success: true, message: "Lesson deleted" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -368,7 +370,7 @@ router.delete("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher"
 
 router.post("/:courseId/enroll", requireAuth, async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { userId } = (req as any).user;
     const existing = await db.select().from(enrollmentsTable)
       .where(and(eq(enrollmentsTable.courseId, courseId), eq(enrollmentsTable.userId, userId)))
@@ -420,7 +422,7 @@ router.get("/:courseId/reviews", async (req, res) => {
 
 router.post("/:courseId/reviews", requireAuth, async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { userId } = (req as any).user;
     const { rating, comment } = req.body;
     const [review] = await db.insert(reviewsTable).values({ courseId, userId, rating, comment }).returning();

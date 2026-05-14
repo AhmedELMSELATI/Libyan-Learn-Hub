@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { categoriesTable, coursesTable } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res) => {
 
 router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     const { name, nameAr, icon } = req.body;
     const [updated] = await db.update(categoriesTable).set({ name, nameAr, icon }).where(eq(categoriesTable.id, id)).returning();
     if (!updated) { res.status(404).json({ error: "Category not found" }); return; }
@@ -71,7 +72,7 @@ router.put("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseParam(req.params.id);
     const [{ value }] = await db.select({ value: count() }).from(coursesTable).where(eq(coursesTable.categoryId, id));
     if (Number(value) > 0) {
       res.status(400).json({ error: "Cannot delete category with courses. Move or delete courses first." });
