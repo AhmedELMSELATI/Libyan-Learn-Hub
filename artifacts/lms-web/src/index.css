@@ -115,6 +115,24 @@
     transition: background-color 0.4s ease, color 0.4s ease; /* Smoother theme transition */
   }
   
+  /* Force pointer cursor on all interactive elements globally */
+  button, 
+  [role="button"],
+  select,
+  input[type="submit"],
+  input[type="reset"],
+  input[type="button"],
+  label[for] {
+    cursor: pointer;
+  }
+
+  /* Ensure disabled buttons show the default cursor */
+  button:disabled,
+  [role="button"]:disabled,
+  [disabled] {
+    cursor: default;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight font-bold;
   }
