@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,6 +43,35 @@ export default function Auth() {
   const [pendingRole, setPendingRole] = useState<string>('student');
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (step === 'otp') {
+      otpInputRef.current?.focus();
+      setResendTimer(60); // 60 seconds countdown
+    }
+  }, [step]);
+
+  useEffect(() => {
+    let interval: any;
+    if (resendTimer > 0) {
+      interval = setInterval(() => setResendTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  const handleResend = async () => {
+    if (resendTimer > 0) return;
+    setErrorMsg('');
+    try {
+      const data = await api.post('/auth/resend-otp', { email: registerForm.getValues('email'), type: 'phone' });
+      setOtpInfo({ message: data.otpMessage, code: data.otpCode });
+      setResendTimer(60);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Resend failed');
+    }
+  };
 
   const loginForm = useForm({
     resolver: zodResolver(loginSchema),
@@ -152,6 +181,7 @@ export default function Auth() {
 
           <div className="space-y-4">
             <Input
+              ref={otpInputRef}
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="Enter 6-digit code"
@@ -165,6 +195,16 @@ export default function Auth() {
             >
               {verifying ? 'Verifying...' : 'Verify & Continue'}
             </Button>
+            <div className="text-center">
+              <button
+                type="button"
+                disabled={resendTimer > 0}
+                onClick={handleResend}
+                className={`text-sm font-medium ${resendTimer > 0 ? 'text-muted-foreground' : 'text-primary hover:underline'}`}
+              >
+                {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
+              </button>
+            </div>
             <Button
               variant="ghost"
               className="w-full text-muted-foreground hover:text-foreground"

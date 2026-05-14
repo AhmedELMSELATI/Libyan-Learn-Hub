@@ -6,6 +6,7 @@ import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Filter, BookOpen, Star, PlayCircle } from 'lucide-react';
+import { CourseCardSkeleton } from '@/components/ui/skeleton';
 
 export default function Courses() {
   const { t, language } = useLanguage();
@@ -106,7 +107,7 @@ export default function Courses() {
         <div className="flex-1">
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1,2,3,4,5,6].map(i => <div key={i} className="h-80 bg-card rounded-2xl animate-pulse border border-border" />)}
+              {[1, 2, 3, 4, 5, 6].map(i => <CourseCardSkeleton key={i} />)}
             </div>
           ) : coursesData?.courses.length === 0 ? (
             <div className="text-center py-20 bg-card rounded-3xl border border-border border-dashed">

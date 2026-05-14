@@ -5,6 +5,7 @@ import {
   useGetTeacherCourses, useGetCategories,
   useGetLiveSessions
 } from '@workspace/api-client-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
@@ -20,8 +21,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/skeleton';
 
 export default function TeacherDashboard() {
+  const { t } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -123,64 +126,84 @@ export default function TeacherDashboard() {
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-10 border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white text-2xl font-display font-bold shadow-lg">
-                {user.fullName.charAt(0)}
+            {authLoading ? (
+               <div className="flex items-center gap-4">
+                 <Skeleton className="w-16 h-16 rounded-2xl" />
+                 <div className="space-y-2">
+                   <Skeleton className="h-4 w-24" />
+                   <Skeleton className="h-8 w-48" />
+                 </div>
+               </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white text-2xl font-display font-bold shadow-lg">
+                  {user?.fullName?.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{t('teacher_dashboard.portal')}</p>
+                  <h1 className="text-3xl font-display font-bold text-foreground">{user?.fullName}</h1>
+                  <p className="text-muted-foreground text-sm">{user?.email}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Teacher Portal</p>
-                <h1 className="text-3xl font-display font-bold text-foreground">{user.fullName}</h1>
-                <p className="text-muted-foreground text-sm">{user.email}</p>
-              </div>
-            </div>
+            )}
             <div className="flex flex-wrap w-full sm:w-auto gap-3 mt-4 md:mt-0">
               <Link href="/teacher/sessions/new" className="flex-1 sm:flex-none">
                 <Button variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5">
-                  <Radio className="w-4 h-4" /> Schedule Session
+                  <Radio className="w-4 h-4" /> {t('teacher_dashboard.schedule_session')}
                 </Button>
               </Link>
               <Link href="/teacher/courses/new" className="flex-1 sm:flex-none">
                 <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-md shadow-primary/20">
-                  <Plus className="w-4 h-4" /> New Course
+                  <Plus className="w-4 h-4" /> {t('teacher_dashboard.new_course')}
                 </Button>
               </Link>
             </div>
           </div>
 
           {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            {[
-              { icon: BookOpen, label: 'Total Courses', value: courses?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
-              { icon: Globe, label: 'Published', value: publishedCount, color: 'text-green-600', bg: 'bg-green-100' },
-              { icon: Users, label: 'Total Students', value: totalStudents, color: 'text-blue-600', bg: 'bg-blue-100' },
-              { icon: DollarSign, label: 'Revenue (LYD)', value: totalRevenue.toFixed(0), color: 'text-amber-600', bg: 'bg-amber-100' },
-            ].map(({ icon: Icon, label, value, color, bg }) => (
-              <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
-                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 ${color}`} />
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {[1, 2, 3, 4].map(i => <StatCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {[
+                { icon: BookOpen, label: t('teacher_dashboard.total_courses'), value: courses?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
+                { icon: Globe, label: t('teacher_dashboard.published'), value: publishedCount, color: 'text-green-600', bg: 'bg-green-100' },
+                { icon: Users, label: t('teacher_dashboard.total_students'), value: totalStudents, color: 'text-blue-600', bg: 'bg-blue-100' },
+                { icon: DollarSign, label: t('teacher_dashboard.revenue'), value: totalRevenue.toFixed(0), color: 'text-amber-600', bg: 'bg-amber-100' },
+              ].map(({ icon: Icon, label, value, color, bg }) => (
+                <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
+                  <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${color}`} />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold">{value}</div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xl font-bold">{value}</div>
-                  <div className="text-xs text-muted-foreground">{label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Tabs defaultValue="courses">
           <TabsList className="mb-8 bg-muted/60">
-            <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> My Courses</TabsTrigger>
-            <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> Live Sessions</TabsTrigger>
-            <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> Students</TabsTrigger>
-            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> Promote & Analytics</TabsTrigger>
+            <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> {t('teacher_dashboard.my_courses')}</TabsTrigger>
+            <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> {t('teacher_dashboard.live_sessions')}</TabsTrigger>
+            <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> {t('teacher_dashboard.students')}</TabsTrigger>
+            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> {t('teacher_dashboard.promote')}</TabsTrigger>
           </TabsList>
 
           {/* COURSES TAB */}
           <TabsContent value="courses">
-            {!courses || courses.length === 0 ? (
+            {isLoading ? (
+               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                 {[1, 2, 3].map(i => <CourseCardSkeleton key={i} />)}
+               </div>
+            ) : !courses || courses.length === 0 ? (
               <div className="text-center py-24 bg-card rounded-3xl border border-dashed border-border">
                 <Video className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
                 <h3 className="text-xl font-bold">No courses yet</h3>

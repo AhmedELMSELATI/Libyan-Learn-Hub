@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export function Navbar() {
   const { t, language, setLanguage } = useLanguage();
   const { user, logout, isAuthenticated } = useAuth();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);

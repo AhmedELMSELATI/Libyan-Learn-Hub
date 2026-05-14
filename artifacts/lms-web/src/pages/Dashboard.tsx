@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGetMyEnrollments, useGetLiveSessions } from '@workspace/api-client-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { BookOpen, PlayCircle, Trophy, Calendar, Radio, Clock, DollarSign, ExternalLink, CheckCircle, Video, ArrowRight, GraduationCap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApi } from '@/hooks/useApi';
+import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
+  const { t } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const api = useApi();
@@ -75,36 +78,52 @@ export default function Dashboard() {
       {/* Header */}
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-10 border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white text-2xl font-display font-bold shadow-lg">
-              {user.fullName.charAt(0)}
+          {authLoading ? (
+             <div className="flex items-center gap-4">
+               <Skeleton className="w-16 h-16 rounded-2xl" />
+               <div className="space-y-2">
+                 <Skeleton className="h-4 w-24" />
+                 <Skeleton className="h-8 w-48" />
+               </div>
+             </div>
+          ) : (
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white text-2xl font-display font-bold shadow-lg">
+                {user?.fullName?.charAt(0)}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Student Dashboard</p>
+                <h1 className="text-2xl font-display font-bold text-foreground">{t('student_dashboard.welcome', { name: user?.fullName })}</h1>
+                <p className="text-muted-foreground text-sm">{user?.email}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Student Dashboard</p>
-              <h1 className="text-2xl font-display font-bold text-foreground">Welcome back, {user.fullName}!</h1>
-              <p className="text-muted-foreground text-sm">{user.email}</p>
-            </div>
-          </div>
+          )}
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            {[
-              { icon: BookOpen, label: 'Enrolled', value: enrollments?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
-              { icon: PlayCircle, label: 'In Progress', value: inProgress, color: 'text-blue-600', bg: 'bg-blue-100' },
-              { icon: Trophy, label: 'Completed', value: completed, color: 'text-green-600', bg: 'bg-green-100' },
-              { icon: Radio, label: 'Live Sessions', value: upcomingSessions.length, color: 'text-red-500', bg: 'bg-red-100' },
-            ].map(({ icon: Icon, label, value, color, bg }) => (
-              <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
-                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 ${color}`} />
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {[1, 2, 3, 4].map(i => <StatCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              {[
+                { icon: BookOpen, label: t('student_dashboard.enrolled'), value: enrollments?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
+                { icon: PlayCircle, label: t('student_dashboard.in_progress'), value: inProgress, color: 'text-blue-600', bg: 'bg-blue-100' },
+                { icon: Trophy, label: t('student_dashboard.completed'), value: completed, color: 'text-green-600', bg: 'bg-green-100' },
+                { icon: Radio, label: t('teacher_dashboard.live_sessions'), value: upcomingSessions.length, color: 'text-red-500', bg: 'bg-red-100' },
+              ].map(({ icon: Icon, label, value, color, bg }) => (
+                <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
+                  <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${color}`} />
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold">{value}</div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xl font-bold">{value}</div>
-                  <div className="text-xs text-muted-foreground">{label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -120,7 +139,7 @@ export default function Dashboard() {
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            My Courses
+            {t('teacher_dashboard.my_courses')}
           </button>
           <button
             onClick={() => setActiveTab('academy')}
@@ -131,7 +150,7 @@ export default function Dashboard() {
             }`}
           >
             <GraduationCap className="w-4 h-4" />
-            Academy Program
+            {t('academy.program')}
             <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none">
               NEW
             </span>
@@ -148,7 +167,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-display font-bold flex items-center gap-2">
                 <PlayCircle className="w-5 h-5 text-primary" />
-                Continue Watching
+                {t('student_dashboard.continue_watching')}
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -209,7 +228,11 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          {!enrollments || enrollments.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => <CourseCardSkeleton key={i} />)}
+            </div>
+          ) : !enrollments || enrollments.length === 0 ? (
             <div className="text-center py-20 bg-card rounded-3xl border border-dashed border-border">
               <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
               <h3 className="text-xl font-bold">No courses yet</h3>

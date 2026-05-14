@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { useLocation } from "wouter";
 
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const Home = React.lazy(() => import("@/pages/Home"));
@@ -40,9 +42,22 @@ const queryClient = new QueryClient({
   },
 });
 
+function LayoutWrapper({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const noLayoutRoutes = ['/login', '/register', '/session/'];
+  const hideLayout = noLayoutRoutes.some(route => location.startsWith(route));
+
+  if (hideLayout) {
+    return <>{children}</>;
+  }
+
+  return <MainLayout>{children}</MainLayout>;
+}
+
 function Router() {
   return (
-    <Suspense fallback={
+    <LayoutWrapper>
+      <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
@@ -75,6 +90,7 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
     </Suspense>
+    </LayoutWrapper>
   );
 }
 
