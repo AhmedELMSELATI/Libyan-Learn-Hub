@@ -75,6 +75,16 @@ const translations: Record<Language, Record<string, string>> = {
     'academy.program': 'Academy Program',
     'academy.pending': 'Application Pending',
     'academy.enrollment_open': 'Enrollment Open',
+    'profile.settings': 'Settings',
+    'profile.personal_info': 'Personal Information',
+    'profile.name': 'Full Name',
+    'profile.bio': 'Bio',
+    'profile.language': 'Language',
+    'profile.security': 'Security',
+    'profile.email': 'Email Address',
+    'profile.password': 'Password',
+    'profile.save': 'Save Changes',
+    'profile.update_success': 'Profile updated successfully',
   },
   ar: {
     'nav.courses': 'الدورات',
@@ -141,6 +151,16 @@ const translations: Record<Language, Record<string, string>> = {
     'academy.program': 'برنامج الأكاديمية',
     'academy.pending': 'الطلب قيد المراجعة',
     'academy.enrollment_open': 'التسجيل مفتوح',
+    'profile.settings': 'الإعدادات',
+    'profile.personal_info': 'المعلومات الشخصية',
+    'profile.name': 'الاسم الكامل',
+    'profile.bio': 'السيرة الذاتية',
+    'profile.language': 'اللغة',
+    'profile.security': 'الأمان',
+    'profile.email': 'البريد الإلكتروني',
+    'profile.password': 'كلمة المرور',
+    'profile.save': 'حفظ التغييرات',
+    'profile.update_success': 'تم تحديث الملف الشخصي بنجاح',
   }
 };
 

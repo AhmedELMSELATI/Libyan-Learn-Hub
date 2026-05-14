@@ -4,13 +4,115 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useLocation, Link } from 'wouter';
-import { User, BookOpen, Clock, Trophy, Mail, Settings, PlayCircle } from 'lucide-react';
+import { User, BookOpen, Clock, Trophy, Mail, Settings, PlayCircle, Shield, Globe, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useUpdateProfile } from '@workspace/api-client-react';
+import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+const profileSchema = z.object({
+  fullName: z.string().min(2, 'Name must be at least 2 characters'),
+  bio: z.string().optional(),
+  language: z.enum(['en', 'ar']),
+  email: z.string().email('Invalid email address').optional(),
+  currentPassword: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
+}).refine(data => {
+  if (data.newPassword && !data.currentPassword) return false;
+  return true;
+}, { message: "Current password is required to set a new password", path: ["currentPassword"] });
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function Profile() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, refetchUser } = useAuth();
   const [, setLocation] = useLocation();
   const api = useApi();
+  const { toast } = useToast();
+  const { t, language: currentLanguage, setLanguage } = useLanguage();
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
+  const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: t('profile.update_success') });
+        setIsSettingsOpen(false);
+        refetchUser();
+      },
+      onError: (err: any) => {
+        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      }
+    }
+  });
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      fullName: user?.fullName || '',
+      bio: user?.bio || '',
+      language: user?.language || currentLanguage,
+    }
+  });
+
+  const onSubmit = async (data: ProfileFormValues) => {
+    try {
+      // 1. Update Profile (Name, Bio, Language)
+      updateProfile({ data: { fullName: data.fullName, bio: data.bio, language: data.language } as any });
+      
+      // 2. Update Email if changed
+      if (data.email && data.email !== user.email) {
+        await api.put('/users/email', { newEmail: data.email });
+        toast({ title: "Email updated successfully. Please verify your new email." });
+      }
+
+      // 3. Update Password if provided
+      if (data.currentPassword && data.newPassword) {
+        await api.post('/auth/update-password', {
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword
+        });
+        toast({ title: "Password updated successfully" });
+      }
+
+      if (data.language !== currentLanguage) {
+        setLanguage(data.language);
+      }
+      
+      form.reset({
+        fullName: data.fullName,
+        bio: data.bio,
+        language: data.language,
+        email: data.email,
+        currentPassword: '',
+        newPassword: '',
+      });
+      setIsSettingsOpen(false);
+      refetchUser();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'An error occurred during update', variant: 'destructive' });
+    }
+  };
+
+  // Reset form when user data changes or modal opens
+  useEffect(() => {
+    if (user && isSettingsOpen) {
+      form.reset({
+        fullName: user.fullName || '',
+        bio: user.bio || '',
+        language: user.language || currentLanguage,
+        email: user.email || '',
+        currentPassword: '',
+        newPassword: '',
+      });
+    }
+  }, [user, isSettingsOpen, form, currentLanguage]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -46,7 +148,108 @@ export default function Profile() {
                 <span className="flex items-center gap-1.5 capitalize"><User className="w-4 h-4" /> {user.role}</span>
               </div>
               <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                <Button variant="outline" className="rounded-xl"><Settings className="w-4 h-4 mr-2" /> Settings</Button>
+                <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="rounded-xl">
+                      <Settings className="w-4 h-4 mr-2" /> {t('profile.settings')}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px] rounded-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-display font-bold">{t('profile.settings')}</DialogTitle>
+                    </DialogHeader>
+                    
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
+                          <User className="w-4 h-4" /> {t('profile.personal_info')}
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label htmlFor="fullName">{t('profile.name')}</Label>
+                          <Input 
+                            id="fullName" 
+                            {...form.register('fullName')} 
+                            className="bg-muted/50 border-transparent focus:bg-background h-12 rounded-xl"
+                          />
+                          {form.formState.errors.fullName && (
+                            <p className="text-xs text-destructive">{form.formState.errors.fullName.message}</p>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="bio">{t('profile.bio')}</Label>
+                          <Textarea 
+                            id="bio" 
+                            {...form.register('bio')} 
+                            className="bg-muted/50 border-transparent focus:bg-background rounded-xl min-h-[100px]"
+                            placeholder="Tell us about yourself..."
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="language">{t('profile.language')}</Label>
+                          <select 
+                            id="language"
+                            {...form.register('language')}
+                            className="flex h-12 w-full rounded-xl border border-transparent bg-muted/50 px-3 py-2 text-sm focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                          >
+                            <option value="ar">العربية</option>
+                            <option value="en">English</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
+                          <Shield className="w-4 h-4" /> {t('profile.security')}
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label>{t('profile.email')}</Label>
+                          <Input 
+                            type="email"
+                            {...form.register('email')}
+                            className="bg-muted/50 border-transparent focus:bg-background h-12 rounded-xl"
+                          />
+                          {form.formState.errors.email && (
+                            <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label>Current Password</Label>
+                          <Input 
+                            type="password"
+                            {...form.register('currentPassword')}
+                            placeholder="Leave blank if not changing"
+                            className="bg-muted/50 border-transparent focus:bg-background h-12 rounded-xl"
+                          />
+                          {form.formState.errors.currentPassword && (
+                            <p className="text-xs text-destructive">{form.formState.errors.currentPassword.message}</p>
+                          )}
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label>New Password</Label>
+                          <Input 
+                            type="password"
+                            {...form.register('newPassword')}
+                            placeholder="Leave blank if not changing"
+                            className="bg-muted/50 border-transparent focus:bg-background h-12 rounded-xl"
+                          />
+                          {form.formState.errors.newPassword && (
+                            <p className="text-xs text-destructive">{form.formState.errors.newPassword.message}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button type="submit" className="w-full h-12 rounded-xl text-base font-bold shadow-lg shadow-primary/20" disabled={isUpdating}>
+                        {isUpdating ? t('common.loading') : t('profile.save')}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 

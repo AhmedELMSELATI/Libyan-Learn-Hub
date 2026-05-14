@@ -167,6 +167,37 @@ router.post("/logout", (_req, res) => {
   res.json({ success: true, message: "Logged out" });
 });
 
+router.post("/update-password", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: "Missing password fields" });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Incorrect current password" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+
+    res.json({ success: true, message: "Password updated successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 router.get("/me", requireAuth, async (req, res) => {
   const { userId } = (req as any).user;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
