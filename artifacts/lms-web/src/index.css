@@ -135,6 +135,14 @@
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-display tracking-tight font-bold;
+    line-height: 1.2;
+  }
+  
+  /* Arabic-specific line-height and spacing polish */
+  [lang="ar"] h1, [lang="ar"] h2, [lang="ar"] h3, 
+  [lang="ar"] h4, [lang="ar"] h5, [lang="ar"] h6 {
+    line-height: 1.4;
+    letter-spacing: 0;
   }
 }
 
@@ -154,6 +162,10 @@
   
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .primary-glow {
+    @apply shadow-[0_0_24px_rgba(124,58,237,0.35)] dark:shadow-[0_0_35px_rgba(124,58,237,0.5)];
   }
 
   .protection-overlay {

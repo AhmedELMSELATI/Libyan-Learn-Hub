@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form';
 import { useApi } from '@/hooks/useApi';
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
+import { Blob } from '@/components/ui/Blob';
 
 export default function CourseDetail() {
   const [, params] = useRoute('/courses/:id');
@@ -129,8 +130,12 @@ export default function CourseDetail() {
   return (
     <PageContainer>
       {/* Header Banner */}
-      <div className="bg-foreground text-background py-10 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12">
+      <div className="relative bg-foreground text-background py-10 lg:py-24 overflow-hidden">
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <Blob color="bg-primary" size="w-[500px] h-[500px]" className="-top-24 -start-24" duration={25} />
+          <Blob color="bg-secondary" size="w-[400px] h-[400px]" className="top-1/2 -end-24" delay={2} duration={30} />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12 relative z-10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-6">
               <span className="px-3 py-1 rounded-full bg-white/10 text-sm font-medium">{course.category?.name}</span>

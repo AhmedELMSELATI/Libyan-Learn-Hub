@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, GraduationCap, Presentation, CheckCircle, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useApi } from '@/hooks/useApi';
+import { Blob } from '@/components/ui/Blob';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -338,6 +339,8 @@ export default function Auth() {
 
       {/* Image Side */}
       <div className="hidden lg:block relative flex-1 bg-muted overflow-hidden">
+        <Blob color="bg-primary/40" size="w-[600px] h-[600px]" className="-top-32 -start-32" duration={20} />
+        <Blob color="bg-cyan-500/30" size="w-[500px] h-[500px]" className="bottom-0 -end-32" delay={3} duration={25} />
         <div className="absolute inset-0 bg-primary/20 mix-blend-multiply z-10" />
         <img
           src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=1200&h=1600&fit=crop"

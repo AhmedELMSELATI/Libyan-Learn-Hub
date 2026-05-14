@@ -6,9 +6,9 @@ import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
 import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight, GraduationCap, Sparkles, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
-import { useApi } from '@/hooks/useApi';
 import { useQuery } from '@tanstack/react-query';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { Blob } from '@/components/ui/Blob';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 32 },
@@ -53,10 +53,13 @@ export default function Home() {
       <section className="relative flex items-center overflow-hidden py-16 sm:py-20 lg:min-h-[92vh] lg:py-0">
 
         {/* Animated mesh background */}
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(124,58,237,0.15),transparent)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_80%_80%,rgba(6,182,212,0.10),transparent)]" />
-          <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <Blob color="bg-primary/20" size="w-[500px] h-[500px]" className="-top-24 -start-24" duration={25} />
+          <Blob color="bg-cyan-500/15" size="w-[400px] h-[400px]" className="top-1/2 -end-24" delay={2} duration={30} />
+          <Blob color="bg-violet-500/10" size="w-[600px] h-[600px]" className="-bottom-24 left-1/3" delay={5} duration={35} />
+          
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(124,58,237,0.08),transparent)]" />
+          <svg className="absolute inset-0 w-full h-full opacity-[0.03] dark:opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
@@ -236,24 +239,52 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
-            {categories?.map((cat, i) => (
-              <motion.div key={cat.id} {...fadeUp(i * 0.06)}>
-                <Link href={`/courses?categoryId=${cat.id}`}>
-                  <div className="group relative overflow-hidden border border-border/50 bg-card rounded-3xl p-6 cursor-pointer hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 text-center">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/15 to-secondary/15 group-hover:from-primary group-hover:to-secondary mx-auto mb-4 flex items-center justify-center transition-all duration-500">
-                        <BookOpen className="w-6 h-6 text-primary group-hover:text-white transition-colors duration-300" />
+            {categories?.map((cat, i) => {
+              // Icon mapping based on category name
+              const iconMap: Record<string, React.ReactNode> = {
+                'Mathematics': <Zap className="w-6 h-6" />,
+                'الرياضيات': <Zap className="w-6 h-6" />,
+                'Sciences': <Sparkles className="w-6 h-6" />,
+                'العلوم': <Sparkles className="w-6 h-6" />,
+                'Physics': <TrendingUp className="w-6 h-6" />,
+                'الفيزياء': <TrendingUp className="w-6 h-6" />,
+                'Computer Science': <MonitorPlay className="w-6 h-6" />,
+                'علوم الحاسوب': <MonitorPlay className="w-6 h-6" />,
+                'Arabic Language': <BookOpen className="w-6 h-6" />,
+                'اللغة العربية': <BookOpen className="w-6 h-6" />,
+                'English Language': <Globe className="w-6 h-6" />,
+                'اللغة الإنجليزية': <Globe className="w-6 h-6" />,
+              };
+              
+              const categoryIcon = iconMap[cat.name] || iconMap[cat.nameAr] || <BookOpen className="w-6 h-6" />;
+
+              return (
+                <motion.div 
+                  key={cat.id} 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ delay: i * 0.05, duration: 0.5 }}
+                >
+                  <Link href={`/courses?categoryId=${cat.id}`}>
+                    <div className="group relative overflow-hidden border border-border/50 bg-card rounded-3xl p-6 cursor-pointer hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 text-center">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/15 to-secondary/15 group-hover:from-primary group-hover:to-secondary mx-auto mb-4 flex items-center justify-center transition-all duration-500">
+                          <div className="text-primary group-hover:text-white transition-colors duration-300">
+                            {categoryIcon}
+                          </div>
+                        </div>
+                        <h3 className="font-display font-bold text-sm text-foreground group-hover:text-primary transition-colors leading-tight">
+                          {language === 'ar' ? cat.nameAr : cat.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">{cat.courseCount} {isRtl ? 'دورة' : 'Courses'}</p>
                       </div>
-                      <h3 className="font-display font-bold text-sm text-foreground group-hover:text-primary transition-colors leading-tight">
-                        {language === 'ar' ? cat.nameAr : cat.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">{cat.courseCount} {isRtl ? 'دورة' : 'Courses'}</p>
                     </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>

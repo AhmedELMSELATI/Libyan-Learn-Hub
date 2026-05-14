@@ -7,6 +7,7 @@ import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Users, BadgeCheck, Search, User, Crown } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function Teachers() {
   const api = useApi();
@@ -57,10 +58,13 @@ export default function Teachers() {
             {[1,2,3,4,5,6].map(i => <div key={i} className="h-64 bg-card rounded-2xl animate-pulse border border-border" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-card rounded-3xl border border-dashed border-border">
-            <User className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-20" />
-            <h3 className="text-xl font-bold">{language === 'ar' ? 'لا يوجد معلمين' : 'No teachers found'}</h3>
-          </div>
+          <EmptyState 
+            title={language === 'ar' ? 'لا يوجد معلمين' : 'No teachers found'}
+            description={language === 'ar' ? 'جرب تغيير معايير البحث' : 'Try adjusting your search criteria'}
+            icon={User}
+            actionLabel={language === 'ar' ? 'مسح البحث' : 'Clear Search'}
+            onAction={() => {setSearch(''); setTutorOnly(false);}}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((teacher: any) => (

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Filter, BookOpen, Star, PlayCircle } from 'lucide-react';
 import { CourseCardSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function Courses() {
   const { t, language } = useLanguage();
@@ -110,14 +111,13 @@ export default function Courses() {
               {[1, 2, 3, 4, 5, 6].map(i => <CourseCardSkeleton key={i} />)}
             </div>
           ) : coursesData?.courses.length === 0 ? (
-            <div className="text-center py-20 bg-card rounded-3xl border border-border border-dashed">
-              <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-              <h3 className="text-xl font-bold text-foreground">{t('courses.noCourses')}</h3>
-              <p className="text-muted-foreground mt-2">{t('courses.adjustFilters')}</p>
-              <Button variant="outline" className="mt-6" onClick={() => {setSearch(''); setCategoryId(undefined); setLevel(undefined);}}>
-                {t('courses.clearFilters')}
-              </Button>
-            </div>
+            <EmptyState 
+              title={t('courses.noCourses')}
+              description={t('courses.adjustFilters')}
+              icon={BookOpen}
+              actionLabel={t('courses.clearFilters')}
+              onAction={() => {setSearch(''); setCategoryId(undefined); setLevel(undefined);}}
+            />
           ) : (
             <>
               <div className="mb-6 text-sm text-muted-foreground">
