@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLogin, useRegister } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, ArrowRight, GraduationCap, Presentation, CheckCircle, Phone, HardDrive, Clock, Star, Zap, Trophy } from 'lucide-react';
