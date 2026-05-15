@@ -4,6 +4,8 @@ import { liveSessionsTable, usersTable, enrollmentsTable } from "@workspace/db";
 import { eq, gte, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
+import { getSessionDurationLimit } from "../lib/plans.js";
+import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
@@ -46,6 +48,25 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
   try {
     const { userId } = (req as any).user;
     const { courseId, title, titleAr, description, scheduledAt, durationMinutes, maxParticipants, meetingUrl, price = 0 } = req.body;
+
+    // ── Session duration limit check ──────────────────────────────
+    const teacher = await db.query.usersTable.findFirst({
+      where: eq(usersTable.id, userId),
+      columns: { tier: true },
+    });
+    if (teacher) {
+      const maxMinutes = getSessionDurationLimit(teacher.tier as TeacherTier);
+      if (durationMinutes > maxMinutes) {
+        res.status(403).json({
+          error: `Your plan only allows sessions up to ${maxMinutes} minutes. Please upgrade your plan.`,
+          planLimit: maxMinutes,
+          requested: durationMinutes,
+        });
+        return;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────
+
     const [session] = await db.insert(liveSessionsTable).values({
       courseId, teacherId: userId, title, titleAr, description,
       scheduledAt: new Date(scheduledAt),

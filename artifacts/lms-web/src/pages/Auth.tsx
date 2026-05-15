@@ -7,8 +7,8 @@ import { useLogin, useRegister } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, GraduationCap, Presentation, CheckCircle, Phone } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowLeft, GraduationCap, Presentation, CheckCircle, Phone, HardDrive, Clock, Star, Zap, Trophy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '@/hooks/useApi';
 import { Blob } from '@/components/ui/Blob';
 
@@ -38,7 +38,9 @@ export default function Auth() {
   const { login: setAuthContext } = useAuth();
   const api = useApi();
   const [errorMsg, setErrorMsg] = useState('');
-  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [step, setStep] = useState<'form' | 'plan' | 'otp'>('form');
+  const [selectedTier, setSelectedTier] = useState<'free' | 'bronze' | 'golden'>('free');
+  const [pendingFormData, setPendingFormData] = useState<any>(null);
   const [otpInfo, setOtpInfo] = useState<{ message: string; code: string } | null>(null);
   const [pendingToken, setPendingToken] = useState<string>('');
   const [pendingRole, setPendingRole] = useState<string>('student');
@@ -116,9 +118,20 @@ export default function Auth() {
     loginMutate({ data });
   };
 
+  // For teachers: show plan picker first, then register
   const onSubmitRegister = (data: z.infer<typeof registerSchema>) => {
     setErrorMsg('');
-    registerMutate({ data: data as any });
+    if (data.role === 'teacher') {
+      setPendingFormData(data);
+      setStep('plan');
+    } else {
+      registerMutate({ data: data as any });
+    }
+  };
+
+  const onConfirmPlan = () => {
+    if (!pendingFormData) return;
+    registerMutate({ data: { ...pendingFormData, tier: selectedTier } as any });
   };
 
   const handleVerifyOtp = async () => {
@@ -151,6 +164,144 @@ export default function Auth() {
     }, 100);
   };
 
+  // ── Plan Selection Step (teachers only) ────────────────────────────────
+  const PLAN_CARDS = [
+    {
+      id: 'free' as const,
+      label: 'Free',
+      price: 'مجاني',
+      priceNote: 'للأبد',
+      storage: '5 GB',
+      session: '30 دقيقة',
+      icon: <Zap className="w-6 h-6" />,
+      color: 'border-border hover:border-primary/50',
+      activeColor: 'border-primary bg-primary/5',
+      badge: null,
+      features: ['5GB مساحة تخزين', 'جلسات مباشرة 30 دقيقة', '+100GB عند 100 طالب'],
+    },
+    {
+      id: 'bronze' as const,
+      label: 'Bronze',
+      price: '30 د.ل',
+      priceNote: 'شهرياً',
+      storage: '25 GB',
+      session: '45 دقيقة',
+      icon: <Star className="w-6 h-6" />,
+      color: 'border-border hover:border-amber-500/50',
+      activeColor: 'border-amber-500 bg-amber-500/5',
+      badge: 'الأكثر شيوعاً',
+      features: ['25GB مساحة تخزين', 'جلسات مباشرة 45 دقيقة', '+100GB عند 100 طالب', 'دعم عبر البريد الإلكتروني'],
+    },
+    {
+      id: 'golden' as const,
+      label: 'Golden',
+      price: '50 د.ل',
+      priceNote: 'شهرياً',
+      storage: '50 GB',
+      session: '90 دقيقة',
+      icon: <Trophy className="w-6 h-6" />,
+      color: 'border-border hover:border-yellow-400/50',
+      activeColor: 'border-yellow-400 bg-yellow-400/5',
+      badge: 'الأفضل للمحترفين',
+      features: ['50GB مساحة تخزين', 'جلسات مباشرة 90 دقيقة', '+100GB عند 100 طالب', 'دعم أولوي'],
+    },
+  ];
+
+  if (step === 'plan') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-3xl"
+        >
+          <div className="text-center mb-10">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-teal-400 flex items-center justify-center text-white shadow-lg mx-auto mb-4">
+              <Trophy className="w-8 h-8" />
+            </div>
+            <h2 className="text-3xl font-display font-bold">اختر خطتك</h2>
+            <p className="text-muted-foreground mt-2">يمكنك الترقية أو التغيير في أي وقت</p>
+          </div>
+
+          {errorMsg && (
+            <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium text-center">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            {PLAN_CARDS.map((plan) => (
+              <button
+                key={plan.id}
+                type="button"
+                onClick={() => setSelectedTier(plan.id)}
+                className={`relative text-start rounded-2xl border-2 p-6 transition-all duration-200 cursor-pointer ${
+                  selectedTier === plan.id ? plan.activeColor : plan.color
+                }`}
+              >
+                {plan.badge && (
+                  <span className="absolute -top-3 start-1/2 -translate-x-1/2 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                    {plan.badge}
+                  </span>
+                )}
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    plan.id === 'free' ? 'bg-primary/10 text-primary' :
+                    plan.id === 'bronze' ? 'bg-amber-500/10 text-amber-500' :
+                    'bg-yellow-400/10 text-yellow-500'
+                  }`}>
+                    {plan.icon}
+                  </div>
+                  {selectedTier === plan.id && (
+                    <CheckCircle className="w-5 h-5 text-primary" />
+                  )}
+                </div>
+                <div className="mb-4">
+                  <span className="text-2xl font-display font-bold">{plan.price}</span>
+                  <span className="text-muted-foreground text-sm ml-1">{plan.priceNote}</span>
+                </div>
+                <p className="font-semibold text-lg mb-3">{plan.label}</p>
+                <ul className="space-y-2">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </button>
+            ))}
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground mb-6">
+            <span className="inline-flex items-center gap-1.5 bg-green-500/10 text-green-600 border border-green-500/20 rounded-full px-4 py-1.5 font-medium">
+              <Star className="w-4 h-4" />
+              🎁 بونص: احصل على +100GB إضافي مجاناً عند وصولك لـ 100 طالب!
+            </span>
+          </div>
+
+          <div className="flex gap-3 max-w-sm mx-auto">
+            <Button
+              variant="outline"
+              className="flex-1 h-12"
+              onClick={() => { setStep('form'); setErrorMsg(''); }}
+            >
+              ← رجوع
+            </Button>
+            <Button
+              className="flex-1 h-12 font-semibold bg-primary hover:bg-primary/90"
+              onClick={onConfirmPlan}
+              disabled={isRegistering}
+            >
+              {isRegistering ? 'جاري الإنشاء...' : 'تأكيد وإنشاء الحساب →'}
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── OTP Step ────────────────────────────────────────────────────────────
   if (step === 'otp') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">

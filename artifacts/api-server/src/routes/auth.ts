@@ -6,6 +6,8 @@ import { eq } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth.js";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { rateLimit } from "express-rate-limit";
+import { PLANS } from "../lib/plans.js";
+import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
@@ -39,6 +41,14 @@ router.post("/register", authLimiter, async (req, res) => {
     const otpCode = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const phoneNumber = req.body.phoneNumber || null;
+
+    // Accept plan tier during teacher registration; students are always 'free'
+    const requestedTier = req.body.tier as TeacherTier | undefined;
+    const validTiers: TeacherTier[] = ["free", "bronze", "golden"];
+    const tier: TeacherTier = (body.role === "teacher" && requestedTier && validTiers.includes(requestedTier))
+      ? requestedTier
+      : "free";
+
     const [user] = await db.insert(usersTable).values({
       email: body.email,
       passwordHash,
@@ -49,8 +59,10 @@ router.post("/register", authLimiter, async (req, res) => {
       phoneNumber,
       otpCode,
       otpExpiry,
+      tier,
     }).returning();
     const token = signToken({ userId: user.id, role: user.role });
+    const plan = PLANS[user.tier as TeacherTier];
     res.status(201).json({
       user: {
         id: user.id,
@@ -65,6 +77,10 @@ router.post("/register", authLimiter, async (req, res) => {
         phoneNumber: user.phoneNumber,
         phoneVerified: user.phoneVerified,
         emailVerified: user.emailVerified,
+        tier: user.tier,
+        storageUsed: user.storageUsed,
+        storageLimitBytes: plan.storageLimitBytes,
+        isBonusUnlocked: user.isBonusUnlocked,
         createdAt: user.createdAt,
       },
       token,
@@ -149,6 +165,7 @@ router.post("/login", authLimiter, async (req, res) => {
       return;
     }
     const token = signToken({ userId: user.id, role: user.role });
+    const plan = PLANS[user.tier as TeacherTier];
     res.json({
       user: {
         id: user.id,
@@ -163,6 +180,10 @@ router.post("/login", authLimiter, async (req, res) => {
         phoneNumber: user.phoneNumber,
         phoneVerified: user.phoneVerified,
         emailVerified: user.emailVerified,
+        tier: user.tier,
+        storageUsed: user.storageUsed,
+        storageLimitBytes: plan.storageLimitBytes,
+        isBonusUnlocked: user.isBonusUnlocked,
         createdAt: user.createdAt,
       },
       token,
@@ -214,6 +235,7 @@ router.get("/me", requireAuth, async (req, res) => {
     res.status(401).json({ error: "User not found" });
     return;
   }
+  const plan = PLANS[user.tier as TeacherTier];
   res.json({
     id: user.id,
     email: user.email,
@@ -227,6 +249,10 @@ router.get("/me", requireAuth, async (req, res) => {
     phoneNumber: user.phoneNumber,
     phoneVerified: user.phoneVerified,
     emailVerified: user.emailVerified,
+    tier: user.tier,
+    storageUsed: user.storageUsed,
+    storageLimitBytes: plan.storageLimitBytes,
+    isBonusUnlocked: user.isBonusUnlocked,
     createdAt: user.createdAt,
   });
 });

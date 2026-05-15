@@ -1,10 +1,10 @@
-import { pgTable, serial, text, varchar, boolean, timestamp, pgEnum, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, varchar, boolean, timestamp, pgEnum, numeric, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const userRoleEnum = pgEnum("user_role", ["student", "teacher", "admin"]);
 export const languageEnum = pgEnum("language", ["ar", "en"]);
-export const teacherTierEnum = pgEnum("teacher_tier", ["free", "pro"]);
+export const teacherTierEnum = pgEnum("teacher_tier", ["free", "bronze", "golden"]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -37,6 +37,8 @@ export const usersTable = pgTable("users", {
   // Monetization / subscription
   tier: teacherTierEnum("tier").notNull().default("free"),
   proExpiry: timestamp("pro_expiry"),
+  storageUsed: bigint("storage_used", { mode: 'number' }).notNull().default(0),
+  isBonusUnlocked: boolean("is_bonus_unlocked").notNull().default(false),
   isSponsored: boolean("is_sponsored").notNull().default(false),
   sponsoredUntil: timestamp("sponsored_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

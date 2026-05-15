@@ -3,6 +3,10 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { Readable } from "stream";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { getEffectiveStorageLimit } from "../lib/plans.js";
+import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
@@ -73,6 +77,23 @@ router.post(
         return;
       }
 
+      // ── Storage limit check ───────────────────────────────────
+      const teacher = await db.query.usersTable.findFirst({
+        where: eq(usersTable.id, req.user!.id),
+        columns: { tier: true, storageUsed: true, isBonusUnlocked: true },
+      });
+      if (teacher) {
+        const limit = getEffectiveStorageLimit(teacher.tier as TeacherTier, teacher.isBonusUnlocked);
+        if ((teacher.storageUsed ?? 0) + req.file.size > limit) {
+          const limitGB = (limit / (1024 ** 3)).toFixed(0);
+          res.status(403).json({
+            error: `Storage limit reached (${limitGB} GB). Please upgrade your plan to upload more content.`,
+          });
+          return;
+        }
+      }
+      // ─────────────────────────────────────────────────────────
+
       const result = await uploadToCloudinary(req.file.buffer, {
         resource_type: "video",
         folder: "libyan-learn-hub/videos",
@@ -85,7 +106,6 @@ router.post(
       // Check resolution (Cloudinary returns width/height)
       if (result.width && result.height) {
         if (result.width < 1280 || result.height < 720) {
-          // Delete the uploaded file since it doesn't meet resolution requirements
           await cloudinary.uploader.destroy(result.public_id, { resource_type: "video" });
           res.status(400).json({
             error: "Video resolution must be at least HD (1280×720)",
@@ -95,6 +115,12 @@ router.post(
           return;
         }
       }
+
+      // ── Update storageUsed in DB ───────────────────────────────
+      await db.update(usersTable)
+        .set({ storageUsed: (teacher?.storageUsed ?? 0) + result.bytes })
+        .where(eq(usersTable.id, req.user!.id));
+      // ─────────────────────────────────────────────────────────
 
       res.json({
         url: result.eager?.[0]?.secure_url || result.secure_url,
@@ -125,10 +151,33 @@ router.post(
         return;
       }
 
+      // ── Storage limit check ───────────────────────────────────
+      const teacher = await db.query.usersTable.findFirst({
+        where: eq(usersTable.id, req.user!.id),
+        columns: { tier: true, storageUsed: true, isBonusUnlocked: true },
+      });
+      if (teacher) {
+        const limit = getEffectiveStorageLimit(teacher.tier as TeacherTier, teacher.isBonusUnlocked);
+        if ((teacher.storageUsed ?? 0) + req.file.size > limit) {
+          const limitGB = (limit / (1024 ** 3)).toFixed(0);
+          res.status(403).json({
+            error: `Storage limit reached (${limitGB} GB). Please upgrade your plan to upload more content.`,
+          });
+          return;
+        }
+      }
+      // ─────────────────────────────────────────────────────────
+
       const result = await uploadToCloudinary(req.file.buffer, {
         resource_type: "raw",
         folder: "libyan-learn-hub/documents",
       });
+
+      // ── Update storageUsed in DB ───────────────────────────────
+      await db.update(usersTable)
+        .set({ storageUsed: (teacher?.storageUsed ?? 0) + result.bytes })
+        .where(eq(usersTable.id, req.user!.id));
+      // ─────────────────────────────────────────────────────────
 
       res.json({
         url: result.secure_url,
@@ -153,10 +202,24 @@ router.delete(
     try {
       const publicId = req.params.publicId as string;
       const resourceType = (req.query.type as string) || "video";
+      const fileSizeBytes = parseInt((req.query.size as string) || "0", 10);
 
       await cloudinary.uploader.destroy(publicId, {
         resource_type: resourceType,
       });
+
+      // ── Decrement storageUsed on delete ───────────────────────
+      if (fileSizeBytes > 0) {
+        const teacher = await db.query.usersTable.findFirst({
+          where: eq(usersTable.id, req.user!.id),
+          columns: { storageUsed: true },
+        });
+        const newUsage = Math.max(0, (teacher?.storageUsed ?? 0) - fileSizeBytes);
+        await db.update(usersTable)
+          .set({ storageUsed: newUsage })
+          .where(eq(usersTable.id, req.user!.id));
+      }
+      // ─────────────────────────────────────────────────────────
 
       res.json({ success: true });
     } catch (err: any) {

@@ -10,7 +10,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
   Globe, Lock, Trash2, Eye, Radio, Clock, DollarSign, GraduationCap,
-  PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle
+  PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle, HardDrive, Trophy, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -185,6 +185,54 @@ export default function TeacherDashboard() {
               ))}
             </div>
           )}
+
+          {/* Storage Usage Bar */}
+          {user && (() => {
+            const storageUsed = (user as any).storageUsed ?? 0;
+            const storageLimit = (user as any).storageLimitBytes ?? (5 * 1024 ** 3);
+            const isBonusUnlocked = (user as any).isBonusUnlocked ?? false;
+            const tier = (user as any).tier ?? 'free';
+            const effectiveLimit = storageLimit + (isBonusUnlocked ? 100 * 1024 ** 3 : 0);
+            const pct = Math.min((storageUsed / effectiveLimit) * 100, 100);
+            const usedGB = (storageUsed / 1024 ** 3).toFixed(2);
+            const totalGB = (effectiveLimit / 1024 ** 3).toFixed(0);
+            const tierColor = tier === 'golden' ? 'text-yellow-500' : tier === 'bronze' ? 'text-amber-500' : 'text-primary';
+            const tierIcon = tier === 'golden' ? <Trophy className="w-4 h-4" /> : tier === 'bronze' ? <Star className="w-4 h-4" /> : <Zap className="w-4 h-4" />;
+            const barColor = pct > 90 ? 'bg-destructive' : pct > 70 ? 'bg-amber-500' : 'bg-primary';
+            return (
+              <div className="mt-6 bg-card rounded-2xl border border-border p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-sm">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-muted ${tierColor} flex-shrink-0`}>
+                  <HardDrive className="w-5 h-5" />
+                </div>
+                <div className="flex-1 w-full">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">Storage</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize flex items-center gap-1 ${
+                        tier === 'golden' ? 'bg-yellow-100 text-yellow-600' :
+                        tier === 'bronze' ? 'bg-amber-100 text-amber-600' :
+                        'bg-primary/10 text-primary'
+                      }`}>
+                        {tierIcon} {tier}
+                      </span>
+                      {isBonusUnlocked && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-600 flex items-center gap-1">
+                          🎁 +100GB Bonus
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground font-medium">{usedGB} GB / {totalGB} GB</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div className={`${barColor} h-2 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                  </div>
+                  {pct > 90 && (
+                    <p className="text-xs text-destructive font-medium mt-1">⚠️ Storage almost full — consider upgrading your plan.</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -604,8 +652,8 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
               <Star className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-bold">{user.tier === 'pro' ? 'Active' : 'Free'}</div>
-              <div className="text-sm text-muted-foreground">Pro Status</div>
+              <div className="text-2xl font-bold capitalize">{user.tier ?? 'free'}</div>
+              <div className="text-sm text-muted-foreground">Plan Status</div>
             </div>
           </div>
           <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
@@ -637,17 +685,17 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
               <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Advanced student analytics</li>
               <li className="flex items-center gap-2 text-muted-foreground"><CheckCircle className="w-4 h-4 opacity-50" /> 0% commission on direct courses (coming soon)</li>
             </ul>
-            {user.tier !== 'pro' ? (
+            {user.tier === 'free' ? (
               <Button 
                 onClick={handleUpgradePro} 
                 className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
                 disabled={loadingPro}
               >
-                <Star className="w-4 h-4" /> Get Pro (Placeholder: Free Demo)
+                <Star className="w-4 h-4" /> Upgrade Plan (Contact Admin)
               </Button>
             ) : (
-              <div className="text-center p-3 bg-muted rounded-xl text-sm font-medium text-muted-foreground">
-                Your Pro subscription is active until {new Date(user.proExpiry || Date.now()).toLocaleDateString()}
+              <div className="text-center p-3 bg-muted rounded-xl text-sm font-medium text-muted-foreground capitalize">
+                You are on the <strong>{user.tier}</strong> plan.
               </div>
             )}
           </div>
