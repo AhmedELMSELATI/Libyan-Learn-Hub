@@ -7,7 +7,7 @@ import { useLogin, useRegister } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, GraduationCap, Presentation, CheckCircle, Phone, HardDrive, Clock, Star, Zap, Trophy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, GraduationCap, Presentation, CheckCircle, Phone, HardDrive, Clock, Star, Zap, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi } from '@/hooks/useApi';
 import { Blob } from '@/components/ui/Blob';
@@ -36,6 +36,10 @@ export default function Auth() {
     return params.get('redirect') || null;
   })();
   const { login: setAuthContext } = useAuth();
+  const { language } = useLanguage();
+  const isRtl = language === 'ar';
+  const Arrow = isRtl ? ArrowLeft : ArrowRight;
+  const BackArrow = isRtl ? ArrowRight : ArrowLeft;
   const api = useApi();
   const [errorMsg, setErrorMsg] = useState('');
   const [step, setStep] = useState<'form' | 'plan' | 'otp'>('form');
@@ -168,42 +172,48 @@ export default function Auth() {
   const PLAN_CARDS = [
     {
       id: 'free' as const,
-      label: 'Free',
-      price: 'مجاني',
-      priceNote: 'للأبد',
+      label: isRtl ? 'باقة مجانية' : 'Free Plan',
+      price: isRtl ? 'مجاني' : 'Free',
+      priceNote: isRtl ? 'للأبد' : 'forever',
       storage: '5 GB',
-      session: '30 دقيقة',
+      session: isRtl ? '30 دقيقة' : '30 mins',
       icon: <Zap className="w-6 h-6" />,
       color: 'border-border hover:border-primary/50',
       activeColor: 'border-primary bg-primary/5',
       badge: null,
-      features: ['5GB مساحة تخزين', 'جلسات مباشرة 30 دقيقة', '+100GB عند 100 طالب'],
+      features: isRtl 
+        ? ['5GB مساحة تخزين', 'جلسات مباشرة 30 دقيقة', '+100GB عند 100 طالب']
+        : ['5GB Storage', '30 min Live Sessions', '+100GB at 100 students'],
     },
     {
       id: 'bronze' as const,
-      label: 'Bronze',
-      price: '30 د.ل',
-      priceNote: 'شهرياً',
+      label: isRtl ? 'الباقة البرونزية' : 'Bronze Plan',
+      price: isRtl ? '30 د.ل' : '30 LYD',
+      priceNote: isRtl ? 'شهرياً' : '/ month',
       storage: '25 GB',
-      session: '45 دقيقة',
+      session: isRtl ? '45 دقيقة' : '45 mins',
       icon: <Star className="w-6 h-6" />,
       color: 'border-border hover:border-amber-500/50',
       activeColor: 'border-amber-500 bg-amber-500/5',
-      badge: 'الأكثر شيوعاً',
-      features: ['25GB مساحة تخزين', 'جلسات مباشرة 45 دقيقة', '+100GB عند 100 طالب', 'دعم عبر البريد الإلكتروني'],
+      badge: isRtl ? 'الأكثر شيوعاً' : 'Most Popular',
+      features: isRtl
+        ? ['25GB مساحة تخزين', 'جلسات مباشرة 45 دقيقة', '+100GB عند 100 طالب', 'دعم عبر البريد الإلكتروني']
+        : ['25GB Storage', '45 min Live Sessions', '+100GB at 100 students', 'Email Support'],
     },
     {
       id: 'golden' as const,
-      label: 'Golden',
-      price: '50 د.ل',
-      priceNote: 'شهرياً',
+      label: isRtl ? 'الباقة الذهبية' : 'Golden Plan',
+      price: isRtl ? '50 د.ل' : '50 LYD',
+      priceNote: isRtl ? 'شهرياً' : '/ month',
       storage: '50 GB',
-      session: '90 دقيقة',
+      session: isRtl ? '90 دقيقة' : '90 mins',
       icon: <Trophy className="w-6 h-6" />,
       color: 'border-border hover:border-yellow-400/50',
       activeColor: 'border-yellow-400 bg-yellow-400/5',
-      badge: 'الأفضل للمحترفين',
-      features: ['50GB مساحة تخزين', 'جلسات مباشرة 90 دقيقة', '+100GB عند 100 طالب', 'دعم أولوي'],
+      badge: isRtl ? 'الأفضل للمحترفين' : 'Best for Pros',
+      features: isRtl
+        ? ['50GB مساحة تخزين', 'جلسات مباشرة 90 دقيقة', '+100GB عند 100 طالب', 'دعم أولوي']
+        : ['50GB Storage', '90 min Live Sessions', '+100GB at 100 students', 'Priority Support'],
     },
   ];
 
@@ -219,8 +229,8 @@ export default function Auth() {
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-teal-400 flex items-center justify-center text-white shadow-lg mx-auto mb-4">
               <Trophy className="w-8 h-8" />
             </div>
-            <h2 className="text-3xl font-display font-bold">اختر خطتك</h2>
-            <p className="text-muted-foreground mt-2">يمكنك الترقية أو التغيير في أي وقت</p>
+            <h2 className="text-3xl font-display font-bold">{isRtl ? 'اختر خطتك' : 'Choose Your Plan'}</h2>
+            <p className="text-muted-foreground mt-2">{isRtl ? 'يمكنك الترقية أو التغيير في أي وقت' : 'You can upgrade or downgrade at any time'}</p>
           </div>
 
           {errorMsg && (
@@ -256,9 +266,9 @@ export default function Auth() {
                     <CheckCircle className="w-5 h-5 text-primary" />
                   )}
                 </div>
-                <div className="mb-4">
+                <div className="mb-4 flex items-baseline gap-1">
                   <span className="text-2xl font-display font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm ml-1">{plan.priceNote}</span>
+                  <span className="text-muted-foreground text-sm">{plan.priceNote}</span>
                 </div>
                 <p className="font-semibold text-lg mb-3">{plan.label}</p>
                 <ul className="space-y-2">
@@ -276,24 +286,25 @@ export default function Auth() {
           <div className="text-center text-sm text-muted-foreground mb-6">
             <span className="inline-flex items-center gap-1.5 bg-green-500/10 text-green-600 border border-green-500/20 rounded-full px-4 py-1.5 font-medium">
               <Star className="w-4 h-4" />
-              🎁 بونص: احصل على +100GB إضافي مجاناً عند وصولك لـ 100 طالب!
+              {isRtl ? '🎁 بونص: احصل على +100GB إضافي مجاناً عند وصولك لـ 100 طالب!' : '🎁 Bonus: Get +100GB free storage when you reach 100 students!'}
             </span>
           </div>
 
           <div className="flex gap-3 max-w-sm mx-auto">
             <Button
               variant="outline"
-              className="flex-1 h-12"
+              className="flex-1 h-12 gap-2"
               onClick={() => { setStep('form'); setErrorMsg(''); }}
             >
-              ← رجوع
+              <BackArrow className="w-4 h-4" /> {isRtl ? 'رجوع' : 'Back'}
             </Button>
             <Button
-              className="flex-1 h-12 font-semibold bg-primary hover:bg-primary/90"
+              className="flex-1 h-12 font-semibold bg-primary hover:bg-primary/90 gap-2"
               onClick={onConfirmPlan}
               disabled={isRegistering}
             >
-              {isRegistering ? 'جاري الإنشاء...' : 'تأكيد وإنشاء الحساب →'}
+              {isRegistering ? (isRtl ? 'جاري الإنشاء...' : 'Creating...') : (isRtl ? 'تأكيد وإنشاء الحساب' : 'Confirm & Create Account')}
+              {!isRegistering && <Arrow className="w-4 h-4" />}
             </Button>
           </div>
         </motion.div>
