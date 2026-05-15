@@ -11,8 +11,10 @@ app.use(helmet());
 
 // 2. CORS Configuration
 const allowedOrigins = [
+  "http://localhost:5000",
   "http://localhost:5173",
-  "https://libyan-learn-hub.vercel.app", // Example production domain
+  "https://libyan-learn-hub.vercel.app",
+  "https://libyan-learn-hub-lms-web.vercel.app",
 ];
 
 app.use(cors({
