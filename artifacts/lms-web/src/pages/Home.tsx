@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
-import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight, GraduationCap, Sparkles, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight, GraduationCap, Sparkles, CheckCircle2, MonitorPlay, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
 import { useApi } from '@/hooks/useApi';
