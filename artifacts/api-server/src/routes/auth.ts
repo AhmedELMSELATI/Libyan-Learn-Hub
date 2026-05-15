@@ -62,7 +62,7 @@ router.post("/register", authLimiter, async (req, res) => {
       tier,
     }).returning();
     const token = signToken({ userId: user.id, role: user.role });
-    const plan = PLANS[user.tier as TeacherTier];
+    const plan = PLANS[(user.tier as TeacherTier) || "free"];
     res.status(201).json({
       user: {
         id: user.id,
@@ -165,7 +165,7 @@ router.post("/login", authLimiter, async (req, res) => {
       return;
     }
     const token = signToken({ userId: user.id, role: user.role });
-    const plan = PLANS[user.tier as TeacherTier];
+    const plan = PLANS[(user.tier as TeacherTier) || "free"];
     res.json({
       user: {
         id: user.id,
@@ -235,7 +235,7 @@ router.get("/me", requireAuth, async (req, res) => {
     res.status(401).json({ error: "User not found" });
     return;
   }
-  const plan = PLANS[user.tier as TeacherTier];
+  const plan = PLANS[(user.tier as TeacherTier) || "free"];
   res.json({
     id: user.id,
     email: user.email,

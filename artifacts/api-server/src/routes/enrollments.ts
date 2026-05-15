@@ -108,7 +108,7 @@ router.post("/", requireAuth, async (req, res) => {
         const [teacher] = await db.select().from(usersTable)
           .where(eq(usersTable.id, course.teacherId)).limit(1);
 
-        const plan = PLANS[teacher.tier as TeacherTier];
+        const plan = PLANS[(teacher.tier as TeacherTier) || "free"];
 
         if (Number(studentCount) >= plan.studentBonusThreshold && !teacher.isBonusUnlocked) {
           await db.update(usersTable)
