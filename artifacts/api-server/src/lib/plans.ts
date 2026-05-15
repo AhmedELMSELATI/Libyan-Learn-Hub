@@ -3,20 +3,21 @@
  * Defines storage limits and live session duration caps for each tier.
  */
 
-export type TeacherTier = "free" | "bronze" | "golden";
+export type TeacherTier = "free" | "bronze" | "golden" | "diamond";
 
 export interface PlanConfig {
   label: string;
   pricePerMonthLYD: number;
   storageLimitBytes: number;
-  sessionDurationLimitMinutes: number;
+  sessionDurationLimitMinutes: number; // 0 for unlimited
   bonusStorageBytes: number;     // awarded when student threshold is reached
   studentBonusThreshold: number; // how many students unlock the bonus
 }
 
 const GB = 1024 * 1024 * 1024;
 const STUDENT_BONUS_THRESHOLD = 100;
-const BONUS_STORAGE_BYTES = 100 * GB;
+const STANDARD_BONUS_BYTES = 10 * GB;
+const DIAMOND_BONUS_BYTES = 150 * GB;
 
 export const PLANS: Record<TeacherTier, PlanConfig> = {
   free: {
@@ -24,7 +25,7 @@ export const PLANS: Record<TeacherTier, PlanConfig> = {
     pricePerMonthLYD: 0,
     storageLimitBytes: 5 * GB,
     sessionDurationLimitMinutes: 30,
-    bonusStorageBytes: BONUS_STORAGE_BYTES,
+    bonusStorageBytes: STANDARD_BONUS_BYTES,
     studentBonusThreshold: STUDENT_BONUS_THRESHOLD,
   },
   bronze: {
@@ -32,7 +33,7 @@ export const PLANS: Record<TeacherTier, PlanConfig> = {
     pricePerMonthLYD: 30,
     storageLimitBytes: 25 * GB,
     sessionDurationLimitMinutes: 45,
-    bonusStorageBytes: BONUS_STORAGE_BYTES,
+    bonusStorageBytes: STANDARD_BONUS_BYTES,
     studentBonusThreshold: STUDENT_BONUS_THRESHOLD,
   },
   golden: {
@@ -40,14 +41,22 @@ export const PLANS: Record<TeacherTier, PlanConfig> = {
     pricePerMonthLYD: 50,
     storageLimitBytes: 50 * GB,
     sessionDurationLimitMinutes: 90,
-    bonusStorageBytes: BONUS_STORAGE_BYTES,
+    bonusStorageBytes: STANDARD_BONUS_BYTES,
+    studentBonusThreshold: STUDENT_BONUS_THRESHOLD,
+  },
+  diamond: {
+    label: "Diamond",
+    pricePerMonthLYD: 100,
+    storageLimitBytes: 100 * GB,
+    sessionDurationLimitMinutes: 0, // Unlimited
+    bonusStorageBytes: DIAMOND_BONUS_BYTES,
     studentBonusThreshold: STUDENT_BONUS_THRESHOLD,
   },
 };
 
 /**
  * Returns the effective storage limit for a teacher,
- * adding the bonus 100GB if they have unlocked it.
+ * adding the bonus if they have unlocked it.
  */
 export function getEffectiveStorageLimit(tier: TeacherTier, isBonusUnlocked: boolean): number {
   const plan = PLANS[tier];
@@ -60,3 +69,4 @@ export function getEffectiveStorageLimit(tier: TeacherTier, isBonusUnlocked: boo
 export function getSessionDurationLimit(tier: TeacherTier): number {
   return PLANS[tier].sessionDurationLimitMinutes;
 }
+

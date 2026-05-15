@@ -10,6 +10,8 @@ import {
 } from "@workspace/db";
 import { eq, and, sum, count } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { PLANS } from "../lib/plans.js";
+import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
@@ -93,6 +95,51 @@ router.post("/create-session", requireAuth, async (req, res) => {
   }
 });
 
+// --- Subscription Plan Upgrades ---
+router.post("/upgrade-plan", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { targetTier } = req.body;
+
+    if (!targetTier || !["bronze", "golden", "diamond"].includes(targetTier)) {
+      res.status(400).json({ error: "Invalid target tier" });
+      return;
+    }
+
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!teacher || teacher.role !== "teacher") {
+      res.status(403).json({ error: "Only teachers can upgrade plans" });
+      return;
+    }
+
+    const currentTier = (teacher.tier as TeacherTier) || "free";
+    const currentPrice = PLANS[currentTier].pricePerMonthLYD;
+    const targetPrice = PLANS[targetTier as TeacherTier].pricePerMonthLYD;
+
+    const difference = targetPrice - currentPrice;
+
+    if (difference <= 0) {
+      res.status(400).json({ error: "Cannot upgrade to a lower or equal tier. Please contact support to downgrade." });
+      return;
+    }
+
+    // Create a pending payment session for the difference
+    const [payment] = await db.insert(paymentsTable).values({
+      userId,
+      amount: difference.toFixed(2),
+      currency: "LYD",
+      method: "bank_transfer",
+      status: "pending",
+      reference: `UPGRADE-${targetTier}`,
+    }).returning();
+
+    const checkoutUrl = `/api/payments/mock-gateway?paymentId=${payment.id}`;
+    res.json({ url: checkoutUrl, amount: difference });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 router.get("/mock-gateway", (req, res) => {
   const paymentId = req.query.paymentId;
   // This serves a small HTML page to simulate an external provider like Sadad or Stripe.
@@ -171,6 +218,14 @@ router.get("/callback", async (req, res) => {
       if (session) {
         await creditTeacher(paymentId, session.teacherId, amount, undefined, session.id, "LYD");
       }
+    }
+
+    // Handle Subscription Upgrades
+    if (payment.reference && payment.reference.startsWith("UPGRADE-")) {
+      const newTier = payment.reference.replace("UPGRADE-", "") as TeacherTier;
+      await db.update(usersTable)
+        .set({ tier: newTier, updatedAt: new Date() })
+        .where(eq(usersTable.id, payment.userId));
     }
 
     // Redirect to frontend success page

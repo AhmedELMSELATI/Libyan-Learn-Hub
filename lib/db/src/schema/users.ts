@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 export const userRoleEnum = pgEnum("user_role", ["student", "teacher", "admin"]);
 export const languageEnum = pgEnum("language", ["ar", "en"]);
-export const teacherTierEnum = pgEnum("teacher_tier", ["free", "bronze", "golden"]);
+export const teacherTierEnum = pgEnum("teacher_tier", ["free", "bronze", "golden", "diamond"]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),

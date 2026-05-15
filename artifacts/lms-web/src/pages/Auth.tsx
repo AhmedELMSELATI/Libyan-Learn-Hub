@@ -183,8 +183,8 @@ export default function Auth() {
       activeColor: 'border-primary bg-primary/5',
       badge: null,
       features: isRtl 
-        ? ['5GB مساحة تخزين', 'جلسات مباشرة 30 دقيقة', '+100GB عند 100 طالب']
-        : ['5GB Storage', '30 min Live Sessions', '+100GB at 100 students'],
+        ? ['5GB مساحة تخزين', 'جلسات مباشرة 30 دقيقة', '+10GB عند 100 طالب']
+        : ['5GB Storage', '30 min Live Sessions', '+10GB at 100 students'],
     },
     {
       id: 'bronze' as const,
@@ -198,8 +198,8 @@ export default function Auth() {
       activeColor: 'border-amber-500 bg-amber-500/5',
       badge: isRtl ? 'الأكثر شيوعاً' : 'Most Popular',
       features: isRtl
-        ? ['25GB مساحة تخزين', 'جلسات مباشرة 45 دقيقة', '+100GB عند 100 طالب', 'دعم عبر البريد الإلكتروني']
-        : ['25GB Storage', '45 min Live Sessions', '+100GB at 100 students', 'Email Support'],
+        ? ['25GB مساحة تخزين', 'جلسات مباشرة 45 دقيقة', '+10GB عند 100 طالب', 'دعم عبر البريد الإلكتروني']
+        : ['25GB Storage', '45 min Live Sessions', '+10GB at 100 students', 'Email Support'],
     },
     {
       id: 'golden' as const,
@@ -213,8 +213,23 @@ export default function Auth() {
       activeColor: 'border-yellow-400 bg-yellow-400/5',
       badge: isRtl ? 'الأفضل للمحترفين' : 'Best for Pros',
       features: isRtl
-        ? ['50GB مساحة تخزين', 'جلسات مباشرة 90 دقيقة', '+100GB عند 100 طالب', 'دعم أولوي']
-        : ['50GB Storage', '90 min Live Sessions', '+100GB at 100 students', 'Priority Support'],
+        ? ['50GB مساحة تخزين', 'جلسات مباشرة 90 دقيقة', '+10GB عند 100 طالب', 'دعم أولوي']
+        : ['50GB Storage', '90 min Live Sessions', '+10GB at 100 students', 'Priority Support'],
+    },
+    {
+      id: 'diamond' as const,
+      label: isRtl ? 'الباقة الماسية' : 'Diamond Plan',
+      price: isRtl ? '100 د.ل' : '100 LYD',
+      priceNote: isRtl ? 'شهرياً' : '/ month',
+      storage: '100 GB',
+      session: isRtl ? 'غير محدود' : 'Unlimited',
+      icon: <CheckCircle className="w-6 h-6" />,
+      color: 'border-border hover:border-blue-500/50',
+      activeColor: 'border-blue-500 bg-blue-500/5',
+      badge: isRtl ? 'VIP' : 'VIP',
+      features: isRtl
+        ? ['100GB مساحة تخزين', 'بث مباشر غير محدود', '+150GB عند 100 طالب', 'دعم فوري']
+        : ['100GB Storage', 'Unlimited Live Streams', '+150GB at 100 students', 'Instant Support'],
     },
   ];
 
@@ -240,7 +255,7 @@ export default function Auth() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
             {PLAN_CARDS.map((plan) => (
               <button
                 key={plan.id}
@@ -259,7 +274,8 @@ export default function Auth() {
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                     plan.id === 'free' ? 'bg-primary/10 text-primary' :
                     plan.id === 'bronze' ? 'bg-amber-500/10 text-amber-500' :
-                    'bg-yellow-400/10 text-yellow-500'
+                    plan.id === 'golden' ? 'bg-yellow-400/10 text-yellow-500' :
+                    'bg-blue-500/10 text-blue-500'
                   }`}>
                     {plan.icon}
                   </div>
@@ -287,7 +303,7 @@ export default function Auth() {
           <div className="text-center text-sm text-muted-foreground mb-6">
             <span className="inline-flex items-center gap-1.5 bg-green-500/10 text-green-600 border border-green-500/20 rounded-full px-4 py-1.5 font-medium">
               <Star className="w-4 h-4" />
-              {isRtl ? '🎁 بونص: احصل على +100GB إضافي مجاناً عند وصولك لـ 100 طالب!' : '🎁 Bonus: Get +100GB free storage when you reach 100 students!'}
+              {isRtl ? '🎁 بونص: احصل على سعة تخزين إضافية مجاناً عند وصولك لـ 100 طالب!' : '🎁 Bonus: Get free extra storage when you reach 100 students!'}
             </span>
           </div>
 

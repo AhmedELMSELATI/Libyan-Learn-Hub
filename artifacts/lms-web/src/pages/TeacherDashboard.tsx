@@ -192,7 +192,8 @@ export default function TeacherDashboard() {
             const storageLimit = (user as any).storageLimitBytes ?? (5 * 1024 ** 3);
             const isBonusUnlocked = (user as any).isBonusUnlocked ?? false;
             const tier = (user as any).tier ?? 'free';
-            const effectiveLimit = storageLimit + (isBonusUnlocked ? 100 * 1024 ** 3 : 0);
+            const bonusSize = tier === 'diamond' ? 150 * 1024 ** 3 : 10 * 1024 ** 3;
+            const effectiveLimit = storageLimit + (isBonusUnlocked ? bonusSize : 0);
             const pct = Math.min((storageUsed / effectiveLimit) * 100, 100);
             const usedGB = (storageUsed / 1024 ** 3).toFixed(2);
             const totalGB = (effectiveLimit / 1024 ** 3).toFixed(0);
@@ -217,7 +218,7 @@ export default function TeacherDashboard() {
                       </span>
                       {isBonusUnlocked && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-600 flex items-center gap-1">
-                          🎁 +100GB Bonus
+                          🎁 +{tier === 'diamond' ? '150GB' : '10GB'} Bonus
                         </span>
                       )}
                     </div>
@@ -594,15 +595,15 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
     fetchData();
   }, [fetchData]);
 
-  const handleUpgradePro = async () => {
+  const handleUpgradePlan = async (targetTier: string) => {
     setLoadingPro(true);
     try {
-      await api.post('/teacher-profile/upgrade-pro', {});
-      toast({ title: "Upgraded to Pro!", description: "You are now a Pro teacher." });
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] }); // refresh user context
-      window.location.reload(); // Quick refresh to show badge everywhere
+      const data = await api.post('/payments/upgrade-plan', { targetTier });
+      if (data.url) {
+        window.location.href = data.url;
+      }
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: 'destructive' });
+      toast({ title: "Upgrade Failed", description: err.message, variant: 'destructive' });
     } finally {
       setLoadingPro(false);
     }
@@ -669,35 +670,53 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pro Subscription Block */}
+        {/* Plan Upgrade Block */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm flex flex-col">
-          <div className="p-6 border-b border-border bg-gradient-to-br from-amber-50 to-transparent">
+          <div className="p-6 border-b border-border bg-gradient-to-br from-blue-50 to-transparent">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-xl font-bold font-display">Pro Subscription</h3>
-              {user.tier === 'pro' && <Badge className="bg-amber-500 hover:bg-amber-600">PRO ACTIVE</Badge>}
+              <h3 className="text-xl font-bold font-display">Upgrade Plan</h3>
+              <Badge className="bg-blue-500 hover:bg-blue-600 capitalize">{user.tier ?? 'free'} PLAN</Badge>
             </div>
-            <p className="text-muted-foreground text-sm">Stand out with a Pro badge and advanced features.</p>
+            <p className="text-muted-foreground text-sm">Pay only the difference when you upgrade to a higher tier.</p>
           </div>
           <div className="p-6 flex-1 flex flex-col">
-            <ul className="space-y-3 mb-6 flex-1 text-sm">
-              <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Premium "Pro" Badge on profile</li>
-              <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Ranking boost in searches</li>
-              <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-500" /> Advanced student analytics</li>
-              <li className="flex items-center gap-2 text-muted-foreground"><CheckCircle className="w-4 h-4 opacity-50" /> 0% commission on direct courses (coming soon)</li>
-            </ul>
-            {user.tier === 'free' ? (
-              <Button 
-                onClick={handleUpgradePro} 
-                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-                disabled={loadingPro}
-              >
-                <Star className="w-4 h-4" /> Upgrade Plan (Contact Admin)
-              </Button>
-            ) : (
-              <div className="text-center p-3 bg-muted rounded-xl text-sm font-medium text-muted-foreground capitalize">
-                You are on the <strong>{user.tier}</strong> plan.
-              </div>
-            )}
+            <div className="space-y-3 mb-6 flex-1">
+              {['bronze', 'golden', 'diamond'].map((t) => {
+                const currentTier = user.tier || 'free';
+                const prices: Record<string, number> = { free: 0, bronze: 30, golden: 50, diamond: 100 };
+                const currentPrice = prices[currentTier];
+                const targetPrice = prices[t];
+                const diff = targetPrice - currentPrice;
+                const isCurrent = currentTier === t;
+                const isLower = diff < 0;
+                
+                if (isLower) return null; // Don't show lower tiers
+                
+                return (
+                  <div key={t} className="flex items-center justify-between p-3 border rounded-xl bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className={`w-4 h-4 ${isCurrent ? 'text-green-500' : 'text-muted-foreground'}`} />
+                      <span className="capitalize font-medium">{t}</span>
+                    </div>
+                    {isCurrent ? (
+                      <span className="text-sm font-bold text-green-600">Current</span>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleUpgradePlan(t)}
+                        disabled={loadingPro}
+                        className="bg-primary hover:bg-primary/90 text-xs"
+                      >
+                        Upgrade (Pay {diff} LYD)
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Upgrading instantly unlocks higher storage and streaming limits.
+            </p>
           </div>
         </div>
 
