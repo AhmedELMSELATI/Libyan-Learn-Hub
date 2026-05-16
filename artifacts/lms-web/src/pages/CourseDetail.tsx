@@ -32,7 +32,7 @@ export default function CourseDetail() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
 
-  const { data: course, isLoading, refetch } = useGetCourse(courseId, { query: { enabled: !!courseId } });
+  const { data: course, isLoading, refetch } = useGetCourse(courseId, { query: { queryKey: ['/api/courses', courseId], enabled: !!courseId } });
   
   const { data: reviews = [] } = useQuery({
     queryKey: ['/api/courses', courseId, 'reviews'],

@@ -104,7 +104,7 @@ export default function TeacherProfile() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap mb-2">
                 <h1 className="text-3xl font-display font-bold">{name}</h1>
-                {teacher.isVerified && <BadgeCheck className="w-6 h-6 text-primary" title="Verified" />}
+                {teacher.isVerified && <BadgeCheck className="w-6 h-6 text-primary" aria-label="Verified" />}
                 {teacher.isSponsored && (
                   <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
                     <Crown className="w-3 h-3" /> {language === 'ar' ? 'مميز' : 'Sponsored'}

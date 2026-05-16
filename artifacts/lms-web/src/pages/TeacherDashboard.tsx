@@ -43,11 +43,11 @@ export default function TeacherDashboard() {
   }, [isAuthenticated, authLoading, user, setLocation]);
 
   const { data: courses, isLoading } = useGetTeacherCourses({
-    query: { enabled: !!user && user.role === 'teacher' }
+    query: { queryKey: ['/api/teacher/courses'], enabled: !!user && user.role === 'teacher' }
   });
   const { data: categories } = useGetCategories();
   const { data: liveSessions } = useGetLiveSessions(undefined, {
-    query: { enabled: !!user && user.role === 'teacher' }
+    query: { queryKey: ['/api/live-sessions'], enabled: !!user && user.role === 'teacher' }
   });
 
   const mySessions = liveSessions?.filter((s: any) => s.teacherId === user?.id) || [];
@@ -224,12 +224,14 @@ export default function TeacherDashboard() {
                       )}
                     </div>
                     <div className="flex items-center gap-4">
-                      <button 
-                        onClick={() => setActiveTab('promote')}
-                        className="text-xs text-primary font-bold hover:underline transition-colors"
-                      >
-                        Upgrade Plan
-                      </button>
+                      {pct > 80 && tier !== 'diamond' && (
+                        <button 
+                          onClick={() => setActiveTab('promote')}
+                          className="text-xs text-primary font-bold hover:underline transition-colors"
+                        >
+                          Upgrade Plan
+                        </button>
+                      )}
                       <span className="text-xs text-muted-foreground font-medium">{usedGB} GB / {totalGB} GB</span>
                     </div>
                   </div>
@@ -252,7 +254,7 @@ export default function TeacherDashboard() {
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> {t('teacher_dashboard.my_courses')}</TabsTrigger>
             <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> {t('teacher_dashboard.live_sessions')}</TabsTrigger>
             <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> {t('teacher_dashboard.students')}</TabsTrigger>
-            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> Plans & Promote</TabsTrigger>
+            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> {t('teacher_dashboard.promote')}</TabsTrigger>
           </TabsList>
 
           {/* COURSES TAB */}

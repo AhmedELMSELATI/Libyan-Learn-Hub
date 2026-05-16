@@ -5,7 +5,7 @@ type Language = 'ar' | 'en';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string, variables?: Record<string, string>) => string;
+  t: (key: string, fallbackOrVariables?: string | Record<string, string>) => string;
   dir: 'rtl' | 'ltr';
 }
 
@@ -186,7 +186,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('lms_language', lang);
   };
 
-  const t = (key: string, variables?: Record<string, string>) => {
+  const t = (key: string, fallbackOrVariables?: string | Record<string, string>) => {
+    // Support inline bilingual pattern: t('Arabic text', 'English text')
+    if (typeof fallbackOrVariables === 'string') {
+      return language === 'ar' ? key : fallbackOrVariables;
+    }
+    const variables = fallbackOrVariables;
     let text = translations[language][key] || translations['en'][key] || key;
     if (variables) {
       Object.keys(variables).forEach(vKey => {

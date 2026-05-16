@@ -67,7 +67,7 @@ export default function Profile() {
       updateProfile({ data: { fullName: data.fullName, bio: data.bio, language: data.language } as any });
       
       // 2. Update Email if changed
-      if (data.email && data.email !== user.email) {
+      if (data.email && data.email !== user?.email) {
         await api.put('/users/email', { newEmail: data.email });
         toast({ title: "Email updated successfully. Please verify your new email." });
       }

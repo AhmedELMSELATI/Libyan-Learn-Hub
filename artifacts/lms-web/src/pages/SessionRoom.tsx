@@ -44,7 +44,7 @@ export default function SessionRoom() {
     queryKey: ['/api/room/sessions', sessionId],
     queryFn: () => api.get(`/room/sessions/${sessionId}`),
     enabled: !!sessionId && !!user,
-    refetchInterval: (data) => (data?.status === 'live' || hasJoined) ? 60000 : 5000, // Poll faster if waiting
+    refetchInterval: (query) => (query.state.data?.status === 'live' || hasJoined) ? 60000 : 5000, // Poll faster if waiting
   });
 
   const { data: questions, refetch: refetchQuestions } = useQuery({

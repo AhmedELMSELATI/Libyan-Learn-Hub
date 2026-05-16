@@ -20,7 +20,7 @@ export default function CreateSession() {
   const api = useApi();
 
   const { data: courses } = useGetTeacherCourses({
-    query: { enabled: !!user && user.role === 'teacher' }
+    query: { queryKey: ['/api/teacher/courses'], enabled: !!user && user.role === 'teacher' }
   });
 
   React.useEffect(() => {
@@ -105,14 +105,14 @@ export default function CreateSession() {
               <div>
                 <label className="text-sm font-medium mb-1.5 block flex items-center gap-2">
                   Duration (minutes)
-                  {user?.tier === 'free' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">Max 30 min</span>}
-                  {user?.tier === 'bronze' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">Max 45 min</span>}
-                  {user?.tier === 'golden' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">Max 90 min</span>}
+                  {(user as any)?.tier === 'free' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">Max 30 min</span>}
+                  {(user as any)?.tier === 'bronze' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">Max 45 min</span>}
+                  {(user as any)?.tier === 'golden' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">Max 90 min</span>}
                 </label>
                 <Input 
                   type="number" 
                   min="15" 
-                  max={user?.tier === 'free' ? 30 : user?.tier === 'bronze' ? 45 : user?.tier === 'golden' ? 90 : 360} 
+                  max={(user as any)?.tier === 'free' ? 30 : (user as any)?.tier === 'bronze' ? 45 : (user as any)?.tier === 'golden' ? 90 : 360} 
                   {...sessionForm.register('durationMinutes', { valueAsNumber: true })} 
                   className="h-11" 
                 />

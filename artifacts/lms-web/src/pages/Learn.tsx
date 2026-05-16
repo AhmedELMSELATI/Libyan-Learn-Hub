@@ -26,7 +26,7 @@ export default function Learn() {
   const api = useApi();
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
-  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, { query: { enabled: !!courseId } });
+  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, { query: { queryKey: ['/api/courses', courseId], enabled: !!courseId } });
   
   useEffect(() => {
     if (course && !activeLessonId && course.lessons.length > 0) {
@@ -41,7 +41,7 @@ export default function Learn() {
   const { data: lesson, isLoading: lessonLoading } = useGetLesson(
     courseId, 
     activeLessonId || 0, 
-    { query: { enabled: !!(courseId && activeLessonId) } }
+    { query: { queryKey: ['/api/courses', courseId, 'lessons', activeLessonId], enabled: !!(courseId && activeLessonId) } }
   );
 
   const { mutate: updateProgress } = useUpdateProgress();
