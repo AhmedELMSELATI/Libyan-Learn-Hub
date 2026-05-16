@@ -25,9 +25,12 @@ function generateOtp(): string {
 
 router.post("/register", authLimiter, async (req, res) => {
   try {
-    if (!req.body) {
-      res.status(400).json({ error: "Missing request body. Check Content-Type headers." });
-      return;
+    // Safety check: if the body parser failed to parse (e.g., Content-Type
+    // header was stripped by a proxy), req.body will be undefined.
+    // We fall back to an empty object so Zod can give a proper validation error.
+    if (req.body === undefined) {
+      console.error("req.body is undefined. Headers:", req.headers);
+      req.body = {};
     }
     
     // Support phoneNumber in the validation gracefully
@@ -153,6 +156,10 @@ router.post("/verify-otp", requireAuth, async (req, res) => {
 
 router.post("/login", authLimiter, async (req, res) => {
   try {
+    if (req.body === undefined) {
+      console.error("req.body is undefined on /login. Headers:", req.headers);
+      req.body = {};
+    }
     const body = LoginBody.parse(req.body);
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);
     if (!user) {

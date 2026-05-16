@@ -39,6 +39,20 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+// Normalize Content-Type for proxied requests (e.g., Vercel → Render).
+// When Vercel forwards POST/PUT/PATCH requests, it can sometimes strip or
+// alter the Content-Type header, causing express.json() to skip parsing and
+// leave req.body as undefined. This middleware ensures the header is set.
+app.use((req, _res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const ct = req.headers['content-type'];
+    if (!ct || !ct.includes('application/json')) {
+      req.headers['content-type'] = 'application/json';
+    }
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
