@@ -11,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ThumbsUp, CheckCircle, Send, MessageSquare, Users, Clock,
-  Video, ArrowLeft, Radio, Flag, AlertCircle
+  Video, ArrowLeft, Radio, Flag, AlertCircle, X
 } from 'lucide-react';
 
 export default function SessionRoom() {
@@ -29,6 +29,7 @@ export default function SessionRoom() {
   const [jitsiLoaded, setJitsiLoaded] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [showMobileChat, setShowMobileChat] = useState(false);
   
   const jitsiRef = useRef<any>(null);
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
@@ -91,6 +92,9 @@ export default function SessionRoom() {
           enableClosePage: false,
           prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
           disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
+          toolbarButtons: session?.isTeacher 
+            ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security']
+            : ['camera', 'closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: session?.isTeacher 
@@ -357,19 +361,39 @@ export default function SessionRoom() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative">
         {/* Main video area */}
         <div className="h-[35vh] min-h-[250px] shrink-0 md:h-auto md:min-h-0 md:flex-1 flex flex-col relative bg-black">
           {!hasJoined ? (
             renderWaitingRoom()
           ) : (
-            <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
+            <>
+              <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
+              {/* Mobile Chat Toggle Button */}
+              <button 
+                className="md:hidden absolute bottom-24 right-4 z-[60] bg-primary text-primary-foreground p-3.5 rounded-full shadow-xl hover:scale-105 transition-transform"
+                onClick={() => setShowMobileChat(true)}
+              >
+                <MessageSquare className="w-6 h-6" />
+              </button>
+            </>
           )}
         </div>
 
         {/* Q&A Sidebar */}
-        <div className="flex-1 md:flex-none w-full md:w-96 bg-slate-800 border-t md:border-t-0 md:border-l border-white/10 flex flex-col shadow-[0_-4px_15px_rgba(0,0,0,0.1)] md:shadow-[-4px_0_15px_rgba(0,0,0,0.1)] z-10 overflow-hidden">
-          <div className="p-4 border-b border-white/10 bg-slate-800/80 backdrop-blur-sm">
+        <div className={`
+          absolute inset-y-0 right-0 z-[70] transition-transform duration-300 ease-in-out
+          md:relative md:translate-x-0 md:z-10
+          flex-1 md:flex-none w-full md:w-96 bg-slate-800 border-l border-white/10 flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.1)] overflow-hidden
+          ${showMobileChat ? 'translate-x-0' : 'translate-x-full'}
+        `}>
+          <div className="p-4 border-b border-white/10 bg-slate-800/80 backdrop-blur-sm relative">
+            <button 
+               className="md:hidden absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 p-1.5 rounded-full z-10"
+               onClick={() => setShowMobileChat(false)}
+            >
+               <X className="w-5 h-5" />
+            </button>
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-primary/20 rounded-md text-primary">
                 <MessageSquare className="w-4 h-4" />
