@@ -42,6 +42,49 @@ const queryClient = new QueryClient({
   },
 });
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Caught error in boundary:", error, errorInfo);
+    // If the error is a dynamic import failure (chunk load error), reload the page to get the latest bundle
+    if (
+      error?.message?.includes("Failed to fetch dynamically imported module") || 
+      error?.message?.includes("Importing a module script failed") ||
+      error?.name === 'ChunkLoadError'
+    ) {
+      window.location.reload();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
+          <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
+          <p className="text-muted-foreground mb-6 text-center max-w-md">
+            We had trouble loading this page. This usually happens when the app has been updated.
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium shadow-sm"
+          >
+            Refresh Page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const noLayoutRoutes = ['/login', '/register', '/session/'];
@@ -57,11 +100,12 @@ function LayoutWrapper({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <LayoutWrapper>
-      <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    }>
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        }>
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/courses" component={Courses} />
@@ -89,7 +133,8 @@ function Router() {
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route component={NotFound} />
       </Switch>
-    </Suspense>
+        </Suspense>
+      </ErrorBoundary>
     </LayoutWrapper>
   );
 }
