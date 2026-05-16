@@ -94,7 +94,7 @@ export default function SessionRoom() {
           disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
           toolbarButtons: session?.isTeacher 
             ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security']
-            : ['camera', 'closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
+            : ['closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: session?.isTeacher 
@@ -105,7 +105,7 @@ export default function SessionRoom() {
                 'mute-everyone', 'security'
               ]
             : [
-                'camera', 'closedcaptions', 
+                'closedcaptions', 
                 'fullscreen', 'hangup', 'chat',
                 'raisehand', 'tileview'
               ],
