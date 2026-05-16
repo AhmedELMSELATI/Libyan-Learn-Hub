@@ -35,6 +35,7 @@ export default function TeacherDashboard() {
   const [cancelReason, setCancelReason] = React.useState('');
   const [notifyStudents, setNotifyStudents] = React.useState(true);
   const [isCancelling, setIsCancelling] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState("courses");
 
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -222,7 +223,15 @@ export default function TeacherDashboard() {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground font-medium">{usedGB} GB / {totalGB} GB</span>
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => setActiveTab('promote')}
+                        className="text-xs text-primary font-bold hover:underline transition-colors"
+                      >
+                        Upgrade Plan
+                      </button>
+                      <span className="text-xs text-muted-foreground font-medium">{usedGB} GB / {totalGB} GB</span>
+                    </div>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <div className={`${barColor} h-2 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
@@ -238,12 +247,12 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <Tabs defaultValue="courses">
-          <TabsList className="mb-8 bg-muted/60">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-8 bg-muted/60 flex flex-wrap h-auto">
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> {t('teacher_dashboard.my_courses')}</TabsTrigger>
             <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> {t('teacher_dashboard.live_sessions')}</TabsTrigger>
             <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> {t('teacher_dashboard.students')}</TabsTrigger>
-            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> {t('teacher_dashboard.promote')}</TabsTrigger>
+            <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> Plans & Promote</TabsTrigger>
           </TabsList>
 
           {/* COURSES TAB */}
