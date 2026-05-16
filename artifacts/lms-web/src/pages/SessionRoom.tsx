@@ -90,6 +90,7 @@ export default function SessionRoom() {
           disableDeepLinking: true,
           enableClosePage: false,
           prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
+          disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: session?.isTeacher 
@@ -100,7 +101,7 @@ export default function SessionRoom() {
                 'mute-everyone', 'security'
               ]
             : [
-                'microphone', 'camera', 'closedcaptions', 
+                'camera', 'closedcaptions', 
                 'fullscreen', 'hangup', 'chat',
                 'raisehand', 'tileview'
               ],
