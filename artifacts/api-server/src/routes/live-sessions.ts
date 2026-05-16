@@ -31,12 +31,39 @@ async function formatSession(session: any) {
   };
 }
 
+import { verifyToken } from "../lib/auth.js";
+
 router.get("/", async (req, res) => {
   try {
     const { courseId, upcoming } = req.query as any;
+    
+    // Optional auth to check if user is a teacher
+    const authHeader = req.headers.authorization;
+    let userRole = null;
+    let userId = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const payload = verifyToken(authHeader.slice(7));
+        userRole = payload.role;
+        userId = payload.userId;
+      } catch (e) {}
+    }
+
     let sessions = await db.select().from(liveSessionsTable);
+    
     if (courseId) sessions = sessions.filter(s => s.courseId === parseParam(courseId));
     if (upcoming === "true") sessions = sessions.filter(s => new Date(s.scheduledAt) >= new Date());
+    
+    // Filter visibility
+    sessions = sessions.filter(s => {
+      // Visible to everyone if not ended/cancelled
+      if (s.status !== "ended" && s.status !== "cancelled") return true;
+      // If ended/cancelled, only admin or the teacher who created it can see it
+      if (userRole === "admin") return true;
+      if (userRole === "teacher" && s.teacherId === userId) return true;
+      return false;
+    });
+
     const result = await Promise.all(sessions.map(formatSession));
     res.json(result);
   } catch (err: any) {
@@ -182,6 +209,33 @@ router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), asy
       success: true,
       message: "Session ended successfully",
       session: await formatSession(updatedSession)
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.delete("/:sessionId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
+    
+    if (!session) { 
+      res.status(404).json({ error: "Session not found" }); 
+      return; 
+    }
+    
+    if (session.teacherId !== userId && role !== "admin") {
+      res.status(403).json({ error: "Forbidden: You are not the teacher of this session" });
+      return;
+    }
+
+    await db.delete(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId)));
+
+    res.json({
+      success: true,
+      message: "Session deleted successfully"
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

@@ -350,9 +350,9 @@ export default function SessionRoom() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Main video area */}
-        <div className="flex-1 flex flex-col relative bg-black">
+        <div className="h-[35vh] min-h-[250px] shrink-0 md:h-auto md:min-h-0 md:flex-1 flex flex-col relative bg-black">
           {!hasJoined ? (
             renderWaitingRoom()
           ) : (
@@ -361,7 +361,7 @@ export default function SessionRoom() {
         </div>
 
         {/* Q&A Sidebar */}
-        <div className="w-80 md:w-96 bg-slate-800 border-l border-white/10 flex flex-col shrink-0 shadow-[-4px_0_15px_rgba(0,0,0,0.1)] z-10">
+        <div className="flex-1 md:flex-none w-full md:w-96 bg-slate-800 border-t md:border-t-0 md:border-l border-white/10 flex flex-col shadow-[0_-4px_15px_rgba(0,0,0,0.1)] md:shadow-[-4px_0_15px_rgba(0,0,0,0.1)] z-10 overflow-hidden">
           <div className="p-4 border-b border-white/10 bg-slate-800/80 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-primary/20 rounded-md text-primary">
