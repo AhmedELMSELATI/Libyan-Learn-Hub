@@ -8,7 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, ArrowRight, GraduationCap, Presentation, Phone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, GraduationCap, Presentation, Phone, Mail, Lock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { useApi } from '@/hooks/useApi';
 import { Blob } from '@/components/ui/Blob';
@@ -38,11 +39,15 @@ export default function Auth() {
   })();
   const { login: setAuthContext } = useAuth();
   const { language } = useLanguage();
+  const { toast } = useToast();
   const isRtl = language === 'ar';
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
   const api = useApi();
   const [errorMsg, setErrorMsg] = useState('');
-  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [step, setStep] = useState<'form' | 'otp' | 'forgot' | 'reset'>('form');
+  const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [otpInfo, setOtpInfo] = useState<{ message: string; code: string } | null>(null);
   const [pendingToken, setPendingToken] = useState<string>('');
   const [pendingRole, setPendingRole] = useState<string>('student');
@@ -120,6 +125,61 @@ export default function Auth() {
     loginMutate({ data });
   };
 
+  const handleRequestReset = async () => {
+    if (!resetEmail) {
+      setErrorMsg('Please enter your email');
+      return;
+    }
+    setErrorMsg('');
+    setVerifying(true);
+    try {
+      const res = await api.post('/auth/forgot-password', { email: resetEmail });
+      setOtpInfo({ message: res.otpMessage, code: res.otpCode });
+      setStep('reset');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to request reset code');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleFinalReset = async () => {
+    if (otpCode.length !== 6) {
+      setErrorMsg('Please enter the 6-digit reset code');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setErrorMsg('Password must be at least 6 characters');
+      return;
+    }
+    setErrorMsg('');
+    setVerifying(true);
+    try {
+      await api.post('/auth/reset-password', {
+        email: resetEmail,
+        otpCode,
+        newPassword
+      });
+      toast({ 
+        title: language === 'ar' ? 'تم إعادة تعيين كلمة المرور!' : 'Password reset successful!', 
+        description: language === 'ar' ? 'يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.' : 'You can now log in with your new password.' 
+      });
+      setStep('form');
+      setLocation('/login');
+      setOtpCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to reset password');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const onSubmitRegister = (data: z.infer<typeof registerSchema>) => {
     setErrorMsg('');
     // All roles now register directly. Teachers default to 'free' tier on the backend,
@@ -158,6 +218,121 @@ export default function Auth() {
   };
 
 
+
+  // ── Forgot Password Step ───────────────────────────────────────────────
+  if (step === 'forgot') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-card rounded-3xl border border-border shadow-xl p-10 w-full max-w-md"
+        >
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-display font-bold">Forgot Password?</h2>
+            <p className="text-muted-foreground mt-2 text-sm">Enter your email to receive a reset code</p>
+          </div>
+
+          {errorMsg && (
+            <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <Input
+              type="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="h-14 bg-muted/50"
+            />
+            <Button
+              className="w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold"
+              onClick={handleRequestReset}
+              disabled={verifying}
+            >
+              {verifying ? 'Sending...' : 'Send Reset Code'}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-foreground"
+              onClick={() => { setStep('form'); setErrorMsg(''); }}
+            >
+              Back to Login
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Reset Password Step ────────────────────────────────────────────────
+  if (step === 'reset') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-card rounded-3xl border border-border shadow-xl p-10 w-full max-w-md"
+        >
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-display font-bold">Set New Password</h2>
+            <p className="text-muted-foreground mt-2 text-sm">Enter the code and your new password</p>
+          </div>
+
+          {otpInfo && (
+            <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary/80">
+              <p className="font-medium mb-1">Development Mode:</p>
+              <p>{otpInfo.message}</p>
+            </div>
+          )}
+
+          {errorMsg && (
+            <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <Input
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="6-digit code"
+              className="h-12 text-center text-xl font-mono bg-muted/50"
+            />
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password"
+              className="h-12 bg-muted/50"
+            />
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+              className="h-12 bg-muted/50"
+            />
+            <Button
+              className="w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold"
+              onClick={handleFinalReset}
+              disabled={verifying}
+            >
+              {verifying ? 'Resetting...' : 'Update Password'}
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   // ── OTP Step ────────────────────────────────────────────────────────────
   if (step === 'otp') {
@@ -276,7 +451,16 @@ export default function Auth() {
                   {loginForm.formState.errors.email && <p className="mt-1 text-sm text-destructive">{loginForm.formState.errors.email.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-foreground">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => { setStep('forgot'); setErrorMsg(''); }}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <Input {...loginForm.register('password')} type="password" placeholder="••••••••" className="h-12 bg-muted/50 border-transparent focus:bg-background" />
                 </div>
                 <Button type="submit" className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" disabled={isLoggingIn}>

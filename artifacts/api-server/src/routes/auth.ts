@@ -264,4 +264,86 @@ router.get("/me", requireAuth, async (req, res) => {
   });
 });
 
+router.post("/forgot-password", authLimiter, async (req, res) => {
+  try {
+    const { email, phoneNumber } = req.body;
+    if (!email && !phoneNumber) {
+      res.status(400).json({ error: "Email or phone number is required" });
+      return;
+    }
+
+    const query = email 
+      ? eq(usersTable.email, email)
+      : eq(usersTable.phoneNumber, phoneNumber);
+
+    const [user] = await db.select().from(usersTable).where(query).limit(1);
+    if (!user) {
+      // For security, don't reveal if user exists, but here we can be helpful for dev
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const otpCode = generateOtp();
+    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await db.update(usersTable)
+      .set({ otpCode, otpExpiry })
+      .where(eq(usersTable.id, user.id));
+
+    res.json({
+      message: "Reset code sent",
+      otpCode, // Returned for dev purposes
+      otpMessage: user.phoneNumber
+        ? `Your password reset code is: ${otpCode} (Mock SMS to ${user.phoneNumber})`
+        : `Your password reset code is: ${otpCode} (Mock Email to ${user.email})`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/reset-password", authLimiter, async (req, res) => {
+  try {
+    const { email, phoneNumber, otpCode, newPassword } = req.body;
+    if ((!email && !phoneNumber) || !otpCode || !newPassword) {
+      res.status(400).json({ error: "Missing required fields" });
+      return;
+    }
+
+    const query = email 
+      ? eq(usersTable.email, email)
+      : eq(usersTable.phoneNumber, phoneNumber);
+
+    const [user] = await db.select().from(usersTable).where(query).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (!user.otpCode || user.otpCode !== otpCode) {
+      res.status(400).json({ error: "Invalid reset code" });
+      return;
+    }
+
+    if (user.otpExpiry && new Date() > user.otpExpiry) {
+      res.status(400).json({ error: "Reset code has expired" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(usersTable)
+      .set({ 
+        passwordHash, 
+        otpCode: null, 
+        otpExpiry: null,
+        updatedAt: new Date() 
+      })
+      .where(eq(usersTable.id, user.id));
+
+    res.json({ success: true, message: "Password has been reset successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 export default router;
