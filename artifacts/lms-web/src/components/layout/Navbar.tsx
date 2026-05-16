@@ -144,21 +144,19 @@ export function Navbar() {
                         </Link>
                         
                         {user?.role === 'student' && (
-                          <>
-                            <Link href="/academy/dashboard" onClick={() => setIsUserMenuOpen(false)}>
-                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors text-start font-medium">
-                                <GraduationCap className="w-4 h-4 text-amber-500" />
-                                {language === 'ar' ? 'بوابة الأكاديمية' : 'Academy Portal'}
-                              </button>
-                            </Link>
-                            <Link href="/profile" onClick={() => setIsUserMenuOpen(false)}>
-                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-start">
-                                <UserIcon className="w-4 h-4 text-muted-foreground" />
-                                {language === 'ar' ? 'الملف الشخصي' : 'Profile'}
-                              </button>
-                            </Link>
-                          </>
+                          <Link href="/academy/dashboard" onClick={() => setIsUserMenuOpen(false)}>
+                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors text-start font-medium">
+                              <GraduationCap className="w-4 h-4 text-amber-500" />
+                              {language === 'ar' ? 'بوابة الأكاديمية' : 'Academy Portal'}
+                            </button>
+                          </Link>
                         )}
+                        <Link href="/profile" onClick={() => setIsUserMenuOpen(false)}>
+                          <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-start">
+                            <UserIcon className="w-4 h-4 text-muted-foreground" />
+                            {language === 'ar' ? 'الملف الشخصي' : 'Profile Settings'}
+                          </button>
+                        </Link>
 
                         {user?.role === 'admin' && (
                           <Link href="/admin/dashboard" onClick={() => setIsUserMenuOpen(false)}>
@@ -259,13 +257,11 @@ export function Navbar() {
                       <LayoutDashboard className="w-4 h-4" /> {t('nav.dashboard')}
                     </Button>
                   </Link>
-                  {user?.role === 'student' && (
-                    <Link href="/profile" onClick={() => setIsMobileOpen(false)}>
-                      <Button className="w-full justify-start gap-2" variant="outline">
-                        <UserIcon className="w-4 h-4" /> {language === 'ar' ? 'الملف الشخصي' : 'Profile'}
-                      </Button>
-                    </Link>
-                  )}
+                  <Link href="/profile" onClick={() => setIsMobileOpen(false)}>
+                    <Button className="w-full justify-start gap-2" variant="outline">
+                      <UserIcon className="w-4 h-4" /> {language === 'ar' ? 'الملف الشخصي' : 'Profile Settings'}
+                    </Button>
+                  </Link>
                   <Button variant="ghost" onClick={() => { 
                     setIsMobileOpen(false); 
                     setTimeout(() => {
