@@ -278,8 +278,8 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
 
     const [user] = await db.select().from(usersTable).where(query).limit(1);
     if (!user) {
-      // For security, don't reveal if user exists, but here we can be helpful for dev
-      res.status(404).json({ error: "User not found" });
+      // For security, normally don't reveal if user exists, but here we can be helpful for dev
+      res.status(400).json({ error: "User not found. Please register first." });
       return;
     }
 

@@ -137,6 +137,7 @@ export default function Auth() {
       setOtpInfo({ message: res.otpMessage, code: res.otpCode });
       setStep('reset');
     } catch (err: any) {
+      console.error('Forgot password error:', err);
       setErrorMsg(err.message || 'Failed to request reset code');
     } finally {
       setVerifying(false);
