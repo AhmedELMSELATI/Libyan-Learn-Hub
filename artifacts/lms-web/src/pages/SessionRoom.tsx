@@ -92,11 +92,18 @@ export default function SessionRoom() {
           prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
         },
         interfaceConfigOverwrite: {
-          TOOLBAR_BUTTONS: [
-            'microphone', 'camera', 'closedcaptions', 'desktop',
-            'fullscreen', 'fodeviceselection', 'hangup', 'chat',
-            'raisehand', 'tileview', 'select-background',
-          ],
+          TOOLBAR_BUTTONS: session?.isTeacher 
+            ? [
+                'microphone', 'camera', 'closedcaptions', 'desktop',
+                'fullscreen', 'fodeviceselection', 'hangup', 'chat',
+                'raisehand', 'tileview', 'select-background',
+                'mute-everyone', 'security'
+              ]
+            : [
+                'microphone', 'camera', 'closedcaptions', 
+                'fullscreen', 'hangup', 'chat',
+                'raisehand', 'tileview'
+              ],
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
           DEFAULT_REMOTE_DISPLAY_NAME: 'Student',
@@ -244,8 +251,8 @@ export default function SessionRoom() {
   const renderWaitingRoom = () => {
     if (!canJoin) {
       return (
-        <div className="flex-1 flex items-center justify-center bg-slate-800">
-          <div className="text-center max-w-md px-6 bg-slate-900/50 p-8 rounded-3xl border border-white/5">
+        <div className="flex-1 flex items-center justify-center bg-slate-800 p-4 overflow-y-auto min-h-full">
+          <div className="text-center max-w-md w-full bg-slate-900/50 p-6 md:p-8 rounded-3xl border border-white/5 relative shrink-0 my-auto">
             <Video className="w-16 h-16 text-white/20 mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">Ready to Join?</h2>
             <p className="text-white/60 mb-6">
@@ -268,10 +275,9 @@ export default function SessionRoom() {
       );
     }
 
-    // Registered user / teacher waiting room
     return (
-      <div className="flex-1 flex items-center justify-center bg-slate-800">
-        <div className="text-center max-w-md px-6 bg-slate-900/50 p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+      <div className="flex-1 flex items-center justify-center bg-slate-800 p-4 overflow-y-auto min-h-full">
+        <div className="text-center max-w-md w-full bg-slate-900/50 p-6 md:p-8 rounded-3xl border border-white/5 relative overflow-hidden shrink-0 my-auto">
           {session.status === 'live' && !session.isTeacher && (
              <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
           )}
