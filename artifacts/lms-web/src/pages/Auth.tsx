@@ -97,11 +97,13 @@ export default function Auth() {
     mutation: {
       onSuccess: (data) => {
         setAuthContext(data.token);
-        // Honor redirect param, otherwise go to role-based default
-        if (redirectTo) {
-          setLocation(redirectTo);
+        const searchParams = new URLSearchParams(window.location.search);
+        const returnTo = searchParams.get('returnTo');
+        
+        if (returnTo) {
+          window.location.href = decodeURIComponent(returnTo);
         } else {
-          setLocation(data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+          window.location.href = data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard';
         }
       },
       onError: (err) => setErrorMsg(err.message || 'Login failed')
@@ -199,9 +201,8 @@ export default function Auth() {
       localStorage.setItem('lms_token', pendingToken);
       await api.post('/auth/verify-otp', { code: otpCode, type: 'phone' });
       setAuthContext(pendingToken);
-      // Allow auth state to settle before navigating
-      await new Promise(r => setTimeout(r, 100));
-      setLocation(pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+      toast({ title: 'Registration successful!' });
+      window.location.href = pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard';
     } catch (err: any) {
       localStorage.removeItem('lms_token');
       setErrorMsg(err.message || 'Invalid code');
