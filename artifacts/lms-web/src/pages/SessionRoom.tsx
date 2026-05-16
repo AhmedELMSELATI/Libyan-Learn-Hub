@@ -68,15 +68,15 @@ export default function SessionRoom() {
     if (jitsiLoaded || !jitsiContainerRef.current) return;
 
     const script = document.createElement('script');
-    // Using Freifunk München community Jitsi server to bypass meet.jit.si 5-minute anonymous limits
-    script.src = 'https://meet.ffmuc.net/external_api.js';
+    // Reverting to official meet.jit.si due to strict CSP iframe blocks on community servers
+    script.src = 'https://meet.jit.si/external_api.js';
     script.async = true;
     script.onload = () => {
       if (!jitsiContainerRef.current) return;
       const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
       if (!JitsiMeetExternalAPI) return;
       
-      const domain = 'meet.ffmuc.net';
+      const domain = 'meet.jit.si';
       const options = {
         roomName: roomId,
         parentNode: jitsiContainerRef.current,
