@@ -94,7 +94,7 @@ export default function SessionRoom() {
           prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
           disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
           toolbarButtons: session?.isTeacher 
-            ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security']
+            ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security', 'recording', 'localrecording']
             : ['closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
         },
         interfaceConfigOverwrite: {
@@ -103,7 +103,7 @@ export default function SessionRoom() {
                 'microphone', 'camera', 'closedcaptions', 'desktop',
                 'fullscreen', 'fodeviceselection', 'hangup', 'chat',
                 'raisehand', 'tileview', 'select-background',
-                'mute-everyone', 'security'
+                'mute-everyone', 'security', 'recording', 'localrecording'
               ]
             : [
                 'closedcaptions', 
