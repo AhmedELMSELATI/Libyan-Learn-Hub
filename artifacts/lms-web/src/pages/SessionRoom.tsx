@@ -93,6 +93,8 @@ export default function SessionRoom() {
           enableClosePage: false,
           prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
           disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
+          fileRecordingsEnabled: true,
+          localRecording: { enabled: true, format: 'flac' },
           toolbarButtons: session?.isTeacher 
             ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security', 'recording', 'localrecording']
             : ['closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
