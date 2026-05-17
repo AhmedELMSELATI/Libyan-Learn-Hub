@@ -46,8 +46,8 @@ export default function TeacherDashboard() {
     query: { queryKey: ['/api/teacher/courses'], enabled: !!user && user.role === 'teacher' }
   });
   const { data: categories } = useGetCategories();
-  const { data: liveSessions } = useGetLiveSessions(undefined, {
-    query: { queryKey: ['/api/live-sessions'], enabled: !!user && user.role === 'teacher' }
+  const { data: liveSessions } = useGetLiveSessions({ teacherId: user?.id } as any, {
+    query: { queryKey: ['/api/live-sessions', { teacherId: user?.id }], enabled: !!user && user.role === 'teacher' }
   });
 
   const mySessions = liveSessions?.filter((s: any) => s.teacherId === user?.id) || [];

@@ -9,9 +9,9 @@ const router = Router();
 router.get("/courses", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     const courses = await db.select().from(coursesTable).where(eq(coursesTable.teacherId, userId));
     const result = await Promise.all(courses.map(async (course) => {
-      const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
       const [reviewData] = await db.select({ avgRating: avg(reviewsTable.rating), reviewCount: count() }).from(reviewsTable).where(eq(reviewsTable.courseId, course.id));
       const [enrollData] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, course.id));
       const [lessonData] = await db.select({ lessonCount: count(), totalDuration: sum(lessonsTable.duration) }).from(lessonsTable).where(eq(lessonsTable.courseId, course.id));
@@ -50,25 +50,32 @@ router.get("/courses", requireAuth, requireRole("teacher", "admin"), async (req,
 router.get("/students", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const teacherCourses = await db.select().from(coursesTable).where(eq(coursesTable.teacherId, userId));
-    const result: any[] = [];
-    for (const course of teacherCourses) {
-      const enrollments = await db.select().from(enrollmentsTable).where(eq(enrollmentsTable.courseId, course.id));
-      for (const e of enrollments) {
-        const [student] = await db.select().from(usersTable).where(eq(usersTable.id, e.userId)).limit(1);
-        if (student) {
-          result.push({
-            studentId: student.id,
-            studentName: student.fullName,
-            studentEmail: student.email,
-            courseId: course.id,
-            courseTitle: course.title,
-            enrolledAt: e.enrolledAt,
-            progress: parseFloat(e.progress),
-          });
-        }
-      }
-    }
+    
+    const rawStudents = await db
+      .select({
+        studentId: usersTable.id,
+        studentName: usersTable.fullName,
+        studentEmail: usersTable.email,
+        courseId: coursesTable.id,
+        courseTitle: coursesTable.title,
+        enrolledAt: enrollmentsTable.enrolledAt,
+        progress: enrollmentsTable.progress,
+      })
+      .from(enrollmentsTable)
+      .innerJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
+      .innerJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
+      .where(eq(coursesTable.teacherId, userId));
+
+    const result = rawStudents.map(s => ({
+      studentId: s.studentId,
+      studentName: s.studentName,
+      studentEmail: s.studentEmail,
+      courseId: s.courseId,
+      courseTitle: s.courseTitle,
+      enrolledAt: s.enrolledAt,
+      progress: parseFloat(s.progress as any || "0"),
+    }));
+    
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

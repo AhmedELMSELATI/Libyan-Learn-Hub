@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { liveSessionsTable, usersTable, enrollmentsTable } from "@workspace/db";
-import { eq, gte, count } from "drizzle-orm";
+import { eq, gte, count, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import { getSessionDurationLimit } from "../lib/plans.js";
@@ -9,13 +9,20 @@ import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
-async function formatSession(session: any) {
-  const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
+async function formatSession(session: any, teacherCache?: Map<number, string>) {
+  let teacherName = "";
+  if (teacherCache && teacherCache.has(session.teacherId)) {
+    teacherName = teacherCache.get(session.teacherId)!;
+  } else {
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
+    teacherName = teacher?.fullName || "";
+    if (teacherCache) teacherCache.set(session.teacherId, teacherName);
+  }
   return {
     id: session.id,
     courseId: session.courseId,
     teacherId: session.teacherId,
-    teacherName: teacher?.fullName || "",
+    teacherName,
     title: session.title,
     titleAr: session.titleAr,
     description: session.description,
@@ -35,7 +42,7 @@ import { verifyToken } from "../lib/auth.js";
 
 router.get("/", async (req, res) => {
   try {
-    const { courseId, upcoming } = req.query as any;
+    const { courseId, upcoming, teacherId } = req.query as any;
     
     // Optional auth to check if user is a teacher
     const authHeader = req.headers.authorization;
@@ -49,10 +56,12 @@ router.get("/", async (req, res) => {
       } catch (e) {}
     }
 
-    let sessions = await db.select().from(liveSessionsTable);
-    
-    if (courseId) sessions = sessions.filter(s => s.courseId === parseParam(courseId));
-    if (upcoming === "true") sessions = sessions.filter(s => new Date(s.scheduledAt) >= new Date());
+    const conditions = [];
+    if (courseId) conditions.push(eq(liveSessionsTable.courseId, parseParam(courseId)));
+    if (teacherId) conditions.push(eq(liveSessionsTable.teacherId, parseParam(teacherId)));
+    if (upcoming === "true") conditions.push(gte(liveSessionsTable.scheduledAt, new Date()));
+
+    let sessions = await db.select().from(liveSessionsTable).where(conditions.length > 0 ? and(...conditions) : undefined);
     
     // Filter visibility
     sessions = sessions.filter(s => {
@@ -64,7 +73,8 @@ router.get("/", async (req, res) => {
       return false;
     });
 
-    const result = await Promise.all(sessions.map(formatSession));
+    const teacherCache = new Map<number, string>();
+    const result = await Promise.all(sessions.map(s => formatSession(s, teacherCache)));
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
