@@ -31,6 +31,11 @@ export function InactivityTimer() {
   const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastActivityUpdateRef = useRef<number>(Date.now());
+  const showWarningRef = useRef<boolean>(showWarning);
+
+  useEffect(() => {
+    showWarningRef.current = showWarning;
+  }, [showWarning]);
 
   // Auto logout triggered when the grace countdown finishes
   const handleAutoLogout = useCallback(() => {
@@ -40,7 +45,7 @@ export function InactivityTimer() {
 
   // Update localStorage with current time, throttled to max once per second
   const updateActivity = useCallback(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || showWarningRef.current) return;
     const now = Date.now();
     if (now - lastActivityUpdateRef.current > 1000) {
       localStorage.setItem(STORAGE_KEY, now.toString());
