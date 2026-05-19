@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Configure timeouts (in milliseconds)
 const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes of inactivity
 const GRACE_PERIOD = 30 * 1000;          // 30 seconds countdown warning
+const STORAGE_KEY = 'lms_last_activity';
 
 export function InactivityTimer() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -27,8 +28,9 @@ export function InactivityTimer() {
   const [showWarning, setShowWarning] = useState(false);
   const [countdown, setCountdown] = useState(GRACE_PERIOD / 1000);
 
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityUpdateRef = useRef<number>(Date.now());
 
   // Auto logout triggered when the grace countdown finishes
   const handleAutoLogout = useCallback(() => {
@@ -36,49 +38,83 @@ export function InactivityTimer() {
     logout('/login?reason=inactivity');
   }, [logout]);
 
-  // Reset the main inactivity timer
-  const resetInactivityTimer = useCallback(() => {
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
+  // Update localStorage with current time, throttled to max once per second
+  const updateActivity = useCallback(() => {
+    if (!isAuthenticated) return;
+    const now = Date.now();
+    if (now - lastActivityUpdateRef.current > 1000) {
+      localStorage.setItem(STORAGE_KEY, now.toString());
+      lastActivityUpdateRef.current = now;
+      
+      // If we're showing the warning but user interacts (e.g., clicks around),
+      // we don't automatically hide it unless they click the explicit "Keep Me Signed In" button
+      // to ensure they acknowledge it.
     }
-    
-    // Only run the timer if the user is authenticated
-    if (isAuthenticated && !showWarning) {
-      inactivityTimerRef.current = setTimeout(() => {
-        setShowWarning(true);
-      }, INACTIVITY_LIMIT);
-    }
-  }, [isAuthenticated, showWarning]);
+  }, [isAuthenticated]);
 
   // Listen to interactive events to establish user activity
   useEffect(() => {
-    if (!isAuthenticated) {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      return;
-    }
+    if (!isAuthenticated) return;
+
+    // Initialize activity
+    localStorage.setItem(STORAGE_KEY, Date.now().toString());
 
     const activityEvents = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
     
-    const handleActivity = () => {
-      resetInactivityTimer();
-    };
-
     // Attach listeners
     activityEvents.forEach((event) => {
-      window.addEventListener(event, handleActivity);
+      window.addEventListener(event, updateActivity, { passive: true });
     });
-
-    // Initialize timer
-    resetInactivityTimer();
 
     // Cleanup listeners
     return () => {
       activityEvents.forEach((event) => {
-        window.removeEventListener(event, handleActivity);
+        window.removeEventListener(event, updateActivity);
       });
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
-  }, [isAuthenticated, resetInactivityTimer]);
+  }, [isAuthenticated, updateActivity]);
+
+  // Periodic check for inactivity across tabs
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
+      return;
+    }
+
+    checkIntervalRef.current = setInterval(() => {
+      const lastActivityStr = localStorage.getItem(STORAGE_KEY);
+      const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
+      const timeSinceLastActivity = Date.now() - lastActivity;
+
+      if (timeSinceLastActivity >= INACTIVITY_LIMIT) {
+        setShowWarning(true);
+      } else {
+        // If another tab updated activity, dismiss the warning here
+        if (showWarning && timeSinceLastActivity < INACTIVITY_LIMIT) {
+          setShowWarning(false);
+        }
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
+    };
+  }, [isAuthenticated, showWarning]);
+
+  // Listen to storage events directly so if another tab clicks "Keep Me Signed In",
+  // this tab immediately closes the modal.
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && showWarning) {
+        const newTime = parseInt(e.newValue || '0', 10);
+        if (Date.now() - newTime < INACTIVITY_LIMIT) {
+          setShowWarning(false);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [showWarning]);
 
   // Handle countdown interval when warning alert dialog is displayed
   useEffect(() => {
@@ -86,6 +122,14 @@ export function InactivityTimer() {
       setCountdown(GRACE_PERIOD / 1000);
 
       countdownTimerRef.current = setInterval(() => {
+        // Re-check activity in case it was updated in another tab but the interval hasn't fired
+        const lastActivityStr = localStorage.getItem(STORAGE_KEY);
+        const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
+        if (Date.now() - lastActivity < INACTIVITY_LIMIT) {
+          setShowWarning(false);
+          return;
+        }
+
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(countdownTimerRef.current!);
@@ -110,8 +154,8 @@ export function InactivityTimer() {
 
   // Keep Session Action
   const handleKeepSession = () => {
+    localStorage.setItem(STORAGE_KEY, Date.now().toString());
     setShowWarning(false);
-    resetInactivityTimer();
   };
 
   // Immediate Sign Out Action
@@ -131,7 +175,12 @@ export function InactivityTimer() {
   return (
     <AnimatePresence>
       {showWarning && (
-        <AlertDialog open={showWarning} onOpenChange={setShowWarning}>
+        <AlertDialog open={showWarning} onOpenChange={(open) => {
+          // If the user tries to dismiss via outside click or escape, treat it as activity
+          if (!open) {
+            handleKeepSession();
+          }
+        }}>
           <AlertDialogContent className="max-w-md rounded-3xl border border-border shadow-2xl p-6 overflow-hidden">
             
             {/* Glassmorphic Background Glow */}
@@ -160,7 +209,7 @@ export function InactivityTimer() {
               <div className="flex items-center gap-3 bg-muted/50 py-2 px-4 rounded-full my-3 border border-border/30">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-sm font-semibold text-foreground/80">
-                  {isTeacher ? `👨‍🏫 ${user.fullName} (Teacher)` : `🎓 ${user.fullName} (Student)`}
+                  {isTeacher ? `👨‍🏫 ${user.fullName}` : `🎓 ${user.fullName}`}
                 </span>
               </div>
 
@@ -172,7 +221,7 @@ export function InactivityTimer() {
             {/* Countdown Clock Display */}
             <div className="flex flex-col items-center justify-center my-5 py-4 bg-muted/40 rounded-2xl border border-border/20">
               <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-1">
-                {t('inactivity.countdown').replace('{seconds}', countdown.toString()).split(' ')[0]} {/* Simple fallback, translation handles full text below */}
+                {t('inactivity.countdown').replace('{seconds}', countdown.toString()).split(' ')[0]}
               </span>
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-mono font-bold tracking-tight text-destructive">

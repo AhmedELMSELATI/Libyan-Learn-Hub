@@ -801,64 +801,6 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
           </div>
         </div>
       </div>
-
-      <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>
-              {sessionToCancel?.status === 'live' ? 'End Live Session' : 'Cancel Live Session'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            {sessionToCancel?.status === 'live' ? (
-              <p className="text-sm text-muted-foreground">
-                Are you sure you want to end this live session? All participants will be disconnected.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Are you sure you want to cancel <strong>{sessionToCancel?.title}</strong>? Students will no longer be able to join.
-              </p>
-            )}
-            
-            {sessionToCancel?.status !== 'live' && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Reason (Optional)</label>
-                  <Textarea
-                    placeholder="Brief reason for cancellation..."
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="notify" 
-                    checked={notifyStudents}
-                    onCheckedChange={(c) => setNotifyStudents(!!c)}
-                  />
-                  <label htmlFor="notify" className="text-sm font-medium leading-none cursor-pointer">
-                    Notify registered students
-                  </label>
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter className="mt-6 gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setCancelModalOpen(false)}>
-              Keep Session
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleCancelSession}
-              disabled={isCancelling}
-            >
-              {isCancelling ? 'Processing...' : (sessionToCancel?.status === 'live' ? 'End Session' : 'Cancel Session')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
-
