@@ -85,6 +85,12 @@ const translations: Record<Language, Record<string, string>> = {
     'profile.password': 'Password',
     'profile.save': 'Save Changes',
     'profile.update_success': 'Profile updated successfully',
+    'inactivity.warning.title': 'Session Expiry Warning',
+    'inactivity.teacher.message': 'Dear Teacher, you have been inactive for 15 minutes. To protect exam materials, grades, and student privacy, your session will expire soon.',
+    'inactivity.student.message': 'Dear Student, you have been inactive for 15 minutes. To ensure your lesson and course progress are recorded safely, please confirm you are still here.',
+    'inactivity.countdown': 'Signing out in {seconds} seconds...',
+    'inactivity.btn.stay': 'Keep Me Signed In',
+    'inactivity.btn.logout': 'Sign Out Now',
   },
   ar: {
     'nav.courses': 'الدورات',
@@ -161,6 +167,12 @@ const translations: Record<Language, Record<string, string>> = {
     'profile.password': 'كلمة المرور',
     'profile.save': 'حفظ التغييرات',
     'profile.update_success': 'تم تحديث الملف الشخصي بنجاح',
+    'inactivity.warning.title': 'تنبيه انتهاء الجلسة',
+    'inactivity.teacher.message': 'عزيزي المعلم، لقد كنت غير نشط لمدة 15 دقيقة. لحماية مواد الامتحانات والدرجات وخصوصية الطلاب، ستنتهي جلستك قريباً.',
+    'inactivity.student.message': 'عزيزي الطالب، لقد كنت غير نشط لمدة 15 دقيقة. لضمان تسجيل تقدمك في الدروس والدورات بأمان، يرجى تأكيد تواجدك.',
+    'inactivity.countdown': 'سيتم تسجيل الخروج خلال {seconds} ثانية...',
+    'inactivity.btn.stay': 'إبقاء تسجيل دخولي نشطاً',
+    'inactivity.btn.logout': 'تسجيل الخروج الآن',
   }
 };
 

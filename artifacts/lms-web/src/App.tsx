@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { InactivityTimer } from "@/components/layout/InactivityTimer";
 import { useLocation } from "wouter";
 
 const NotFound = React.lazy(() => import("@/pages/not-found"));
@@ -149,6 +150,7 @@ function App() {
               <Router />
             </WouterRouter>
             <Toaster />
+            <InactivityTimer />
           </TooltipProvider>
         </AuthProvider>
       </LanguageProvider>

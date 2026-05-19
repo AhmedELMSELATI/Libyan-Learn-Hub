@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null | undefined;
   isLoading: boolean;
   login: (token: string) => void;
-  logout: () => void;
+  logout: (redirectUrl?: string) => void;
   refetchUser: () => void;
   isAuthenticated: boolean;
 }
@@ -58,14 +58,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
   };
 
-  const logout = useCallback(() => {
+  const logout = useCallback((redirectUrl: string = '/') => {
     localStorage.removeItem('lms_token');
     setToken(null);
     queryClient.setQueryData(['/api/auth/me'], null);
     queryClient.clear();
-    // Force a hard reload to the home page. 
+    // Force a hard reload to the home page or specified url. 
     // This solves the issue of white screens from stale lazy-loaded chunks (Vercel chunk loading errors)
-    window.location.href = '/';
+    window.location.href = redirectUrl;
   }, [queryClient]);
 
   const refetchUser = useCallback(() => {
