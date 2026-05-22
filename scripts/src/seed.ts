@@ -607,13 +607,13 @@ async function seed() {
   if (s1) {
     await db.insert(enrollmentsTable).values({
       userId: s1.id, courseId: algebraCourse.id,
-      status: "active" as const, progress: "35.00", paymentStatus: "paid" as const,
+      progress: "35.00",
     }).onConflictDoNothing();
   }
   if (s2) {
     await db.insert(enrollmentsTable).values({
       userId: s2.id, courseId: algebraCourse.id,
-      status: "active" as const, progress: "70.00", paymentStatus: "paid" as const,
+      progress: "70.00",
     }).onConflictDoNothing();
   }
   console.log("Enrollments OK");
