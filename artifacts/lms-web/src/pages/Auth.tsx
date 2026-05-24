@@ -24,6 +24,7 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   phoneNumber: z.string().min(9, 'Enter a valid phone number').regex(/^[0-9+\s\-()]+$/, 'Invalid phone number'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  passkey: z.string().length(4, 'Passkey must be exactly 4 digits').regex(/^\d+$/, 'Passkey must contain only numbers'),
   role: z.enum(['student', 'teacher']),
 });
 
@@ -90,7 +91,7 @@ export default function Auth() {
 
   const registerForm = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', role: 'student' as 'student' | 'teacher' }
+    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', passkey: '', role: 'student' as 'student' | 'teacher' }
   });
 
   const { mutate: loginMutate, isPending: isLoggingIn } = useLogin({
@@ -515,9 +516,15 @@ export default function Auth() {
                   {registerForm.formState.errors.phoneNumber && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.phoneNumber.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+                  <label className="text-sm font-medium mb-1.5 block">Password</label>
                   <Input {...registerForm.register('password')} type="password" placeholder="Create a strong password (min 6 chars)" className="h-12 bg-muted/50 border-transparent focus:bg-background" />
                   {registerForm.formState.errors.password && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.password.message}</p>}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Session Passkey (4 Digits)</label>
+                  <Input {...registerForm.register('passkey')} type="password" placeholder="e.g., 1234 (used to quickly unlock your session)" maxLength={4} className="h-12 bg-muted/50 border-transparent focus:bg-background" />
+                  {registerForm.formState.errors.passkey && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.passkey.message}</p>}
                 </div>
 
                 <Button type="submit" className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" disabled={isRegistering}>

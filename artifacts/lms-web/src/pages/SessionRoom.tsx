@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/hooks/useApi';
+import { useMediaActivity } from '@/contexts/MediaActivityContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ export default function SessionRoom() {
   const api = useApi();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { setMediaActive } = useMediaActivity();
   const [question, setQuestion] = useState('');
   const [isEnding, setIsEnding] = useState(false);
   
@@ -54,6 +56,17 @@ export default function SessionRoom() {
     enabled: !!sessionId && !!user,
     refetchInterval: 5000,
   });
+
+  // Signal media active while Jitsi session is live — don't lock during streaming
+  useEffect(() => {
+    if (hasJoined) {
+      setMediaActive(true);
+    } else {
+      setMediaActive(false);
+    }
+    // Always clear on unmount
+    return () => setMediaActive(false);
+  }, [hasJoined]);
 
   // Cleanup Jitsi when leaving
   useEffect(() => {

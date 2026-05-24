@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
 import { useGetCourse, useGetLesson, useUpdateProgress } from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useMediaActivity } from '@/contexts/MediaActivityContext';
 import { ProtectedPlayer } from '@/components/ProtectedPlayer';
 import { PlayCircle, FileText, CheckCircle2, ChevronLeft, Menu, X, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,10 @@ export default function Learn() {
   const courseId = parseInt(params?.id || '0');
   const { language, dir } = useLanguage();
   const [, setLocation] = useLocation();
+  const { pingMediaActivity, setMediaActive } = useMediaActivity();
+
+  // Clear media activity when leaving the learn page
+  useEffect(() => () => setMediaActive(false), []);
 
   const [activeLessonId, setActiveLessonId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -48,6 +53,9 @@ export default function Learn() {
 
   const handleVideoProgress = (progress: { playedSeconds: number }) => {
     if (!lesson || lesson.isCompleted) return;
+    
+    // Signal to the inactivity timer that the user is actively watching
+    pingMediaActivity();
     
     // Mark complete if 90% watched
     const isComplete = progress.playedSeconds > (lesson.duration * 60 * 0.9);

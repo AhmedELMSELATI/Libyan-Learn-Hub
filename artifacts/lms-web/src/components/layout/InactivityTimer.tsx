@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocation } from 'wouter';
+import { Shield } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -20,8 +21,8 @@ const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes of inactivity
 const GRACE_PERIOD = 30 * 1000;          // 30 seconds countdown warning
 const STORAGE_KEY = 'lms_last_activity';
 
-export function InactivityTimer() {
-  const { user, logout, isAuthenticated } = useAuth();
+export function InactivityTimer({ suppressWhenActive = false }: { suppressWhenActive?: boolean }) {
+  const { user, logout, lock, isAuthenticated } = useAuth();
   const { t } = useLanguage();
   const [, setLocation] = useLocation();
 
@@ -37,11 +38,18 @@ export function InactivityTimer() {
     showWarningRef.current = showWarning;
   }, [showWarning]);
 
-  // Auto logout triggered when the grace countdown finishes
+  // Auto action triggered when the grace countdown finishes
+  // If user has a passkey: lock the session (show PasscodeLock overlay)
+  // If no passkey: fully log them out
   const handleAutoLogout = useCallback(() => {
     setShowWarning(false);
-    logout('/login?reason=inactivity');
-  }, [logout]);
+    const hasPasskey = !!(user as any)?.hasPasskey;
+    if (hasPasskey) {
+      lock();
+    } else {
+      logout('/login?reason=inactivity');
+    }
+  }, [lock, logout, user]);
 
   // Update localStorage with current time, throttled to max once per second
   const updateActivity = useCallback(() => {
@@ -87,6 +95,16 @@ export function InactivityTimer() {
     }
 
     checkIntervalRef.current = setInterval(() => {
+      // If media is actively playing / uploading / streaming, keep resetting the activity
+      // timestamp so the warning never fires while the user is "passively" active.
+      if (suppressWhenActive) {
+        localStorage.setItem(STORAGE_KEY, Date.now().toString());
+        lastActivityUpdateRef.current = Date.now();
+        // Make sure any stale warning is dismissed
+        if (showWarning) setShowWarning(false);
+        return;
+      }
+
       const lastActivityStr = localStorage.getItem(STORAGE_KEY);
       const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
       const timeSinceLastActivity = Date.now() - lastActivity;
@@ -104,7 +122,7 @@ export function InactivityTimer() {
     return () => {
       if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
     };
-  }, [isAuthenticated, showWarning]);
+  }, [isAuthenticated, showWarning, suppressWhenActive]);
 
   // Listen to storage events directly so if another tab clicks "Keep Me Signed In",
   // this tab immediately closes the modal.
@@ -163,10 +181,17 @@ export function InactivityTimer() {
     setShowWarning(false);
   };
 
-  // Immediate Sign Out Action
+  const hasPasskey = !!(user as any)?.hasPasskey;
+
+  // Immediate action from the warning dialog
+  // If user has a passkey: lock; otherwise: log out
   const handleManualLogout = () => {
     setShowWarning(false);
-    logout('/login?reason=inactivity');
+    if (hasPasskey) {
+      lock();
+    } else {
+      logout('/login?reason=inactivity');
+    }
   };
 
   if (!isAuthenticated || !user) return null;
@@ -243,8 +268,11 @@ export function InactivityTimer() {
                 onClick={handleManualLogout} 
                 className="flex-1 h-12 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors gap-2 m-0"
               >
-                <LogOut className="w-4 h-4" />
-                {t('inactivity.btn.logout')}
+                {hasPasskey ? (
+                  <><Shield className="w-4 h-4" /> Lock Session</>
+                ) : (
+                  <><LogOut className="w-4 h-4" /> {t('inactivity.btn.logout')}</>
+                )}
               </AlertDialogCancel>
               
               <AlertDialogAction 

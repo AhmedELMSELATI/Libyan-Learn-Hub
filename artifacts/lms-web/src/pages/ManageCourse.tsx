@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/useApi';
+import { useMediaActivity } from '@/contexts/MediaActivityContext';
 import { Badge } from '@/components/ui/badge';
 
 export default function ManageCourse() {
@@ -22,6 +23,7 @@ export default function ManageCourse() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const api = useApi();
+  const { setMediaActive } = useMediaActivity();
 
   const [course, setCourse] = useState<any>(null);
   const [sections, setSections] = useState<any[]>([]);
@@ -41,6 +43,12 @@ export default function ManageCourse() {
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+
+  // Sync upload state to media activity so the inactivity timer never fires during a long upload
+  useEffect(() => {
+    setMediaActive(uploading);
+    return () => setMediaActive(false);
+  }, [uploading]);
 
   // Expanded sections
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
