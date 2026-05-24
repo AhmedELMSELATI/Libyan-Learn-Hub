@@ -62,8 +62,15 @@ function generateSlug(name: string): string {
 router.get("/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
+    
+    // Check if slug is a numeric ID
+    const isId = /^\d+$/.test(slug);
+    const condition = isId 
+      ? eq(usersTable.id, parseInt(slug))
+      : eq(usersTable.profileSlug, slug);
+
     const [teacher] = await db.select().from(usersTable)
-      .where(and(eq(usersTable.profileSlug, slug), eq(usersTable.role, "teacher")))
+      .where(and(condition, eq(usersTable.role, "teacher")))
       .limit(1);
 
     if (!teacher) {
@@ -80,7 +87,8 @@ router.get("/:slug", async (req, res) => {
 
     // Get courses
     const courses = await db.select().from(coursesTable)
-      .where(and(eq(coursesTable.teacherId, teacher.id), eq(coursesTable.isPublished, true)));
+      .where(and(eq(coursesTable.teacherId, teacher.id), eq(coursesTable.isPublished, true)))
+      .orderBy(desc(coursesTable.createdAt));
 
     // Get stats
     const [courseCount] = await db.select({ total: count() }).from(coursesTable)
@@ -349,7 +357,7 @@ router.post("/upgrade-pro", requireAuth, requireRole("teacher", "admin"), async 
     proExpiry.setDate(proExpiry.getDate() + 30);
     
     await db.update(usersTable).set({ 
-      tier: "pro", 
+      tier: "diamond", 
       proExpiry, 
       updatedAt: new Date() 
     }).where(eq(usersTable.id, userId));

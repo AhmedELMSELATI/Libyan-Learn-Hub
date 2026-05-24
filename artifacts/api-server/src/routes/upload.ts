@@ -79,7 +79,7 @@ router.post(
 
       // ── Storage limit check ───────────────────────────────────
       const teacher = await db.query.usersTable.findFirst({
-        where: eq(usersTable.id, req.user!.id),
+        where: eq(usersTable.id, (req as any).user.id),
         columns: { tier: true, storageUsed: true, isBonusUnlocked: true },
       });
       if (teacher) {
@@ -119,7 +119,7 @@ router.post(
       // ── Update storageUsed in DB ───────────────────────────────
       await db.update(usersTable)
         .set({ storageUsed: (teacher?.storageUsed ?? 0) + result.bytes })
-        .where(eq(usersTable.id, req.user!.id));
+        .where(eq(usersTable.id, (req as any).user.id));
       // ─────────────────────────────────────────────────────────
 
       res.json({
@@ -153,7 +153,7 @@ router.post(
 
       // ── Storage limit check ───────────────────────────────────
       const teacher = await db.query.usersTable.findFirst({
-        where: eq(usersTable.id, req.user!.id),
+        where: eq(usersTable.id, (req as any).user.id),
         columns: { tier: true, storageUsed: true, isBonusUnlocked: true },
       });
       if (teacher) {
@@ -176,7 +176,7 @@ router.post(
       // ── Update storageUsed in DB ───────────────────────────────
       await db.update(usersTable)
         .set({ storageUsed: (teacher?.storageUsed ?? 0) + result.bytes })
-        .where(eq(usersTable.id, req.user!.id));
+        .where(eq(usersTable.id, (req as any).user.id));
       // ─────────────────────────────────────────────────────────
 
       res.json({
@@ -211,13 +211,13 @@ router.delete(
       // ── Decrement storageUsed on delete ───────────────────────
       if (fileSizeBytes > 0) {
         const teacher = await db.query.usersTable.findFirst({
-          where: eq(usersTable.id, req.user!.id),
+          where: eq(usersTable.id, (req as any).user.id),
           columns: { storageUsed: true },
         });
         const newUsage = Math.max(0, (teacher?.storageUsed ?? 0) - fileSizeBytes);
         await db.update(usersTable)
           .set({ storageUsed: newUsage })
-          .where(eq(usersTable.id, req.user!.id));
+          .where(eq(usersTable.id, (req as any).user.id));
       }
       // ─────────────────────────────────────────────────────────
 

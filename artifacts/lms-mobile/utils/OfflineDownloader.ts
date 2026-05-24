@@ -11,7 +11,7 @@ export interface OfflineVideo {
   downloadedAt: string;
 }
 
-const OFFLINE_DIR = FileSystem.documentDirectory + 'offline_videos/';
+const OFFLINE_DIR = (FileSystem as any).documentDirectory + 'offline_videos/';
 const STORE_KEY = '@offline_videos';
 
 export class OfflineDownloader {

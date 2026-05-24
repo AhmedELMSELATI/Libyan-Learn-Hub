@@ -481,6 +481,9 @@ export default function ManageCourseScreen() {
                               content: lesson.content || "",
                               contentAr: lesson.contentAr || "", duration: (lesson.duration || 0).toString(),
                               isFree: lesson.isFree, type: lesson.type || "video",
+                              bookName: lesson.bookName || "", bookNameAr: lesson.bookNameAr || "",
+                              schoolYear: lesson.schoolYear || "", chapter: lesson.chapter || "",
+                              pageNumber: (lesson.pageNumber || "").toString(), subjectTags: lesson.subjectTags || "",
                             });
                             setVideoFile(null);
                             setDocumentFile(null);
