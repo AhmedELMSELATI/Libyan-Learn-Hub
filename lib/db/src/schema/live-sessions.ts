@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, timestamp, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, varchar, timestamp, numeric, pgEnum, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -20,6 +20,7 @@ export const liveSessionsTable = pgTable("live_sessions", {
   status: sessionStatusEnum("status").notNull().default("scheduled"),
   price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"),
   cancellationReason: text("cancellation_reason"),
+  notificationSent: boolean("notification_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

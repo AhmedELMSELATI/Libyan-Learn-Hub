@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut, GraduationCap, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NotificationDropdown } from './NotificationDropdown';
 
 export function Navbar() {
   const { t, language, setLanguage } = useLanguage();
@@ -100,22 +101,24 @@ export function Navbar() {
             </button>
 
             {isAuthenticated ? (
-              <div className="relative" ref={userMenuRef}>
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
-                    {user?.fullName?.charAt(0) || 'U'}
-                  </div>
-                  <span className="text-sm font-medium text-foreground max-w-[100px] truncate hidden lg:block">
-                    {user?.fullName}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
+              <>
+                <NotificationDropdown />
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-muted transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                      {user?.fullName?.charAt(0) || 'U'}
+                    </div>
+                    <span className="text-sm font-medium text-foreground max-w-[100px] truncate hidden lg:block">
+                      {user?.fullName}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                <AnimatePresence>
-                  {isUserMenuOpen && (
+                  <AnimatePresence>
+                    {isUserMenuOpen && (
                     <motion.div
                       initial={{ opacity: 0, y: 8, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -187,6 +190,7 @@ export function Navbar() {
                   )}
                 </AnimatePresence>
               </div>
+              </>
             ) : (
               <div className="flex items-center gap-3">
                 <Link href="/login">
