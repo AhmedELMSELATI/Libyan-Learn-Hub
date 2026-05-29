@@ -14,6 +14,8 @@ import {
   ThumbsUp, CheckCircle, Send, MessageSquare, Users, Clock,
   Video, ArrowLeft, Radio, Flag, AlertCircle, X
 } from 'lucide-react';
+import { ScreenProtection } from '@/components/ScreenProtection';
+import { WatermarkOverlay } from '@/components/WatermarkOverlay';
 
 export default function SessionRoom() {
   const [, params] = useRoute('/session/:id');
@@ -383,8 +385,9 @@ export default function SessionRoom() {
           {!hasJoined ? (
             renderWaitingRoom()
           ) : (
-            <>
+            <ScreenProtection>
               <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
+              <WatermarkOverlay />
               {/* Mobile Chat Toggle Button */}
               <button 
                 className="md:hidden absolute bottom-24 right-4 z-[60] bg-primary text-primary-foreground p-3.5 rounded-full shadow-xl hover:scale-105 transition-transform"
@@ -392,7 +395,7 @@ export default function SessionRoom() {
               >
                 <MessageSquare className="w-6 h-6" />
               </button>
-            </>
+            </ScreenProtection>
           )}
         </div>
 
