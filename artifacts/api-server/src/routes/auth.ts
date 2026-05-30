@@ -8,8 +8,69 @@ import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { rateLimit } from "express-rate-limit";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
+import nodemailer from "nodemailer";
 
 const router = Router();
+
+// Configure transporter dynamically based on .env
+const isUsingBrevo = !!process.env.BREVO_SMTP_USER;
+
+const transporter = nodemailer.createTransport(
+  isUsingBrevo
+    ? {
+        host: "smtp-relay.brevo.com",
+        port: 587,
+        auth: {
+          user: process.env.BREVO_SMTP_USER,
+          pass: process.env.BREVO_SMTP_KEY,
+        },
+      }
+    : {
+        host: "smtp.ethereal.email",
+        port: 587,
+        auth: {
+          user: "sbqkv6d3i5uzj5aa@ethereal.email",
+          pass: "QGFwgR7XENNRSQYvWR",
+        },
+      }
+);
+
+async function sendEmailVerification(email: string, otpCode: string) {
+  const senderEmail = isUsingBrevo 
+    ? process.env.BREVO_SENDER_EMAIL 
+    : "noreply@libyanlearnhub.com";
+
+  console.log(`📧 Preparing OTP email for ${email} (Using ${isUsingBrevo ? 'Brevo' : 'Ethereal'} SMTP)`);
+  try {
+    const info = await transporter.sendMail({
+      from: `"Libyan Learn Hub" <${senderEmail}>`,
+      to: email,
+      subject: "Verify your Libyan Learn Hub Account",
+      text: `Your verification code is: ${otpCode}\n\nThis code expires in 10 minutes.`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
+          <h2 style="color:#6d28d9">Libyan Learn Hub</h2>
+          <p>Your verification code is:</p>
+          <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#6d28d9;margin:20px 0;text-align:center;background:#f3f0ff;padding:20px;border-radius:8px">
+            ${otpCode}
+          </div>
+          <p style="color:#666;font-size:14px">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `
+    });
+
+    if (isUsingBrevo) {
+      console.log(`✅ Email sent successfully via Brevo to ${email}!`);
+    } else {
+      console.log(`✅ Email caught by Ethereal testing server!`);
+      console.log(`\n👉 CLICK HERE TO VIEW THE EMAIL: ${nodemailer.getTestMessageUrl(info)}\n`);
+    }
+  } catch (error: any) {
+    console.error(`❌ Failed to send email to ${email}:`, error?.message || error);
+    throw error;
+  }
+}
+
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -68,6 +129,15 @@ router.post("/register", authLimiter, async (req, res) => {
     }).returning();
     const token = signToken({ userId: user.id, role: user.role });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
+    
+    // Non-fatal email — user is already created, so we still complete registration
+    // even if the email delivery has a temporary issue.
+    try {
+      await sendEmailVerification(user.email, otpCode);
+    } catch (emailErr: any) {
+      console.error("⚠️  Registration succeeded but OTP email failed:", emailErr?.message);
+    }
+    
     res.status(201).json({
       user: {
         id: user.id,
@@ -90,10 +160,6 @@ router.post("/register", authLimiter, async (req, res) => {
         createdAt: user.createdAt,
       },
       token,
-      otpCode,
-      otpMessage: user.phoneNumber
-        ? `Your verification code is: ${otpCode} (In production this would be sent via SMS to ${user.phoneNumber})`
-        : `Your email verification code is: ${otpCode}`,
     });
   } catch (err: any) {
     res.status(400).json({ error: "Validation failed", message: err.message });
@@ -109,13 +175,36 @@ router.post("/send-otp", requireAuth, async (req, res) => {
       .set({ otpCode, otpExpiry })
       .where(eq(usersTable.id, userId))
       .returning();
-    res.json({
-      message: "OTP sent",
-      otpCode,
-      otpMessage: user.phoneNumber
-        ? `Your verification code is: ${otpCode} (In production this would be sent via SMS to ${user.phoneNumber})`
-        : `Your verification code is: ${otpCode}`,
-    });
+      
+    await sendEmailVerification(user.email, otpCode);
+
+    res.json({ message: "OTP sent to your email" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/resend-otp", authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: "Email is required" });
+      return;
+    }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const otpCode = generateOtp();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await db.update(usersTable)
+      .set({ otpCode, otpExpiry })
+      .where(eq(usersTable.id, user.id));
+
+    await sendEmailVerification(user.email, otpCode);
+
+    res.json({ message: "A new code has been sent to your email" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -410,13 +499,9 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
       .set({ otpCode, otpExpiry })
       .where(eq(usersTable.id, user.id));
 
-    res.json({
-      message: "Reset code sent",
-      otpCode, // Returned for dev purposes
-      otpMessage: user.phoneNumber
-        ? `Your password reset code is: ${otpCode} (Mock SMS to ${user.phoneNumber})`
-        : `Your password reset code is: ${otpCode} (Mock Email to ${user.email})`,
-    });
+    await sendEmailVerification(user.email, otpCode);
+
+    res.json({ message: "Reset code sent to your email" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
