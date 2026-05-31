@@ -151,6 +151,13 @@ router.put("/users/:userId/role", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { role } = req.body;
+    const { userId: adminId } = (req as any).user;
+
+    if (userId === adminId) {
+      res.status(400).json({ error: "Cannot change your own role. Please ask another administrator to do this if needed." });
+      return;
+    }
+
     if (!["student", "teacher", "admin"].includes(role)) {
       res.status(400).json({ error: "Invalid role" }); return;
     }

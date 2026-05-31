@@ -111,7 +111,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} /></TabsContent>
+          <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} user={user} /></TabsContent>
           <TabsContent value="teachers"><TeachersManagementTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="courses"><CoursesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="categories"><CategoriesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
 
 // ─── USERS TAB ────────────────────────────────────────────────────────────────
 
-function UsersTab({ api, queryClient, toast, stats }: any) {
+function UsersTab({ api, queryClient, toast, stats, user }: any) {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -252,13 +252,17 @@ function UsersTab({ api, queryClient, toast, stats }: any) {
                     <td className="px-4 py-3">
                       <select
                         value={u.role}
+                        disabled={u.id === user?.id}
                         onChange={(e) => changeRole(u.id, e.target.value)}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer bg-transparent ${roleColors[u.role] || ''}`}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border bg-transparent ${u.id === user?.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${roleColors[u.role] || ''}`}
                       >
                         <option value="student">Student</option>
                         <option value="teacher">Teacher</option>
                         <option value="admin">Admin</option>
                       </select>
+                      {u.id === user?.id && (
+                        <div className="text-[10px] text-muted-foreground mt-1">Current User</div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm">{u.phoneNumber || <span className="text-muted-foreground text-xs">–</span>}</div>
@@ -279,7 +283,8 @@ function UsersTab({ api, queryClient, toast, stats }: any) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={u.id === user?.id}
+                        className={`h-8 w-8 text-destructive ${u.id === user?.id ? 'opacity-50 cursor-not-allowed' : 'hover:text-destructive hover:bg-destructive/10'}`}
                         onClick={() => deleteUser(u.id, u.fullName)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
