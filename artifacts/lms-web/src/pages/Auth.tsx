@@ -25,6 +25,15 @@ const registerSchema = z.object({
   phoneNumber: z.string().min(9, 'Enter a valid phone number').regex(/^[0-9+\s\-()]+$/, 'Invalid phone number'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.enum(['student', 'teacher']),
+  agreedToCommission: z.boolean().optional(),
+}).refine((data) => {
+  if (data.role === 'teacher') {
+    return data.agreedToCommission === true;
+  }
+  return true;
+}, {
+  message: "You must agree to the platform commission terms",
+  path: ["agreedToCommission"]
 });
 
 export default function Auth() {
@@ -54,7 +63,15 @@ export default function Auth() {
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [commissionPercent, setCommissionPercent] = useState('20');
   const otpInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.get('/auth/settings').then((res: any) => {
+      const setting = res.find((s: any) => s.key === 'teacher_commission_percent');
+      if (setting) setCommissionPercent(setting.value);
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (step === 'otp') {
@@ -90,7 +107,7 @@ export default function Auth() {
 
   const registerForm = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', role: 'student' as 'student' | 'teacher' }
+    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', role: 'student' as 'student' | 'teacher', agreedToCommission: false }
   });
 
   const { mutate: loginMutate, isPending: isLoggingIn } = useLogin({
@@ -520,6 +537,24 @@ export default function Auth() {
                   {registerForm.formState.errors.password && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.password.message}</p>}
                 </div>
 
+                {registerForm.watch('role') === 'teacher' && (
+                  <div className="flex flex-col gap-1 mt-4 p-4 rounded-xl border border-border bg-muted/20">
+                    <div className="flex items-start gap-3">
+                      <input 
+                        type="checkbox" 
+                        {...registerForm.register('agreedToCommission')} 
+                        id="agreedToCommission" 
+                        className="mt-1 w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer" 
+                      />
+                      <label htmlFor="agreedToCommission" className="text-sm text-foreground cursor-pointer">
+                        I agree that the platform will retain <span className="font-bold text-primary">{commissionPercent}%</span> of my income as commission.
+                      </label>
+                    </div>
+                    {registerForm.formState.errors.agreedToCommission && (
+                      <p className="text-sm text-destructive font-medium ms-8">{registerForm.formState.errors.agreedToCommission.message}</p>
+                    )}
+                  </div>
+                )}
                 <Button type="submit" className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" disabled={isRegistering}>
                   {isRegistering ? 'Creating account...' : 'Create Account →'}
                 </Button>

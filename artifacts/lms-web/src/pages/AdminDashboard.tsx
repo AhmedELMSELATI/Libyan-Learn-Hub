@@ -6,7 +6,7 @@ import {
   Users, BookOpen, CreditCard, CheckCircle, XCircle, Trash2,
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
-  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School
+  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,6 +106,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
             <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
             <TabsTrigger value="academy" className="gap-2 text-amber-600"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} /></TabsContent>
@@ -117,6 +118,7 @@ export default function AdminDashboard() {
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="dmca"><DMCAComplaintsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="academy"><AcademyAdminTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="settings"><SettingsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
         </Tabs>
       </div>
     </PageContainer>
@@ -1777,6 +1779,84 @@ function AcademyAdminTab({ api, queryClient, toast }: any) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
+
+function SettingsTab({ api, queryClient, toast }: any) {
+  const [commission, setCommission] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['/api/admin/settings'],
+    queryFn: () => api.get('/admin/settings'),
+  });
+
+  useEffect(() => {
+    if (settings) {
+      const comm = settings.find((s: any) => s.key === 'teacher_commission_percent');
+      if (comm) {
+        setCommission(comm.value);
+      }
+    }
+  }, [settings]);
+
+  const handleSaveCommission = async () => {
+    const val = parseFloat(commission);
+    if (isNaN(val) || val < 0 || val > 100) {
+      toast({ title: 'Error', description: 'Commission must be between 0 and 100', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put('/admin/settings', {
+        key: 'teacher_commission_percent',
+        value: commission,
+        description: 'Platform fee percentage retained from teacher sales'
+      });
+      toast({ title: 'Success', description: 'Commission rate updated successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/settings'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoading) return <div className="p-10 text-center text-muted-foreground">Loading settings...</div>;
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm p-6">
+        <h3 className="font-bold text-lg mb-1">Financial Settings</h3>
+        <p className="text-sm text-muted-foreground mb-6">Configure global financial parameters and commission rates.</p>
+
+        <div className="space-y-4 max-w-md">
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Teacher Commission Percentage (%)</label>
+            <div className="flex gap-3">
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={commission}
+                onChange={(e) => setCommission(e.target.value)}
+                placeholder="e.g., 20"
+                className="font-mono text-lg h-12"
+              />
+              <Button onClick={handleSaveCommission} disabled={saving} className="h-12 px-6">
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              This is the percentage of a course or session price that the platform retains. 
+              The teacher receives the remaining amount.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

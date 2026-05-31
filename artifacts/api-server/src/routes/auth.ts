@@ -11,6 +11,27 @@ import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
+// ─── PUBLIC SETTINGS ────────────────────────────────────────────────────────
+const DEFAULT_SETTINGS = [
+  { key: "teacher_commission_percent", value: "20", description: "Platform fee percentage retained from teacher sales" },
+];
+
+router.get("/settings", async (_req, res) => {
+  try {
+    const { platformSettingsTable } = await import("@workspace/db");
+    let settings = await db.select().from(platformSettingsTable);
+    
+    // Auto-seed defaults if the table is empty (first boot)
+    if (settings.length === 0) {
+      await db.insert(platformSettingsTable).values(DEFAULT_SETTINGS).onConflictDoNothing();
+      settings = await db.select().from(platformSettingsTable);
+    }
+    
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
@@ -51,6 +72,13 @@ router.post("/register", authLimiter, async (req, res) => {
     const tier: TeacherTier = (body.role === "teacher" && requestedTier && validTiers.includes(requestedTier))
       ? requestedTier
       : "free";
+
+    if (body.role === "teacher") {
+      if (req.body.agreedToCommission !== true && req.body.agreedToCommission !== "true") {
+        res.status(400).json({ error: "You must agree to the platform commission terms to register as a teacher." });
+        return;
+      }
+    }
 
     const [user] = await db.insert(usersTable).values({
       email: body.email,

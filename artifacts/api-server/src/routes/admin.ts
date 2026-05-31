@@ -2,7 +2,8 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
-  teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable
+  teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable,
+  platformSettingsTable
 } from "@workspace/db";
 import { eq, count, sql, sum, desc, and, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -52,6 +53,45 @@ router.get("/stats", async (_req, res) => {
       pendingPayments: Number(pendingCount.total),
       pendingEarnings: parseFloat(pendingEarnings.total as string),
     });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+
+router.get("/settings", async (_req, res) => {
+  try {
+    const settings = await db.select().from(platformSettingsTable);
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.put("/settings", async (req, res) => {
+  try {
+    const { key, value, description } = req.body;
+    if (!key || value === undefined) {
+      res.status(400).json({ error: "Key and value are required" });
+      return;
+    }
+    
+    // Upsert logic using delete then insert, or just select and update
+    const existing = await db.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, key)).limit(1);
+    
+    let updated;
+    if (existing.length > 0) {
+      [updated] = await db.update(platformSettingsTable)
+        .set({ value, description: description || existing[0].description, updatedAt: new Date() })
+        .where(eq(platformSettingsTable.key, key))
+        .returning();
+    } else {
+      [updated] = await db.insert(platformSettingsTable)
+        .values({ key, value, description })
+        .returning();
+    }
+    res.json({ success: true, setting: updated });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -292,8 +332,18 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
     await db.update(paymentsTable).set({ status: "completed", updatedAt: new Date() }).where(eq(paymentsTable.id, paymentId));
 
     const amount = parseFloat(payment.amount);
-    const PLATFORM_FEE_PERCENT = 20;
-    const platformFee = parseFloat((amount * PLATFORM_FEE_PERCENT / 100).toFixed(2));
+    let platformFeePercent = 20; // Default
+    try {
+      const [setting] = await db.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+      if (setting && setting.value) {
+        const parsed = parseFloat(setting.value);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+          platformFeePercent = parsed;
+        }
+      }
+    } catch (err) {}
+    
+    const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
     const netAmount = parseFloat((amount - platformFee).toFixed(2));
 
     if (payment.courseId) {
@@ -308,7 +358,7 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
           teacherId: course.teacherId, paymentId,
           courseId: course.id,
           grossAmount: amount.toFixed(2),
-          platformFeePercent: PLATFORM_FEE_PERCENT.toFixed(2),
+          platformFeePercent: platformFeePercent.toFixed(2),
           platformFee: platformFee.toFixed(2),
           netAmount: netAmount.toFixed(2),
           currency: course.currency || "LYD",

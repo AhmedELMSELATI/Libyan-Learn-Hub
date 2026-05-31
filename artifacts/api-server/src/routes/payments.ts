@@ -7,6 +7,7 @@ import {
   coursesTable,
   liveSessionsTable,
   usersTable,
+  platformSettingsTable,
 } from "@workspace/db";
 import { eq, and, sum, count } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -15,10 +16,24 @@ import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
-const PLATFORM_FEE_PERCENT = 20;
-
 async function creditTeacher(paymentId: number, teacherId: number, amount: number, courseId?: number, sessionId?: number, currency = "LYD") {
-  const platformFee = parseFloat((amount * PLATFORM_FEE_PERCENT / 100).toFixed(2));
+  let platformFeePercent = 20; // Default
+  try {
+    const [setting] = await db.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+    if (setting && setting.value) {
+      const parsed = parseFloat(setting.value);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+        platformFeePercent = parsed;
+      }
+    } else {
+      // Auto-seed if missing
+      await db.insert(platformSettingsTable).values({ key: "teacher_commission_percent", value: "20", description: "Default platform commission fee percentage" });
+    }
+  } catch (err) {
+    console.error("Failed to read platform settings", err);
+  }
+
+  const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
   const netAmount = parseFloat((amount - platformFee).toFixed(2));
   await db.insert(teacherEarningsTable).values({
     teacherId,
@@ -26,7 +41,7 @@ async function creditTeacher(paymentId: number, teacherId: number, amount: numbe
     courseId: courseId || null,
     sessionId: sessionId || null,
     grossAmount: amount.toFixed(2),
-    platformFeePercent: PLATFORM_FEE_PERCENT.toFixed(2),
+    platformFeePercent: platformFeePercent.toFixed(2),
     platformFee: platformFee.toFixed(2),
     netAmount: netAmount.toFixed(2),
     currency,

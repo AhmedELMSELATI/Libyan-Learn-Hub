@@ -20,6 +20,7 @@ export * from "./tutoring-requests.ts";
 export * from "./tutoring-listings.ts";
 export * from "./session-questions.ts";
 export * from "./wishlists.ts";
+export * from "./platform-settings.ts";
 // New platform improvement schemas
 export * from "./advertisements.ts";
 export * from "./content-verification-jobs.ts";
