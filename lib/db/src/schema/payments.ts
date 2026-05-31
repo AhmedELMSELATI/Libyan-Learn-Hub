@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { coursesTable } from "./courses";
 
-export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "cash", "mobile_wallet"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "cash", "mobile_wallet", "wallet", "redeem_card"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed", "refunded"]);
 
 export const paymentsTable = pgTable("payments", {

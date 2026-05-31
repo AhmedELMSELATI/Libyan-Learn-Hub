@@ -6,7 +6,7 @@ import {
   Users, BookOpen, CreditCard, CheckCircle, XCircle, Trash2,
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
-  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School, Settings
+  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School, Settings, Banknote, Ticket
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,6 +103,8 @@ export default function AdminDashboard() {
             <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
             <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" /> Finance</TabsTrigger>
+            <TabsTrigger value="withdrawals" className="gap-2"><Banknote className="w-4 h-4" /> Withdrawals</TabsTrigger>
+            <TabsTrigger value="redeem_cards" className="gap-2"><Ticket className="w-4 h-4" /> Redeem Cards</TabsTrigger>
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
             <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
             <TabsTrigger value="academy" className="gap-2 text-amber-600"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
@@ -115,6 +117,8 @@ export default function AdminDashboard() {
           <TabsContent value="categories"><CategoriesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="payments"><PaymentsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="finance"><FinanceTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="withdrawals"><WithdrawalsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="redeem_cards"><RedeemCardsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="dmca"><DMCAComplaintsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="academy"><AcademyAdminTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
@@ -1857,6 +1861,199 @@ function SettingsTab({ api, queryClient, toast }: any) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── WITHDRAWALS TAB ────────────────────────────────────────────────────────
+function WithdrawalsTab({ api, queryClient, toast }: any) {
+  const { data: withdrawals, isLoading } = useQuery({
+    queryKey: ['/api/admin/withdrawals'],
+    queryFn: () => api.get('/admin/withdrawals'),
+    refetchInterval: 15000,
+  });
+
+  const handleUpdateStatus = async (id: number, status: string) => {
+    try {
+      await api.put(`/admin/withdrawals/${id}/status`, { status });
+      toast({ title: `Withdrawal ${status}` });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawals'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold font-display">Teacher Payout Requests</h2>
+      </div>
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+        {isLoading ? (
+          <div className="p-10 text-center text-muted-foreground">Loading withdrawals...</div>
+        ) : withdrawals?.length === 0 ? (
+          <div className="p-10 text-center text-muted-foreground">No withdrawal requests found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Teacher</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Method</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {withdrawals?.map((w: any) => (
+                  <tr key={w.id} className="hover:bg-muted/10">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{w.teacherName}</div>
+                      <div className="text-xs text-muted-foreground">{w.teacherEmail}</div>
+                    </td>
+                    <td className="px-4 py-3 font-bold">{w.amount} LYD</td>
+                    <td className="px-4 py-3 capitalize">{(w.paymentMethod || 'bank_transfer').replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-3 max-w-xs truncate" title={w.details}>{w.details}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-green-500 text-white' : w.status === 'pending' ? 'bg-amber-100 text-amber-700' : ''}>
+                        {w.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {w.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleUpdateStatus(w.id, 'approved')} className="bg-green-600 hover:bg-green-700 h-8 text-xs">Approve</Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(w.id, 'rejected')} className="h-8 text-xs">Reject</Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── REDEEM CARDS TAB ─────────────────────────────────────────────────────────
+function RedeemCardsTab({ api, queryClient, toast }: any) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [value, setValue] = useState('');
+  const [count, setCount] = useState('1');
+
+  const { data: cards, isLoading } = useQuery({
+    queryKey: ['/api/admin/redeem-cards'],
+    queryFn: () => api.get('/admin/redeem-cards'),
+  });
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/admin/redeem-cards/generate', { 
+        value: parseFloat(value), 
+        count: parseInt(count, 10) 
+      });
+      toast({ title: `${count} card(s) generated successfully` });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/redeem-cards'] });
+      setIsCreateOpen(false);
+      setValue('');
+      setCount('1');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeactivate = async (id: number) => {
+    try {
+      await api.put(`/admin/redeem-cards/${id}/deactivate`, {});
+      toast({ title: 'Card deactivated' });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/redeem-cards'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold font-display">Redeem Cards Management</h2>
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> Generate Cards
+        </Button>
+      </div>
+
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+        {isLoading ? (
+          <div className="p-10 text-center text-muted-foreground">Loading cards...</div>
+        ) : cards?.length === 0 ? (
+          <div className="p-10 text-center text-muted-foreground">No redeem cards found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Code</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Value</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Used By</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Generated Date</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {cards?.map((c: any) => (
+                  <tr key={c.id} className="hover:bg-muted/10">
+                    <td className="px-4 py-3 font-mono text-lg tracking-widest">{c.code}</td>
+                    <td className="px-4 py-3 font-bold">{c.value} LYD</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={c.status === 'active' ? 'default' : c.status === 'redeemed' ? 'secondary' : 'destructive'} className={c.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
+                        {c.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {c.status === 'redeemed'
+                        ? `${c.studentEmail || `User #${c.redeemedBy}`} on ${c.redeemedAt ? new Date(c.redeemedAt).toLocaleDateString() : '–'}`
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      {c.status === 'active' && (
+                        <Button variant="outline" size="sm" onClick={() => handleDeactivate(c.id)} className="h-8 text-xs text-destructive hover:bg-destructive/10">
+                          Deactivate
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Generate Redeem Cards</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleGenerate} className="space-y-4 mt-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Card Value (LYD)</label>
+              <Input type="number" required min="1" step="0.01" value={value} onChange={e => setValue(e.target.value)} placeholder="e.g. 50" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Number of Cards</label>
+              <Input type="number" required min="1" max="100" value={count} onChange={e => setCount(e.target.value)} placeholder="1" />
+            </div>
+            <Button type="submit" className="w-full">Generate</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

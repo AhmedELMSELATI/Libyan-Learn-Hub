@@ -30,4 +30,4 @@ export * from "./student-endorsements.ts";
 export * from "./teacher-devices.ts";
 // Academy tables
 export * from "./academy.ts";
-
+export * from "./redeem-cards.ts";

@@ -10,8 +10,11 @@ import { CheckCircle, Copy, Banknote, Smartphone, CreditCard, ArrowLeft, AlertCi
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
+import { Wallet } from 'lucide-react';
+
 const PAYMENT_METHODS = [
   { id: 'gateway', label: 'بوابة الدفع الإلكتروني', labelEn: 'Secure Payment Gateway', icon: CreditCard },
+  { id: 'wallet', label: 'المحفظة الإلكترونية', labelEn: 'My Wallet', icon: Wallet },
 ];
 
 function copyToClipboard(text: string) {
@@ -46,7 +49,7 @@ export default function Checkout() {
       const res = await fetch(`${API_BASE}/payments/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type, itemId: id }),
+        body: JSON.stringify({ type, itemId: id, method }),
       });
       return res.json();
     },
@@ -137,18 +140,31 @@ export default function Checkout() {
                   <div className="grid gap-3 mb-6">
                     {PAYMENT_METHODS.map(pm => {
                       const Icon = pm.icon;
+                      const isWallet = pm.id === 'wallet';
+                      const balance = parseFloat(user?.balance || "0");
+                      const insufficient = isWallet && balance < price;
+
                       return (
                         <button
                           key={pm.id}
-                          onClick={() => setMethod(pm.id)}
-                          className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-start ${method === pm.id ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/30'}`}
+                          onClick={() => !insufficient && setMethod(pm.id)}
+                          disabled={insufficient}
+                          className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-start 
+                            ${method === pm.id ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/30'}
+                            ${insufficient ? 'opacity-50 cursor-not-allowed grayscale' : ''}
+                          `}
                         >
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${method === pm.id ? 'bg-primary text-white' : 'bg-muted'}`}>
                             <Icon className="w-5 h-5" />
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <div className="font-bold text-foreground">{pm.label}</div>
                             <div className="text-sm text-muted-foreground">{pm.labelEn}</div>
+                            {isWallet && (
+                              <div className={`text-xs mt-1 font-bold ${insufficient ? 'text-destructive' : 'text-primary'}`}>
+                                Balance: {balance.toFixed(2)} LYD {insufficient && '(Insufficient)'}
+                              </div>
+                            )}
                           </div>
                           <div className={`ms-auto w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${method === pm.id ? 'border-primary bg-primary' : 'border-muted-foreground/30'}`}>
                             {method === pm.id && <div className="w-2 h-2 rounded-full bg-white" />}

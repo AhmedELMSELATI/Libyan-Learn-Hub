@@ -3,11 +3,12 @@ import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
   teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable,
-  platformSettingsTable
+  platformSettingsTable, redeemCardsTable, withdrawalRequestsTable
 } from "@workspace/db";
 import { eq, count, sql, sum, desc, and, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -442,6 +443,159 @@ router.post("/earnings/pay-all/:teacherId", async (req, res) => {
       .set({ status: "paid" })
       .where(and(eq(teacherEarningsTable.teacherId, teacherId), eq(teacherEarningsTable.status, "available")));
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── REDEEM CARDS ─────────────────────────────────────────────────────────────
+
+router.post("/redeem-cards/generate", async (req, res) => {
+  try {
+    // Accept both `count` (frontend) and `quantity` (legacy) for flexibility
+    const { value, prefix = "LLH" } = req.body;
+    const quantity = req.body.quantity || req.body.count;
+
+    if (!quantity || !value || Number(quantity) <= 0 || Number(value) <= 0) {
+      res.status(400).json({ error: "Invalid quantity or value" });
+      return;
+    }
+
+    const cardsToInsert = [];
+    for (let i = 0; i < Number(quantity); i++) {
+      const randomStr = crypto.randomBytes(4).toString("hex").toUpperCase();
+      const randomStr2 = crypto.randomBytes(4).toString("hex").toUpperCase();
+      const code = `${prefix}-${randomStr}-${randomStr2}`;
+      cardsToInsert.push({
+        code,
+        value: value.toString(),
+        status: "active",
+      });
+    }
+
+    const inserted = await db.insert(redeemCardsTable).values(cardsToInsert).returning();
+    res.json({ success: true, count: inserted.length, cards: inserted });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.get("/redeem-cards", async (_req, res) => {
+  try {
+    const cards = await db.select().from(redeemCardsTable).orderBy(desc(redeemCardsTable.createdAt));
+    const result = await Promise.all(cards.map(async (c) => {
+      let studentEmail = null;
+      if (c.redeemedBy) {
+        const [student] = await db.select().from(usersTable).where(eq(usersTable.id, c.redeemedBy)).limit(1);
+        studentEmail = student?.email;
+      }
+      return {
+        ...c,
+        value: parseFloat(c.value as string),
+        studentEmail,
+      };
+    }));
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.put("/redeem-cards/:id/deactivate", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const [updated] = await db.update(redeemCardsTable)
+      .set({ status: "deactivated", deactivatedAt: new Date() })
+      .where(and(eq(redeemCardsTable.id, id), eq(redeemCardsTable.status, "active")))
+      .returning();
+    
+    if (!updated) {
+      res.status(400).json({ error: "Card not found or not active" });
+      return;
+    }
+    res.json({ success: true, card: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── WITHDRAWAL REQUESTS ──────────────────────────────────────────────────────
+
+router.get("/withdrawals", async (req, res) => {
+  try {
+    const withdrawals = await db.select().from(withdrawalRequestsTable).orderBy(desc(withdrawalRequestsTable.createdAt));
+    const result = await Promise.all(withdrawals.map(async (w) => {
+      const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, w.teacherId)).limit(1);
+      return {
+        ...w,
+        amount: parseFloat(w.amount as string),
+        teacherName: teacher?.fullName || "Unknown",
+        teacherEmail: teacher?.email || "",
+      };
+    }));
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.put("/withdrawals/:id/status", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { status, adminNotes } = req.body;
+
+    if (!["approved", "rejected", "paid"].includes(status)) {
+      res.status(400).json({ error: "Invalid status" });
+      return;
+    }
+
+    const [request] = await db.select().from(withdrawalRequestsTable).where(eq(withdrawalRequestsTable.id, id)).limit(1);
+    if (!request) {
+      res.status(404).json({ error: "Withdrawal request not found" });
+      return;
+    }
+
+    const [updated] = await db.update(withdrawalRequestsTable)
+      .set({
+        status,
+        adminNotes: adminNotes || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(withdrawalRequestsTable.id, id))
+      .returning();
+
+    if ((status === "approved" || status === "paid") && request.status === "pending") {
+      let amountToCover = parseFloat(updated.amount as string);
+      const earnings = await db.select().from(teacherEarningsTable)
+        .where(and(eq(teacherEarningsTable.teacherId, updated.teacherId), eq(teacherEarningsTable.status, "available")))
+        .orderBy(teacherEarningsTable.createdAt);
+
+      for (const earning of earnings) {
+        if (amountToCover <= 0.001) break;
+        const netAmount = parseFloat(earning.netAmount as string);
+        await db.update(teacherEarningsTable).set({ status: "paid" }).where(eq(teacherEarningsTable.id, earning.id));
+        amountToCover -= netAmount;
+        
+        if (amountToCover < -0.001) {
+           const refundAmount = Math.abs(amountToCover);
+           await db.insert(teacherEarningsTable).values({
+             teacherId: updated.teacherId,
+             paymentId: earning.paymentId,
+             courseId: earning.courseId,
+             sessionId: earning.sessionId,
+             grossAmount: refundAmount.toFixed(2),
+             platformFeePercent: "0.00",
+             platformFee: "0.00",
+             netAmount: refundAmount.toFixed(2),
+             currency: earning.currency,
+             status: "available"
+           });
+           break;
+        }
+      }
+    }
+
+    res.json({ success: true, withdrawal: updated });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

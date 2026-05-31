@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useLocation, Link } from 'wouter';
-import { User, BookOpen, Clock, Trophy, Mail, Settings, PlayCircle, Shield, Globe, Pencil } from 'lucide-react';
+import { User, BookOpen, Clock, Trophy, Mail, Settings, PlayCircle, Shield, Globe, Pencil, Wallet, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,23 @@ export default function Profile() {
   const { toast } = useToast();
   const { t, language: currentLanguage, setLanguage } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [redeemCode, setRedeemCode] = React.useState('');
+  const [isRedeeming, setIsRedeeming] = React.useState(false);
+
+  const handleRedeem = async () => {
+    if (!redeemCode) return;
+    setIsRedeeming(true);
+    try {
+      const res = await api.post('/payments/redeem-code', { code: redeemCode });
+      toast({ title: "Success", description: `Card redeemed successfully! Added ${res.value || ''} LYD.` });
+      setRedeemCode('');
+      refetchUser();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to redeem code", variant: "destructive" });
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
 
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile({
     mutation: {
@@ -267,6 +284,48 @@ export default function Profile() {
                 </div>
                 <div className="text-xs text-muted-foreground">Completed</div>
               </div>
+              
+              {user.role === 'student' && (
+                <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 min-w-[200px] flex-1">
+                  <div className="flex items-center gap-2 text-primary font-bold mb-2 justify-center">
+                    <Wallet className="w-5 h-5" />
+                    My Wallet
+                  </div>
+                  <div className="text-2xl font-bold text-center text-primary mb-1">
+                    {parseFloat(user.balance || "0").toFixed(2)} LYD
+                  </div>
+                  
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="w-full mt-2" variant="outline">
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Redeem Card
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[400px] rounded-3xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-display font-bold">Redeem Card</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 pt-4">
+                        <p className="text-sm text-muted-foreground">Enter your 12-character code to add credit to your wallet.</p>
+                        <Input 
+                          placeholder="e.g. LLH-XXXX-XXXX" 
+                          value={redeemCode}
+                          onChange={e => setRedeemCode(e.target.value.toUpperCase())}
+                          className="h-12 text-center text-lg font-mono uppercase tracking-widest bg-muted/50 rounded-xl"
+                        />
+                        <Button 
+                          onClick={handleRedeem} 
+                          disabled={!redeemCode || isRedeeming} 
+                          className="w-full h-12 text-base font-bold rounded-xl"
+                        >
+                          {isRedeeming ? "Redeeming..." : "Redeem Now"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
             </div>
           </div>
         </div>

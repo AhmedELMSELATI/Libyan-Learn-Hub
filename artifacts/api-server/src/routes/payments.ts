@@ -8,8 +8,10 @@ import {
   liveSessionsTable,
   usersTable,
   platformSettingsTable,
+  redeemCardsTable,
+  withdrawalRequestsTable,
 } from "@workspace/db";
-import { eq, and, sum, count } from "drizzle-orm";
+import { eq, and, sum, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
@@ -35,17 +37,27 @@ async function creditTeacher(paymentId: number, teacherId: number, amount: numbe
 
   const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
   const netAmount = parseFloat((amount - platformFee).toFixed(2));
-  await db.insert(teacherEarningsTable).values({
-    teacherId,
-    paymentId,
-    courseId: courseId || null,
-    sessionId: sessionId || null,
-    grossAmount: amount.toFixed(2),
-    platformFeePercent: platformFeePercent.toFixed(2),
-    platformFee: platformFee.toFixed(2),
-    netAmount: netAmount.toFixed(2),
-    currency,
-    status: "available",
+  await db.transaction(async (tx) => {
+    await tx.insert(teacherEarningsTable).values({
+      teacherId,
+      paymentId,
+      courseId: courseId || null,
+      sessionId: sessionId || null,
+      grossAmount: amount.toFixed(2),
+      platformFeePercent: platformFeePercent.toFixed(2),
+      platformFee: platformFee.toFixed(2),
+      netAmount: netAmount.toFixed(2),
+      currency,
+      status: "available",
+    });
+
+    const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
+    if (teacher) {
+      const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
+      await tx.update(usersTable)
+        .set({ balance: newBalance.toFixed(2), updatedAt: new Date() })
+        .where(eq(usersTable.id, teacherId));
+    }
   });
 }
 
@@ -85,6 +97,79 @@ router.post("/create-session", requireAuth, async (req, res) => {
       if (type === "course") {
         await db.insert(enrollmentsTable).values({ courseId: itemId, userId, progress: "0" });
       }
+      return void res.json({ url: "/dashboard?success=true" });
+    }
+
+    const method = req.body.method || "bank_transfer";
+
+    if (method === "wallet") {
+      const [student] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      const balance = parseFloat(student?.balance as string) || 0;
+      
+      if (balance < amount) {
+        res.status(400).json({ error: "Insufficient wallet balance" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        // Deduct balance
+        const newBalance = balance - amount;
+        await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, userId));
+
+        // Create payment
+        const [payment] = await tx.insert(paymentsTable).values({
+          userId,
+          courseId: type === "course" ? itemId : null,
+          sessionId: type === "session" ? itemId : null,
+          amount: amount.toFixed(2),
+          currency,
+          method: "wallet",
+          status: "completed",
+          reference: `WALLET-${Date.now()}`,
+        }).returning();
+
+        // Enroll or credit teacher
+        if (type === "course") {
+          await tx.insert(enrollmentsTable).values({ courseId: itemId, userId, progress: "0" });
+          if (course) {
+             let platformFeePercent = 20;
+             try {
+               const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+               if (setting && setting.value) platformFeePercent = parseFloat(setting.value);
+             } catch (e) {}
+             const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
+             const netAmount = parseFloat((amount - platformFee).toFixed(2));
+             await tx.insert(teacherEarningsTable).values({
+               teacherId: course.teacherId, paymentId: payment.id, courseId: course.id,
+               grossAmount: amount.toFixed(2), platformFeePercent: platformFeePercent.toFixed(2), platformFee: platformFee.toFixed(2), netAmount: netAmount.toFixed(2), currency: course.currency || "LYD", status: "available"
+             });
+             const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
+             if (teacher) {
+               const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
+               await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, course.teacherId));
+             }
+          }
+        }
+        
+        if (type === "session" && session) {
+             let platformFeePercent = 20;
+             try {
+               const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+               if (setting && setting.value) platformFeePercent = parseFloat(setting.value);
+             } catch (e) {}
+             const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
+             const netAmount = parseFloat((amount - platformFee).toFixed(2));
+             await tx.insert(teacherEarningsTable).values({
+               teacherId: session.teacherId, paymentId: payment.id, sessionId: session.id,
+               grossAmount: amount.toFixed(2), platformFeePercent: platformFeePercent.toFixed(2), platformFee: platformFee.toFixed(2), netAmount: netAmount.toFixed(2), currency: "LYD", status: "available"
+             });
+             const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
+             if (teacher) {
+               const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
+               await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, session.teacherId));
+             }
+        }
+      });
       return void res.json({ url: "/dashboard?success=true" });
     }
 
@@ -247,6 +332,130 @@ router.get("/callback", async (req, res) => {
     res.redirect('/dashboard?success=true');
   } catch (err: any) {
     res.status(500).send("Server Error");
+  }
+});
+
+// ─── REDEEM CARDS ─────────────────────────────────────────────────────────────
+
+router.post("/redeem-code", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { code } = req.body;
+
+    if (!code) {
+      res.status(400).json({ error: "Code is required" });
+      return;
+    }
+
+    const [card] = await db.select().from(redeemCardsTable).where(and(eq(redeemCardsTable.code, code), eq(redeemCardsTable.status, "active"))).limit(1);
+
+    if (!card) {
+      res.status(400).json({ error: "Invalid or already redeemed card code" });
+      return;
+    }
+
+    // Process redemption
+    await db.transaction(async (tx) => {
+      // 1. Mark card as redeemed
+      await tx.update(redeemCardsTable)
+        .set({ status: "redeemed", redeemedBy: userId, redeemedAt: new Date() })
+        .where(eq(redeemCardsTable.id, card.id));
+
+      // 2. Add balance to user
+      const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      const newBalance = (parseFloat(user.balance as string) || 0) + parseFloat(card.value as string);
+      
+      await tx.update(usersTable)
+        .set({ balance: newBalance.toFixed(2), updatedAt: new Date() })
+        .where(eq(usersTable.id, userId));
+
+      // 3. Optional: Add a payment record for history
+      await tx.insert(paymentsTable).values({
+        userId,
+        amount: card.value,
+        currency: "LYD",
+        method: "redeem_card",
+        status: "completed",
+        reference: `REDEEM-${card.code}`,
+      });
+    });
+
+    res.json({ success: true, message: "Card redeemed successfully", value: card.value });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── TEACHER WITHDRAWALS ──────────────────────────────────────────────────────
+
+router.post("/withdrawals", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { amount, paymentMethod, details } = req.body;
+
+    if (!amount || parseFloat(amount) <= 0) {
+      res.status(400).json({ error: "Invalid amount" });
+      return;
+    }
+    if (!details) {
+      res.status(400).json({ error: "Payment details are required" });
+      return;
+    }
+
+    // Verify teacher role
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!teacher || teacher.role !== "teacher") {
+      res.status(403).json({ error: "Only teachers can request withdrawals" });
+      return;
+    }
+
+    // Check available earnings balance
+    const earnings = await db.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.teacherId, userId));
+    const availableEarnings = earnings
+      .filter(e => e.status === "available")
+      .reduce((s, e) => s + parseFloat(e.netAmount), 0);
+
+    // Subtract any existing pending withdrawal requests
+    const pendingRequests = await db.select().from(withdrawalRequestsTable)
+      .where(and(eq(withdrawalRequestsTable.teacherId, userId), eq(withdrawalRequestsTable.status, "pending")));
+    const pendingWithdrawalsAmount = pendingRequests.reduce((s, r) => s + parseFloat(r.amount as string), 0);
+
+    const netAvailable = availableEarnings - pendingWithdrawalsAmount;
+
+    if (parseFloat(amount) > netAvailable) {
+      res.status(400).json({ error: `Insufficient available balance. Available: ${netAvailable.toFixed(2)} LYD` });
+      return;
+    }
+
+    const [request] = await db.insert(withdrawalRequestsTable).values({
+      teacherId: userId,
+      amount: parseFloat(amount).toFixed(2),
+      paymentMethod: paymentMethod || "bank_transfer",
+      details,
+      status: "pending",
+    }).returning();
+
+    res.status(201).json({ success: true, request });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.get("/withdrawals/me", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requests = await db
+      .select()
+      .from(withdrawalRequestsTable)
+      .where(eq(withdrawalRequestsTable.teacherId, userId))
+      .orderBy(desc(withdrawalRequestsTable.createdAt));
+
+    res.json(requests.map(r => ({
+      ...r,
+      amount: parseFloat(r.amount as string),
+    })));
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 

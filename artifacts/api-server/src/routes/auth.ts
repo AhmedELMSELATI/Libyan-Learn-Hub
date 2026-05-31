@@ -219,6 +219,7 @@ router.post("/login", authLimiter, async (req, res) => {
         storageUsed: user.storageUsed,
         storageLimitBytes: plan.storageLimitBytes,
         isBonusUnlocked: user.isBonusUnlocked,
+        balance: user.balance ?? "0",
         createdAt: user.createdAt,
       },
       token,
@@ -288,6 +289,7 @@ router.get("/me", requireAuth, async (req, res) => {
     storageUsed: user.storageUsed,
     storageLimitBytes: plan.storageLimitBytes,
     isBonusUnlocked: user.isBonusUnlocked,
+    balance: user.balance ?? "0",
     createdAt: user.createdAt,
   });
 });

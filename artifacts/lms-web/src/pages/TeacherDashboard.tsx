@@ -9,8 +9,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
-  Globe, Lock, Trash2, Eye, Radio, Clock, DollarSign, GraduationCap,
-  PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle, HardDrive, Trophy, Zap
+  PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle, HardDrive, Trophy, Zap, Wallet, Banknote,
+  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -265,6 +265,7 @@ export default function TeacherDashboard() {
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> {t('teacher_dashboard.my_courses')}</TabsTrigger>
             <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> {t('teacher_dashboard.live_sessions')}</TabsTrigger>
             <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> {t('teacher_dashboard.students')}</TabsTrigger>
+            <TabsTrigger value="earnings" className="gap-2"><Wallet className="w-4 h-4" /> Earnings & Payouts</TabsTrigger>
             <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> {t('teacher_dashboard.promote')}</TabsTrigger>
           </TabsList>
 
@@ -478,6 +479,11 @@ export default function TeacherDashboard() {
             <TeacherStudentsList api={api} />
           </TabsContent>
 
+          {/* EARNINGS TAB */}
+          <TabsContent value="earnings">
+            <TeacherEarningsTab api={api} user={user} totalRevenue={totalRevenue} />
+          </TabsContent>
+
           {/* PROMOTE TAB */}
           <TabsContent value="promote">
             <TeacherPromoteTab api={api} user={user} />
@@ -599,6 +605,166 @@ function TeacherStudentsList({ api }: { api: any }) {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; totalRevenue: number }) {
+  const { toast } = useToast();
+  const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [amount, setAmount] = React.useState('');
+  const [method, setMethod] = React.useState('bank_transfer');
+  const [details, setDetails] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const fetchWithdrawals = React.useCallback(async () => {
+    try {
+      const data = await api.get('/payments/withdrawals/me');
+      setWithdrawals(data || []);
+    } catch (e) {
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+
+  React.useEffect(() => {
+    fetchWithdrawals();
+  }, [fetchWithdrawals]);
+
+  const handleRequestWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      toast({ title: "Invalid amount", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await api.post('/payments/withdrawals', {
+        amount: parseFloat(amount),
+        paymentMethod: method,
+        details
+      });
+      toast({ title: "Withdrawal request submitted successfully" });
+      setAmount('');
+      setDetails('');
+      fetchWithdrawals();
+    } catch (err: any) {
+      toast({ title: "Failed to request withdrawal", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const balance = parseFloat(user?.balance || "0");
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Balance Card */}
+        <div className="bg-primary/10 border border-primary/20 rounded-3xl p-8 flex flex-col justify-center shadow-inner relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Wallet className="w-32 h-32 text-primary" />
+          </div>
+          <h3 className="text-xl font-bold text-primary mb-2">Available Balance</h3>
+          <div className="text-5xl font-display font-extrabold text-primary mb-4">
+            {balance.toFixed(2)} <span className="text-2xl font-bold">LYD</span>
+          </div>
+          <p className="text-muted-foreground text-sm max-w-sm">
+            Total All-Time Revenue: <span className="font-bold">{totalRevenue.toFixed(2)} LYD</span>
+          </p>
+        </div>
+
+        {/* Request Form */}
+        <div className="bg-card rounded-3xl border border-border p-6 shadow-sm">
+          <h3 className="text-xl font-bold font-display mb-4 flex items-center gap-2">
+            <Banknote className="w-5 h-5 text-primary" /> Request Payout
+          </h3>
+          <form onSubmit={handleRequestWithdrawal} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Amount (LYD)</label>
+              <input 
+                type="number" 
+                step="0.01" 
+                min="1" 
+                max={balance}
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                placeholder="e.g. 100.00"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Payout Method</label>
+              <select 
+                value={method}
+                onChange={e => setMethod(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="mobile_money">Mobile Money (MobiCash/SADAD)</option>
+                <option value="cash">Cash Collection</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Account Details</label>
+              <Textarea 
+                value={details}
+                onChange={e => setDetails(e.target.value)}
+                placeholder="Enter bank account number, phone number, etc."
+                rows={2}
+                required
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isSubmitting || balance <= 0 || parseFloat(amount || "0") > balance}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+            </Button>
+          </form>
+        </div>
+      </div>
+
+      {/* History */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="p-5 border-b border-border bg-muted/30">
+          <h3 className="font-bold text-lg">Withdrawal History</h3>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-muted-foreground">Loading...</div>
+        ) : withdrawals.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">No withdrawal requests found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b border-border text-left text-muted-foreground">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Date</th>
+                  <th className="px-5 py-3 font-semibold">Amount</th>
+                  <th className="px-5 py-3 font-semibold">Method</th>
+                  <th className="px-5 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {withdrawals.map((w: any) => (
+                  <tr key={w.id} className="hover:bg-muted/10">
+                    <td className="px-5 py-3">{new Date(w.createdAt).toLocaleDateString()}</td>
+                    <td className="px-5 py-3 font-bold">{parseFloat(w.amount).toFixed(2)} LYD</td>
+                    <td className="px-5 py-3 capitalize">{w.paymentMethod.replace('_', ' ')}</td>
+                    <td className="px-5 py-3">
+                      <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-green-500 hover:bg-green-600 text-white' : w.status === 'pending' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : ''}>
+                        {w.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

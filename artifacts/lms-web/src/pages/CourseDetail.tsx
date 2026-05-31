@@ -124,7 +124,11 @@ export default function CourseDetail() {
       setLocation('/login');
       return;
     }
-    enroll({ courseId });
+    if (course.price > 0) {
+      setLocation(`/checkout/course/${courseId}`);
+    } else {
+      enroll({ courseId });
+    }
   };
 
   return (
