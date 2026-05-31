@@ -52,22 +52,7 @@ export default function TeacherDashboard() {
 
   const mySessions = liveSessions?.filter((s: any) => s.teacherId === user?.id) || [];
 
-  const handleTogglePublish = async (course: any) => {
-    try {
-      await api.put(`/courses/${course.id}`, {
-        title: course.title, titleAr: course.titleAr,
-        description: course.description, descriptionAr: course.descriptionAr,
-        price: parseFloat(course.price), categoryId: course.categoryId,
-        level: course.level, language: course.language,
-        thumbnailUrl: course.thumbnailUrl,
-        isPublished: !course.isPublished
-      });
-      toast({ title: course.isPublished ? 'Course unpublished' : 'Course published!' });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/courses'] });
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    }
-  };
+
 
   const handleDeleteCourse = async (courseId: number) => {
     if (!window.confirm('Delete this course? This will permanently delete all its lessons. Students will lose access.')) return;
@@ -301,7 +286,7 @@ export default function TeacherDashboard() {
                       )}
                       <div className="absolute top-3 start-3 flex gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${course.isPublished ? 'bg-green-500 text-white' : 'bg-yellow-400 text-yellow-900'}`}>
-                          {course.isPublished ? '✓ Published' : '⏸ Draft'}
+                          {course.isPublished ? '✓ Published' : '⏳ Pending Approval'}
                         </span>
                         {parseFloat(course.price) === 0 && (
                           <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-blue-500 text-white">Free</span>
@@ -332,7 +317,7 @@ export default function TeacherDashboard() {
                             <Video className="w-3.5 h-3.5" /> Manage Lessons
                           </Button>
                         </Link>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <Link href={`/teacher/courses/${course.id}/edit`}>
                             <Button
                               variant="outline"
@@ -345,15 +330,7 @@ export default function TeacherDashboard() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className={`gap-1 text-xs ${course.isPublished ? 'text-yellow-600 border-yellow-300 hover:bg-yellow-50' : 'text-green-600 border-green-300 hover:bg-green-50'}`}
-                            onClick={() => handleTogglePublish(course)}
-                          >
-                            {course.isPublished ? <><Lock className="w-3 h-3" /> Unpublish</> : <><Globe className="w-3 h-3" /> Publish</>}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                            className="flex-1 gap-1 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
                             onClick={() => handleDeleteCourse(course.id)}
                           >
                             <Trash2 className="w-3 h-3" /> Delete

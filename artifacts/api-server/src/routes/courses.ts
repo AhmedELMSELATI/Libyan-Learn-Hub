@@ -108,12 +108,12 @@ router.get("/", async (req, res) => {
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId, isPublished } = req.body;
+    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId } = req.body;
     const [course] = await db.insert(coursesTable).values({
       title, titleAr, description, descriptionAr, thumbnailUrl,
       price: price.toString(),
       level, language, categoryId,
-      isPublished: isPublished || false,
+      isPublished: false,
       teacherId: userId,
     }).returning();
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -213,9 +213,9 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
     if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
 
-    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId, isPublished } = req.body;
+    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId } = req.body;
     const [updated] = await db.update(coursesTable)
-      .set({ title, titleAr, description, descriptionAr, thumbnailUrl, price: price?.toString(), level, language, categoryId, isPublished, updatedAt: new Date() })
+      .set({ title, titleAr, description, descriptionAr, thumbnailUrl, price: price?.toString(), level, language, categoryId, updatedAt: new Date() })
       .where(eq(coursesTable.id, courseId))
       .returning();
 
