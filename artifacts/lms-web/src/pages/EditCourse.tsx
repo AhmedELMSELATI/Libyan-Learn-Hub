@@ -32,7 +32,7 @@ export default function EditCourse() {
     defaultValues: {
       title: '', titleAr: '', description: '', descriptionAr: '',
       price: 0, categoryId: '', level: 'beginner', language: 'ar',
-      thumbnailUrl: '', isPublished: false
+      thumbnailUrl: ''
     }
   });
 
@@ -51,8 +51,7 @@ export default function EditCourse() {
           categoryId: String(course.categoryId),
           level: course.level,
           language: course.language,
-          thumbnailUrl: course.thumbnailUrl || '',
-          isPublished: course.isPublished
+          thumbnailUrl: course.thumbnailUrl || ''
         });
       }
       setCourseLoading(false);
@@ -160,12 +159,10 @@ export default function EditCourse() {
                 </select>
               </div>
             </div>
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer pt-2">
-                <input type="checkbox" {...courseForm.register('isPublished')} className="w-5 h-5 rounded accent-primary border-primary" />
-                <span className="text-sm font-medium">Publish Course</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1 ps-7">If unchecked, the course will be hidden from students.</p>
+            <div className="pt-2">
+              <p className="text-sm text-muted-foreground bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
+                To change the publication status of this course, please contact an administrator.
+              </p>
             </div>
             <div className="flex gap-3 pt-2">
               <Link href="/teacher/dashboard" className="flex-1">

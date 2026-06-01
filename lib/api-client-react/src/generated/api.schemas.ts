@@ -76,6 +76,7 @@ export interface User {
   bio?: string | null;
   bioAr?: string | null;
   language: UserLanguage;
+  balance?: string;
   createdAt: string;
 }
 

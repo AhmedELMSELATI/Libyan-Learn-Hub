@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
-  : "https://libyan-learn-hub.onrender.com/api";
+  : "https://api.eduonline.net.ly/api";
 
 export interface User {
   id: number;

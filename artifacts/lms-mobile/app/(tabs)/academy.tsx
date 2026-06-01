@@ -88,7 +88,7 @@ export default function AcademyScreen() {
 
   const handleApply = () => {
     if (!user) {
-      router.push("/(auth)/login");
+      router.push("/auth/login");
     } else {
       router.push("/academy-apply");
     }

@@ -52,7 +52,7 @@ export default function AcademyApplyScreen() {
   });
 
   if (!user) {
-    router.replace('/(auth)/login');
+    router.replace('/auth/login');
     return null;
   }
 

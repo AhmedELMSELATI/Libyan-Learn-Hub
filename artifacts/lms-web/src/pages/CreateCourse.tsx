@@ -29,7 +29,7 @@ export default function CreateCourse() {
     defaultValues: {
       title: '', titleAr: '', description: '', descriptionAr: '',
       price: 0, categoryId: '', level: 'beginner', language: 'ar',
-      thumbnailUrl: '', isPublished: false
+      thumbnailUrl: ''
     }
   });
 
@@ -134,12 +134,10 @@ export default function CreateCourse() {
                 </select>
               </div>
             </div>
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer pt-2">
-                <input type="checkbox" {...courseForm.register('isPublished')} className="w-5 h-5 rounded accent-primary border-primary" />
-                <span className="text-sm font-medium">Publish Course Immediately</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1 ps-7">If unchecked, the course will be saved as a draft and hidden from students.</p>
+            <div className="pt-2">
+              <p className="text-sm text-muted-foreground bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
+                All new courses are saved as "Pending Approval" and must be reviewed by an administrator before they are published to students.
+              </p>
             </div>
             <div className="flex gap-3 pt-2">
               <Link href="/teacher/dashboard" className="flex-1">

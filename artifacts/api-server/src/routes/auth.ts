@@ -5,12 +5,34 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth.js";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
+import { sendEmail } from "../lib/email.js";
 import { rateLimit } from "express-rate-limit";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
+// ─── PUBLIC SETTINGS ────────────────────────────────────────────────────────
+const DEFAULT_SETTINGS = [
+  { key: "teacher_commission_percent", value: "20", description: "Platform fee percentage retained from teacher sales" },
+];
+
+router.get("/settings", async (_req, res) => {
+  try {
+    const { platformSettingsTable } = await import("@workspace/db");
+    let settings = await db.select().from(platformSettingsTable);
+    
+    // Auto-seed defaults if the table is empty (first boot)
+    if (settings.length === 0) {
+      await db.insert(platformSettingsTable).values(DEFAULT_SETTINGS).onConflictDoNothing();
+      settings = await db.select().from(platformSettingsTable);
+    }
+    
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
@@ -52,6 +74,13 @@ router.post("/register", authLimiter, async (req, res) => {
       ? requestedTier
       : "free";
 
+    if (body.role === "teacher") {
+      if (req.body.agreedToCommission !== true && req.body.agreedToCommission !== "true") {
+        res.status(400).json({ error: "You must agree to the platform commission terms to register as a teacher." });
+        return;
+      }
+    }
+
     const [user] = await db.insert(usersTable).values({
       email: body.email,
       passwordHash,
@@ -66,6 +95,15 @@ router.post("/register", authLimiter, async (req, res) => {
     }).returning();
     const token = signToken({ userId: user.id, role: user.role });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
+
+    if (!user.phoneNumber && user.email) {
+      sendEmail({
+        to: user.email,
+        subject: "Welcome to Libyan Learn Hub - Verification Code",
+        text: `Hello ${user.fullName},\n\nYour email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+      }).catch((err) => console.error("Failed to send welcome OTP email:", err));
+    }
+
     res.status(201).json({
       user: {
         id: user.id,
@@ -106,6 +144,15 @@ router.post("/send-otp", requireAuth, async (req, res) => {
       .set({ otpCode, otpExpiry })
       .where(eq(usersTable.id, userId))
       .returning();
+
+    if (!user.phoneNumber && user.email) {
+      sendEmail({
+        to: user.email,
+        subject: "Libyan Learn Hub - Verification Code",
+        text: `Hello ${user.fullName || "User"},\n\nYour new email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+      }).catch((err) => console.error("Failed to send OTP email:", err));
+    }
+
     res.json({
       message: "OTP sent",
       otpCode,
@@ -191,6 +238,7 @@ router.post("/login", authLimiter, async (req, res) => {
         storageUsed: user.storageUsed,
         storageLimitBytes: plan.storageLimitBytes,
         isBonusUnlocked: user.isBonusUnlocked,
+        balance: user.balance ?? "0",
         createdAt: user.createdAt,
       },
       token,
@@ -260,6 +308,7 @@ router.get("/me", requireAuth, async (req, res) => {
     storageUsed: user.storageUsed,
     storageLimitBytes: plan.storageLimitBytes,
     isBonusUnlocked: user.isBonusUnlocked,
+    balance: user.balance ?? "0",
     createdAt: user.createdAt,
   });
 });
