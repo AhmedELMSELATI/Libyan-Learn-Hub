@@ -5,6 +5,7 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth.js";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
+import { sendEmail } from "../lib/email.js";
 import { rateLimit } from "express-rate-limit";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
@@ -94,6 +95,15 @@ router.post("/register", authLimiter, async (req, res) => {
     }).returning();
     const token = signToken({ userId: user.id, role: user.role });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
+
+    if (!user.phoneNumber && user.email) {
+      sendEmail({
+        to: user.email,
+        subject: "Welcome to Libyan Learn Hub - Verification Code",
+        text: `Hello ${user.fullName},\n\nYour email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+      }).catch((err) => console.error("Failed to send welcome OTP email:", err));
+    }
+
     res.status(201).json({
       user: {
         id: user.id,
@@ -134,6 +144,15 @@ router.post("/send-otp", requireAuth, async (req, res) => {
       .set({ otpCode, otpExpiry })
       .where(eq(usersTable.id, userId))
       .returning();
+
+    if (!user.phoneNumber && user.email) {
+      sendEmail({
+        to: user.email,
+        subject: "Libyan Learn Hub - Verification Code",
+        text: `Hello ${user.fullName || "User"},\n\nYour new email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+      }).catch((err) => console.error("Failed to send OTP email:", err));
+    }
+
     res.json({
       message: "OTP sent",
       otpCode,
