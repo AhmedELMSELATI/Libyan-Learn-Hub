@@ -121,6 +121,7 @@ export default function SessionRoom() {
           backgroundColor: '#000'
         },
         showLeaveButton: true,
+        strictMode: true, // Prevents Daily from attempting to use localStorage, bypassing tracking prevention issues
       });
       
       dailyRef.current = callFrame;
