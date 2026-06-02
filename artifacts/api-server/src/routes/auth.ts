@@ -63,6 +63,7 @@ router.post("/register", authLimiter, async (req, res) => {
       return;
     }
     const passwordHash = await bcrypt.hash(body.password, 10);
+    const passkeyHash = body.passkey ? await bcrypt.hash(body.passkey, 10) : null;
     const otpCode = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const phoneNumber = req.body.phoneNumber || null;
@@ -87,6 +88,7 @@ router.post("/register", authLimiter, async (req, res) => {
       fullName: body.fullName,
       fullNameAr: body.fullNameAr,
       role: body.role as any,
+      passkeyHash,
       language: (body.language as any) || "ar",
       phoneNumber,
       otpCode,
@@ -122,6 +124,7 @@ router.post("/register", authLimiter, async (req, res) => {
         storageUsed: user.storageUsed,
         storageLimitBytes: plan.storageLimitBytes,
         isBonusUnlocked: user.isBonusUnlocked,
+        hasPasskey: !!user.passkeyHash,
         createdAt: user.createdAt,
       },
       token,
@@ -239,6 +242,7 @@ router.post("/login", authLimiter, async (req, res) => {
         storageLimitBytes: plan.storageLimitBytes,
         isBonusUnlocked: user.isBonusUnlocked,
         balance: user.balance ?? "0",
+        hasPasskey: !!user.passkeyHash,
         createdAt: user.createdAt,
       },
       token,
@@ -309,8 +313,124 @@ router.get("/me", requireAuth, async (req, res) => {
     storageLimitBytes: plan.storageLimitBytes,
     isBonusUnlocked: user.isBonusUnlocked,
     balance: user.balance ?? "0",
+    hasPasskey: !!user.passkeyHash,
     createdAt: user.createdAt,
   });
+});
+
+// ── Set / Change Passkey ──────────────────────────────────────────────────
+router.post("/set-passkey", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { passkey, currentPasskey } = req.body;
+
+    if (!passkey || !/^\d{4}$/.test(passkey)) {
+      res.status(400).json({ error: "Passkey must be exactly 4 digits" });
+      return;
+    }
+
+    // If user already has a passkey, verify their current one first
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (user.passkeyHash && !currentPasskey) {
+      res.status(400).json({ error: "Current passkey is required to set a new one" });
+      return;
+    }
+
+    if (user.passkeyHash && currentPasskey) {
+      const valid = await bcrypt.compare(currentPasskey, user.passkeyHash);
+      if (!valid) {
+        res.status(401).json({ error: "Incorrect current passkey" });
+        return;
+      }
+    }
+
+    const passkeyHash = await bcrypt.hash(passkey, 10);
+    await db.update(usersTable)
+      .set({ passkeyHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+
+    res.json({ success: true, message: "Passkey set successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Remove Passkey ────────────────────────────────────────────────────────
+router.post("/remove-passkey", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { currentPasskey } = req.body;
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (!user.passkeyHash) {
+      res.status(400).json({ error: "No passkey is set" });
+      return;
+    }
+
+    if (!currentPasskey) {
+      res.status(400).json({ error: "Current passkey is required" });
+      return;
+    }
+
+    const valid = await bcrypt.compare(currentPasskey, user.passkeyHash);
+    if (!valid) {
+      res.status(401).json({ error: "Incorrect passkey" });
+      return;
+    }
+
+    await db.update(usersTable)
+      .set({ passkeyHash: null, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+
+    res.json({ success: true, message: "Passkey removed successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Verify Passkey (unlock session) ──────────────────────────────────────
+router.post("/verify-passkey", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { passkey } = req.body;
+
+    if (!passkey) {
+      res.status(400).json({ error: "Passkey is required" });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (!user.passkeyHash) {
+      // No passkey set — just allow through
+      res.json({ success: true });
+      return;
+    }
+
+    const valid = await bcrypt.compare(passkey, user.passkeyHash);
+    if (!valid) {
+      res.status(401).json({ error: "Incorrect passkey" });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
 });
 
 router.post("/forgot-password", authLimiter, async (req, res) => {

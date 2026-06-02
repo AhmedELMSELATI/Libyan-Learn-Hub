@@ -8,6 +8,7 @@ import {
   enrollmentsTable,
   reviewsTable,
   progressTable,
+  notificationsTable,
 } from "@workspace/db";
 import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -220,6 +221,23 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
       .returning();
 
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, updated.teacherId)).limit(1);
+
+    // Trigger notification if newly published
+    if (!course.isPublished && updated.isPublished) {
+      const students = await db.select().from(usersTable).where(eq(usersTable.role, "student"));
+      if (students.length > 0) {
+        const notifications = students.map(s => ({
+          userId: s.id,
+          type: "new_course" as const,
+          title: "New Course Available!",
+          titleAr: "دورة جديدة متاحة!",
+          message: `A new course "${updated.title}" has been published by ${teacher?.fullName || 'a teacher'}.`,
+          messageAr: `تم نشر دورة جديدة "${updated.titleAr}" بواسطة ${teacher?.fullNameAr || teacher?.fullName || 'أحد المعلمين'}.`,
+          referenceId: updated.id,
+        }));
+        await db.insert(notificationsTable).values(notifications);
+      }
+    }
     const [reviewData] = await db.select({ avgRating: avg(reviewsTable.rating), reviewCount: count() }).from(reviewsTable).where(eq(reviewsTable.courseId, courseId));
     const [enrollData] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, courseId));
     const [lessonData] = await db.select({ lessonCount: count(), totalDuration: sum(lessonsTable.duration) }).from(lessonsTable).where(eq(lessonsTable.courseId, courseId));

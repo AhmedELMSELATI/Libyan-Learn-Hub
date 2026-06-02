@@ -4,9 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useLocation, Link } from 'wouter';
-import { User, BookOpen, Clock, Trophy, Mail, Settings, PlayCircle, Shield, Globe, Pencil, Wallet, CreditCard } from 'lucide-react';
+import { User, BookOpen, Clock, Trophy, Mail, Settings, PlayCircle, Shield, Globe, Pencil, Wallet, CreditCard, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { PasskeyModal } from '@/components/layout/PasskeyModal';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -40,6 +41,7 @@ export default function Profile() {
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [redeemCode, setRedeemCode] = React.useState('');
   const [isRedeeming, setIsRedeeming] = React.useState(false);
+  const [isPasskeyOpen, setIsPasskeyOpen] = React.useState(false);
 
   const handleRedeem = async () => {
     if (!redeemCode) return;
@@ -222,6 +224,24 @@ export default function Profile() {
                           <Shield className="w-4 h-4" /> {t('profile.security')}
                         </div>
                         
+                        <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border border-border">
+                          <div>
+                            <p className="font-semibold text-sm flex items-center gap-2">
+                              <Lock className="w-4 h-4 text-primary" /> Session Passkey
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Lock your session when inactive or closed.</p>
+                          </div>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            className="rounded-lg"
+                            onClick={() => setIsPasskeyOpen(true)}
+                          >
+                            {(user as any)?.hasPasskey ? 'Change / Remove' : 'Set up Passkey'}
+                          </Button>
+                        </div>
+                        
                         <div className="grid gap-2">
                           <Label>{t('profile.email')}</Label>
                           <Input 
@@ -389,6 +409,8 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      <PasskeyModal open={isPasskeyOpen} onOpenChange={setIsPasskeyOpen} />
     </PageContainer>
   );
 }

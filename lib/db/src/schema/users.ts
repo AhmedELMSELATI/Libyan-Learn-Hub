@@ -42,6 +42,7 @@ export const usersTable = pgTable("users", {
   isSponsored: boolean("is_sponsored").notNull().default(false),
   sponsoredUntil: timestamp("sponsored_until"),
   balance: numeric("balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  passkeyHash: text("passkey_hash"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -7,6 +7,9 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { InactivityTimer } from "@/components/layout/InactivityTimer";
+import { PasscodeLock } from "@/components/layout/PasscodeLock";
+import { useAuth } from "@/contexts/AuthContext";
+import { MediaActivityProvider, useMediaActivity } from "@/contexts/MediaActivityContext";
 import { useLocation } from "wouter";
 
 const NotFound = React.lazy(() => import("@/pages/not-found"));
@@ -140,22 +143,40 @@ function Router() {
   );
 }
 
+function GlobalLockScreen() {
+  const { isLocked, unlock, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading || !isAuthenticated || !isLocked) {
+    return null;
+  }
+
+  return <PasscodeLock onUnlocked={unlock} />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-            <Toaster />
-            <InactivityTimer />
-          </TooltipProvider>
+          <MediaActivityProvider>
+            <TooltipProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+              <Toaster />
+              <InactivityTimerWrapper />
+              <GlobalLockScreen />
+            </TooltipProvider>
+          </MediaActivityProvider>
         </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
+}
+
+function InactivityTimerWrapper() {
+  const { isMediaActive } = useMediaActivity();
+  return <InactivityTimer suppressWhenActive={isMediaActive} />;
 }
 
 export default App;
