@@ -1,5 +1,7 @@
+import { useCallback, useMemo } from 'react';
+
 export function useApi() {
-  async function apiFetch(path: string, options?: RequestInit) {
+  const apiFetch = useCallback(async (path: string, options?: RequestInit) => {
     const token = localStorage.getItem('lms_token');
     const res = await fetch(`/api${path}`, {
       ...options,
@@ -14,14 +16,14 @@ export function useApi() {
       throw new Error(err.error ?? err.message ?? res.statusText);
     }
     return res.json();
-  }
+  }, []);
 
-  return {
+  return useMemo(() => ({
     apiFetch,
     get: (path: string) => apiFetch(path, { method: 'GET' }),
     post: (path: string, body: any) => apiFetch(path, { method: 'POST', body: JSON.stringify(body) }),
     put: (path: string, body: any) => apiFetch(path, { method: 'PUT', body: JSON.stringify(body) }),
     del: (path: string) => apiFetch(path, { method: 'DELETE' }),
     patch: (path: string, body: any) => apiFetch(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  };
+  }), [apiFetch]);
 }
