@@ -460,12 +460,17 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
       .where(eq(usersTable.id, user.id));
 
     if (email) {
-      await sendEmail({
-        to: email,
-        subject: "Password Reset Code",
-        text: `Your password reset code is: ${otpCode}. It will expire in 15 minutes.`,
-        html: `<p>Your password reset code is: <strong>${otpCode}</strong></p><p>It will expire in 15 minutes.</p>`,
-      });
+      try {
+        await sendEmail({
+          to: email,
+          subject: "Password Reset Code",
+          text: `Your password reset code is: ${otpCode}. It will expire in 15 minutes.`,
+          html: `<p>Your password reset code is: <strong>${otpCode}</strong></p><p>It will expire in 15 minutes.</p>`,
+        });
+      } catch (emailErr) {
+        console.error("Failed to send email, but continuing with OTP flow:", emailErr);
+        // We do not throw here so that the mock SMS/email dev flow still works
+      }
     }
 
     res.json({
