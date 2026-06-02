@@ -125,9 +125,35 @@ export default function SessionRoom() {
       
       dailyRef.current = callFrame;
       
-      callFrame.join({ url: roomUrl, token, userName: user?.fullName || 'Student' });
+      callFrame.join({ url: roomUrl, token, userName: user?.fullName || 'Student' })
+        .catch((e: any) => {
+          console.error("Daily join error:", e);
+          toast({
+            title: 'Meeting Error',
+            description: 'Could not join the video call. This may be due to browser Tracking Prevention blocking storage.',
+            variant: 'destructive'
+          });
+        });
 
       // Handle events
+      callFrame.on('error', (e: any) => {
+        console.error("Daily error event:", e);
+        toast({
+            title: 'Video Error',
+            description: e?.errorMsg || 'An unexpected video error occurred.',
+            variant: 'destructive'
+        });
+      });
+      
+      callFrame.on('camera-error', (e: any) => {
+        console.error("Daily camera error:", e);
+        toast({
+            title: 'Camera/Microphone Error',
+            description: 'Could not access camera or microphone. Please check permissions.',
+            variant: 'destructive'
+        });
+      });
+
       callFrame.on('left-meeting', () => {
         setLocation('/dashboard');
       });
