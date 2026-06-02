@@ -459,12 +459,21 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
       .set({ otpCode, otpExpiry })
       .where(eq(usersTable.id, user.id));
 
+    if (email) {
+      await sendEmail({
+        to: email,
+        subject: "Password Reset Code",
+        text: `Your password reset code is: ${otpCode}. It will expire in 15 minutes.`,
+        html: `<p>Your password reset code is: <strong>${otpCode}</strong></p><p>It will expire in 15 minutes.</p>`,
+      });
+    }
+
     res.json({
       message: "Reset code sent",
       otpCode, // Returned for dev purposes
       otpMessage: user.phoneNumber
         ? `Your password reset code is: ${otpCode} (Mock SMS to ${user.phoneNumber})`
-        : `Your password reset code is: ${otpCode} (Mock Email to ${user.email})`,
+        : `Your password reset code is: ${otpCode} (Email sent to ${user.email})`,
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
