@@ -112,49 +112,68 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
     let token = "";
 
     if (process.env.DAILY_API_KEY) {
-      // 1. Create or get room
-      const roomRes = await fetch("https://api.daily.co/v1/rooms", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-        },
-        body: JSON.stringify({
-          name: roomId,
-          properties: { enable_recording: "cloud" },
-        }),
-      });
-      const roomData = (await roomRes.json()) as any;
-      
-      if (!roomRes.ok && roomData.error === "invalid-request-error") {
-        // Assume room exists, fetch it
-        const getRoom = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
-          headers: { Authorization: `Bearer ${process.env.DAILY_API_KEY}` }
-        });
-        const existingRoom = (await getRoom.json()) as any;
-        roomUrl = existingRoom.url;
-      } else if (roomRes.ok) {
-        roomUrl = roomData.url;
-      }
-
-      // 2. Generate token
-      const tokenRes = await fetch("https://api.daily.co/v1/meeting-tokens", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-        },
-        body: JSON.stringify({
-          properties: {
-            room_name: roomId,
-            is_owner: isTeacher,
-            user_name: (req as any).user.fullName || "User",
+      try {
+        // 1. Create or get room
+        const roomRes = await fetch("https://api.daily.co/v1/rooms", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
           },
-        }),
-      });
-      if (tokenRes.ok) {
+          body: JSON.stringify({
+            name: roomId,
+            properties: { enable_recording: "cloud" },
+          }),
+        });
+        const roomData = (await roomRes.json()) as any;
+        
+        if (!roomRes.ok) {
+          if (roomData.error === "invalid-request-error" || roomData.message?.includes("already exists")) {
+            // Assume room exists, fetch it
+            const getRoom = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
+              headers: { Authorization: `Bearer ${process.env.DAILY_API_KEY}` }
+            });
+            const existingRoom = (await getRoom.json()) as any;
+            if (getRoom.ok && existingRoom.url) {
+              roomUrl = existingRoom.url;
+            } else {
+              throw new Error(`Failed to retrieve existing room: ${existingRoom.message || existingRoom.error || "Unknown error"}`);
+            }
+          } else {
+            throw new Error(`Daily.co API error: ${roomData.message || roomData.error || "Unknown error"}`);
+          }
+        } else {
+          roomUrl = roomData.url;
+        }
+
+        // 2. Generate token
+        const tokenRes = await fetch("https://api.daily.co/v1/meeting-tokens", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
+          },
+          body: JSON.stringify({
+            properties: {
+              room_name: roomId,
+              is_owner: isTeacher,
+              user_name: (req as any).user.fullName || "User",
+            },
+          }),
+        });
         const tokenData = (await tokenRes.json()) as any;
-        token = tokenData.token;
+        if (tokenRes.ok && tokenData.token) {
+          token = tokenData.token;
+        } else {
+          throw new Error(`Failed to generate meeting token: ${tokenData.message || tokenData.error || "Unknown error"}`);
+        }
+      } catch (dailyErr: any) {
+        console.error("Daily.co API integration error:", dailyErr);
+        res.status(500).json({ 
+          error: "Failed to initialize video call session", 
+          message: dailyErr.message || "Daily.co integration error" 
+        });
+        return;
       }
     } else {
       roomUrl = `https://mock.daily.co/${roomId}`;

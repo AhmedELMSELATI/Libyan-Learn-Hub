@@ -83,6 +83,15 @@ export default function SessionRoom() {
   const initDaily = (roomUrl: string, token: string) => {
     if (dailyLoaded || !videoContainerRef.current) return;
 
+    if (!roomUrl) {
+      toast({
+        title: 'Session Room Error',
+        description: 'Failed to obtain a valid meeting room URL. Please ensure the Daily.co API key is configured correctly.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     if (roomUrl.includes('mock.daily.co')) {
       videoContainerRef.current.innerHTML = `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background-color:#0f172a;color:white;text-align:center;font-family:sans-serif;">
