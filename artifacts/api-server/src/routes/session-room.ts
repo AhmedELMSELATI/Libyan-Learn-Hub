@@ -122,7 +122,6 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
           },
           body: JSON.stringify({
             name: roomId,
-            properties: { enable_recording: "cloud" },
           }),
         });
         const roomData = (await roomRes.json()) as any;
