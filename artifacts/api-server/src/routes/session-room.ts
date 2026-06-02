@@ -124,14 +124,14 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
           properties: { enable_recording: "cloud" },
         }),
       });
-      const roomData = await roomRes.json();
+      const roomData = (await roomRes.json()) as any;
       
       if (!roomRes.ok && roomData.error === "invalid-request-error") {
         // Assume room exists, fetch it
         const getRoom = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
           headers: { Authorization: `Bearer ${process.env.DAILY_API_KEY}` }
         });
-        const existingRoom = await getRoom.json();
+        const existingRoom = (await getRoom.json()) as any;
         roomUrl = existingRoom.url;
       } else if (roomRes.ok) {
         roomUrl = roomData.url;
@@ -153,7 +153,7 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
         }),
       });
       if (tokenRes.ok) {
-        const tokenData = await tokenRes.json();
+        const tokenData = (await tokenRes.json()) as any;
         token = tokenData.token;
       }
     } else {

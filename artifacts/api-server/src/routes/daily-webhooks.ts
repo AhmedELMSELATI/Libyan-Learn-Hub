@@ -21,7 +21,7 @@ router.post("/daily", async (req, res) => {
         // Find session by matching the room_name in the meetingUrl
         // Our meeting urls look like https://mock.daily.co/edulibya-1-abc1234
         await db.update(liveSessionsTable)
-          .set({ recordingUrl: downloadUrl })
+          .set({ recordingUrl: downloadUrl } as any)
           .where(like(liveSessionsTable.meetingUrl, `%${roomName}%`));
           
         console.log(`Updated session recording for room ${roomName} with URL: ${downloadUrl}`);

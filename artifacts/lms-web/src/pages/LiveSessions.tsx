@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useForm } from 'react-hook-form';
 import ReactPlayer from 'react-player';
 
+const Player = ReactPlayer as any;
+
 export default function LiveSessions() {
   const { language } = useLanguage();
   const { isAuthenticated, user } = useAuth();
@@ -267,12 +269,12 @@ export default function LiveSessions() {
           </DialogHeader>
           {playbackUrl && (
             <div className="aspect-video w-full bg-black flex items-center justify-center">
-              <ReactPlayer 
+              <Player 
                 url={playbackUrl} 
-                controls 
+                controls={true}
                 width="100%" 
                 height="100%"
-                playing
+                playing={true}
               />
             </div>
           )}
