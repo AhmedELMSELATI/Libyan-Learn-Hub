@@ -106,21 +106,73 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
     }
 
     // Generate a stable, deterministic room ID for this session.
-    // This is used by the frontend Jitsi IFrame API — no external URL redirect needed.
     const roomId = `edulibya-${sessionId}-${crypto.createHash("md5").update(sessionId.toString()).digest("hex").slice(0, 8)}`;
+    
+    let roomUrl = "";
+    let token = "";
 
-    // Persist the room ID and mark session as live when teacher joins
+    if (process.env.DAILY_API_KEY) {
+      // 1. Create or get room
+      const roomRes = await fetch("https://api.daily.co/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          name: roomId,
+          properties: { enable_recording: "cloud" },
+        }),
+      });
+      const roomData = await roomRes.json();
+      
+      if (!roomRes.ok && roomData.error === "invalid-request-error") {
+        // Assume room exists, fetch it
+        const getRoom = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
+          headers: { Authorization: `Bearer ${process.env.DAILY_API_KEY}` }
+        });
+        const existingRoom = await getRoom.json();
+        roomUrl = existingRoom.url;
+      } else if (roomRes.ok) {
+        roomUrl = roomData.url;
+      }
+
+      // 2. Generate token
+      const tokenRes = await fetch("https://api.daily.co/v1/meeting-tokens", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          properties: {
+            room_name: roomId,
+            is_owner: isTeacher,
+            user_name: (req as any).user.fullName || "User",
+          },
+        }),
+      });
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        token = tokenData.token;
+      }
+    } else {
+      roomUrl = `https://mock.daily.co/${roomId}`;
+      token = "mock-token";
+    }
+
+    // Persist the room ID/Url and mark session as live when teacher joins
     if (isTeacher && session.status !== "live") {
       await db.update(liveSessionsTable)
-        .set({ meetingUrl: roomId, status: "live" })
+        .set({ meetingUrl: roomUrl, status: "live" })
         .where(eq(liveSessionsTable.id, sessionId));
     } else if (!session.meetingUrl) {
       await db.update(liveSessionsTable)
-        .set({ meetingUrl: roomId })
+        .set({ meetingUrl: roomUrl })
         .where(eq(liveSessionsTable.id, sessionId));
     }
 
-    res.json({ roomId, sessionId, isTeacher });
+    res.json({ roomUrl, token, sessionId, isTeacher });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

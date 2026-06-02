@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
+import ReactPlayer from 'react-player';
 
 export default function LiveSessions() {
   const { language } = useLanguage();
@@ -20,11 +21,13 @@ export default function LiveSessions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [reportSession, setReportSession] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'live' | 'recordings'>('live');
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ['/api/live-sessions'],
-    queryFn: () => api.get('/live-sessions?upcoming=true'),
+    queryFn: () => api.get('/live-sessions'),
     refetchInterval: 30000,
   });
 
@@ -66,6 +69,10 @@ export default function LiveSessions() {
     cancelled: { label: 'Cancelled', color: 'bg-red-50 text-red-400' },
   };
 
+  const liveSessions = (sessions || []).filter((s: any) => s.status !== 'ended' || !s.recordingUrl);
+  const recordedSessions = (sessions || []).filter((s: any) => s.status === 'ended' && s.recordingUrl);
+  const displayedSessions = activeTab === 'live' ? liveSessions : recordedSessions;
+
   return (
     <PageContainer>
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-12 border-b border-primary/10">
@@ -76,13 +83,30 @@ export default function LiveSessions() {
             </div>
             <div>
               <h1 className="text-4xl font-display font-bold">Live Sessions</h1>
-              <p className="text-muted-foreground text-lg">Interactive classes — ask questions in real-time</p>
+              <p className="text-muted-foreground text-lg">Interactive classes and recordings</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex gap-4 mb-6 border-b border-border">
+          <button
+            className={`pb-3 px-4 font-bold text-sm transition-colors relative ${activeTab === 'live' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('live')}
+          >
+            Live Classes
+            {activeTab === 'live' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary" />}
+          </button>
+          <button
+            className={`pb-3 px-4 font-bold text-sm transition-colors relative ${activeTab === 'recordings' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('recordings')}
+          >
+            Watch Recordings
+            {activeTab === 'recordings' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary" />}
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="space-y-4">
             {[1,2,3].map(i => <div key={i} className="h-40 bg-card rounded-2xl animate-pulse border border-border" />)}
@@ -90,12 +114,12 @@ export default function LiveSessions() {
         ) : (sessions || []).length === 0 ? (
           <div className="text-center py-20 bg-card rounded-3xl border border-dashed border-border">
             <Video className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
-            <h3 className="text-xl font-bold">No upcoming sessions</h3>
-            <p className="text-muted-foreground mt-2">Check back later for new events.</p>
+            <h3 className="text-xl font-bold">No sessions found</h3>
+            <p className="text-muted-foreground mt-2">Check back later for {activeTab === 'live' ? 'upcoming classes' : 'recordings'}.</p>
           </div>
         ) : (
           <div className="space-y-5">
-            {(sessions || []).map((session: any) => {
+            {displayedSessions.map((session: any) => {
               const isFull = session.participantCount >= session.maxParticipants;
               const seatsLeft = session.maxParticipants - (session.participantCount || 0);
               const cfg = statusConfig[session.status] || statusConfig.scheduled;
@@ -180,14 +204,24 @@ export default function LiveSessions() {
                             <Flag className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button
-                          disabled={isEnded || isFull}
-                          className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : 'bg-primary hover:bg-primary/90'}`}
-                          onClick={() => handleEnterRoom(session.id)}
-                        >
-                          <Video className="w-4 h-4" />
-                          {session.status === 'live' ? 'Join Live' : isEnded ? 'Ended' : isFull ? 'Session Full' : 'Enter Room'}
-                        </Button>
+                        {activeTab === 'recordings' && session.recordingUrl ? (
+                          <Button
+                            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                            onClick={() => setPlaybackUrl(session.recordingUrl)}
+                          >
+                            <Video className="w-4 h-4" />
+                            Watch Recording
+                          </Button>
+                        ) : (
+                          <Button
+                            disabled={isEnded || isFull}
+                            className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : 'bg-primary hover:bg-primary/90'}`}
+                            onClick={() => handleEnterRoom(session.id)}
+                          >
+                            <Video className="w-4 h-4" />
+                            {session.status === 'live' ? 'Join Live' : isEnded ? 'Ended' : isFull ? 'Session Full' : 'Enter Room'}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -222,6 +256,26 @@ export default function LiveSessions() {
             </div>
             <Button type="submit" className="w-full">Submit Report</Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Playback Modal */}
+      <Dialog open={!!playbackUrl} onOpenChange={(o) => { if (!o) setPlaybackUrl(null); }}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-slate-800">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Session Recording</DialogTitle>
+          </DialogHeader>
+          {playbackUrl && (
+            <div className="aspect-video w-full bg-black flex items-center justify-center">
+              <ReactPlayer 
+                url={playbackUrl} 
+                controls 
+                width="100%" 
+                height="100%"
+                playing
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </PageContainer>

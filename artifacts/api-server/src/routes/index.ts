@@ -29,6 +29,7 @@ import copyrightComplaintsRouter from "./copyright-complaints.js";
 import verificationRouter from "./verification.js";
 import academyRouter from "./academy.js";
 import notificationsRouter from "./notifications.js";
+import dailyWebhooksRouter from "./daily-webhooks.js";
 
 const router: IRouter = Router();
 
@@ -64,5 +65,7 @@ router.use("/verification", verificationRouter);
 router.use("/notifications", notificationsRouter);
 // Academy router
 router.use("/academy", academyRouter);
+// Webhooks
+router.use("/webhooks", dailyWebhooksRouter);
 
 export default router;

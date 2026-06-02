@@ -34,6 +34,7 @@ async function formatSession(session: any, teacherCache?: Map<number, string>) {
     price: parseFloat(session.price || "0"),
     participantCount: 0,
     cancellationReason: session.cancellationReason,
+    recordingUrl: session.recordingUrl,
     createdAt: session.createdAt,
   };
 }
@@ -63,13 +64,24 @@ router.get("/", async (req, res) => {
 
     let sessions = await db.select().from(liveSessionsTable).where(conditions.length > 0 ? and(...conditions) : undefined);
     
+    let enrolledCourseIds = new Set<number>();
+    if (userId) {
+      const enrollments = await db.select({ courseId: enrollmentsTable.courseId })
+        .from(enrollmentsTable).where(eq(enrollmentsTable.userId, userId));
+      enrollments.forEach(e => enrolledCourseIds.add(e.courseId));
+    }
+
     // Filter visibility
     sessions = sessions.filter(s => {
       // Visible to everyone if not ended/cancelled
       if (s.status !== "ended" && s.status !== "cancelled") return true;
-      // If ended/cancelled, only admin or the teacher who created it can see it
-      if (userRole === "admin") return true;
-      if (userRole === "teacher" && s.teacherId === userId) return true;
+      // If ended, check access for recordings
+      if (s.status === "ended") {
+        if (userRole === "admin") return true;
+        if (userRole === "teacher" && s.teacherId === userId) return true;
+        if (s.courseId && enrolledCourseIds.has(s.courseId)) return true;
+        if (parseFloat(s.price || "0") === 0) return true; // Free sessions
+      }
       return false;
     });
 
@@ -197,6 +209,7 @@ router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), 
 router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId, role } = (req as any).user;
+    const { recordingUrl } = req.body;
     
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
     
@@ -210,8 +223,13 @@ router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), asy
       return;
     }
 
+    const updateData: any = { status: "ended" };
+    if (recordingUrl !== undefined) {
+      updateData.recordingUrl = recordingUrl;
+    }
+
     const [updatedSession] = await db.update(liveSessionsTable)
-      .set({ status: "ended" })
+      .set(updateData)
       .where(eq(liveSessionsTable.id, parseParam(req.params.sessionId)))
       .returning();
 

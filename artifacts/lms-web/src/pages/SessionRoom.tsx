@@ -29,14 +29,15 @@ export default function SessionRoom() {
   const [question, setQuestion] = useState('');
   const [isEnding, setIsEnding] = useState(false);
   
-  // State for Jitsi
-  const [jitsiLoaded, setJitsiLoaded] = useState(false);
+  // State for Daily.co
+  const [dailyLoaded, setDailyLoaded] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [activeRoomUrl, setActiveRoomUrl] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   
-  const jitsiRef = useRef<any>(null);
-  const jitsiContainerRef = useRef<HTMLDivElement>(null);
+  const dailyRef = useRef<any>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   const [reportSession, setReportSession] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
@@ -59,7 +60,7 @@ export default function SessionRoom() {
     refetchInterval: 5000,
   });
 
-  // Signal media active while Jitsi session is live — don't lock during streaming
+  // Signal media active while Daily session is live — don't lock during streaming
   useEffect(() => {
     if (hasJoined) {
       setMediaActive(true);
@@ -70,77 +71,52 @@ export default function SessionRoom() {
     return () => setMediaActive(false);
   }, [hasJoined]);
 
-  // Cleanup Jitsi when leaving
+  // Cleanup Daily when leaving
   useEffect(() => {
     return () => {
-      if (jitsiRef.current) {
-        jitsiRef.current.dispose?.();
+      if (dailyRef.current) {
+        dailyRef.current.destroy?.();
       }
     };
   }, []);
 
-  const initJitsi = (roomId: string) => {
-    if (jitsiLoaded || !jitsiContainerRef.current) return;
+  const initDaily = (roomUrl: string, token: string) => {
+    if (dailyLoaded || !videoContainerRef.current) return;
 
     const script = document.createElement('script');
-    // Reverting to official meet.jit.si due to strict CSP iframe blocks on community servers
-    script.src = 'https://meet.jit.si/external_api.js';
+    script.src = 'https://unpkg.com/@daily-co/daily-js';
     script.async = true;
     script.onload = () => {
-      if (!jitsiContainerRef.current) return;
-      const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
-      if (!JitsiMeetExternalAPI) return;
+      if (!videoContainerRef.current) return;
+      const DailyIframe = (window as any).DailyIframe;
+      if (!DailyIframe) return;
       
-      const domain = 'meet.jit.si';
-      const options = {
-        roomName: roomId,
-        parentNode: jitsiContainerRef.current,
-        width: '100%',
-        height: '100%',
-        userInfo: { 
-          displayName: user?.fullName || 'Student', 
-          email: user?.email || '' 
+      const callFrame = DailyIframe.createFrame(videoContainerRef.current, {
+        iframeStyle: {
+          width: '100%',
+          height: '100%',
+          border: '0',
+          backgroundColor: '#000'
         },
-        configOverwrite: {
-          startWithAudioMuted: !session?.isTeacher,
-          startWithVideoMuted: !session?.isTeacher,
-          disableDeepLinking: true,
-          enableClosePage: false,
-          prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
-          disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
-          fileRecordingsEnabled: true,
-          localRecording: { enabled: true, format: 'flac' },
-          toolbarButtons: session?.isTeacher 
-            ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security', 'recording', 'localrecording']
-            : ['closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
-        },
-        interfaceConfigOverwrite: {
-          TOOLBAR_BUTTONS: session?.isTeacher 
-            ? [
-                'microphone', 'camera', 'closedcaptions', 'desktop',
-                'fullscreen', 'fodeviceselection', 'hangup', 'chat',
-                'raisehand', 'tileview', 'select-background',
-                'mute-everyone', 'security', 'recording', 'localrecording'
-              ]
-            : [
-                'closedcaptions', 
-                'fullscreen', 'hangup', 'chat',
-                'raisehand', 'tileview'
-              ],
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          DEFAULT_REMOTE_DISPLAY_NAME: 'Student',
-        },
-      };
+        showLeaveButton: true,
+      });
       
-      jitsiRef.current = new JitsiMeetExternalAPI(domain, options);
+      dailyRef.current = callFrame;
       
-      // Handle hangup event to return to dashboard
-      jitsiRef.current.addListener('videoConferenceLeft', () => {
+      callFrame.join({ url: roomUrl, token, userName: user?.fullName || 'Student' });
+
+      // Handle events
+      callFrame.on('left-meeting', () => {
         setLocation('/dashboard');
       });
+      callFrame.on('recording-started', () => {
+        setIsRecording(true);
+      });
+      callFrame.on('recording-stopped', () => {
+        setIsRecording(false);
+      });
 
-      setJitsiLoaded(true);
+      setDailyLoaded(true);
     };
     document.head.appendChild(script);
   };
@@ -148,15 +124,24 @@ export default function SessionRoom() {
   const joinSession = async () => {
     try {
       const data = await api.post(`/room/sessions/${sessionId}/join`, {});
-      setActiveRoomId(data.roomId);
+      setActiveRoomUrl(data.roomUrl);
       setHasJoined(true);
       queryClient.invalidateQueries({ queryKey: ['/api/room/sessions', sessionId] });
       
-      // Initialize Jitsi immediately with the received roomId
-      setTimeout(() => initJitsi(data.roomId), 100);
+      // Initialize Daily immediately with the received roomUrl and token
+      setTimeout(() => initDaily(data.roomUrl, data.token), 100);
       
     } catch (err: any) {
       toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleRecording = () => {
+    if (!dailyRef.current) return;
+    if (isRecording) {
+      dailyRef.current.stopRecording();
+    } else {
+      dailyRef.current.startRecording();
     }
   };
 
@@ -364,6 +349,17 @@ export default function SessionRoom() {
             <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md"><Clock className="w-4 h-4 text-primary" />{session.durationMinutes} min</span>
             <span className="text-white/60 bg-white/5 px-2.5 py-1 rounded-md">Teacher: <span className="text-white">{session.teacherName}</span></span>
           </div>
+          {session.isTeacher && session.status === 'live' && hasJoined && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={`ml-2 gap-2 h-8 ${isRecording ? 'bg-red-500/20 text-red-400 border-red-500/50 hover:bg-red-500/30 hover:text-red-300' : 'text-white border-white/20'}`}
+              onClick={toggleRecording}
+            >
+              <Video className="w-4 h-4" />
+              {isRecording ? 'Stop Recording' : 'Start Recording'}
+            </Button>
+          )}
           {session.isTeacher && session.status === 'live' && (
             <Button 
               variant="destructive" 
@@ -386,7 +382,7 @@ export default function SessionRoom() {
             renderWaitingRoom()
           ) : (
             <ScreenProtection>
-              <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
+              <div ref={videoContainerRef} className="absolute inset-0 w-full h-full border-none" />
               <WatermarkOverlay />
               {/* Mobile Chat Toggle Button */}
               <button 
