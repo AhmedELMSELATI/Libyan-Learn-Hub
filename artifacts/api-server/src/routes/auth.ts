@@ -468,18 +468,24 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
           html: `<p>Your password reset code is: <strong>${otpCode}</strong></p><p>It will expire in 15 minutes.</p>`,
         });
       } catch (emailErr) {
-        console.error("Failed to send email, but continuing with OTP flow:", emailErr);
-        // We do not throw here so that the mock SMS/email dev flow still works
+        console.error("Failed to send email:", emailErr);
       }
     }
 
-    res.json({
-      message: "Reset code sent",
-      otpCode, // Returned for dev purposes
-      otpMessage: user.phoneNumber
-        ? `Your password reset code is: ${otpCode} (Mock SMS to ${user.phoneNumber})`
-        : `Your password reset code is: ${otpCode} (Email sent to ${user.email})`,
-    });
+    // Only return mock OTP in development mode
+    if (process.env.NODE_ENV === "development") {
+      res.json({
+        message: "Reset code sent",
+        otpCode,
+        otpMessage: user.phoneNumber
+          ? `Your password reset code is: ${otpCode} (Mock SMS to ${user.phoneNumber})`
+          : `Your password reset code is: ${otpCode} (Email sent to ${user.email})`,
+      });
+    } else {
+      res.json({
+        message: "Reset code sent",
+      });
+    }
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

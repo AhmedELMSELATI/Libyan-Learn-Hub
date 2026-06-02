@@ -154,7 +154,11 @@ export default function Auth() {
     setVerifying(true);
     try {
       const res = await api.post('/auth/forgot-password', { email: resetEmail });
-      setOtpInfo({ message: res.otpMessage, code: res.otpCode });
+      if (res.otpMessage) {
+        setOtpInfo({ message: res.otpMessage, code: res.otpCode });
+      } else {
+        setOtpInfo(null);
+      }
       setStep('reset');
     } catch (err: any) {
       console.error('Forgot password error:', err);
