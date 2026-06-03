@@ -39,10 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  // Clear token if me endpoint fails (invalid token)
+  // Clear token if me endpoint explicitly rejects it (invalid token)
+  // We check for 401/403 to prevent wiping the token during transient network drops (like switching apps on mobile)
   useEffect(() => {
     if (error && token) {
-      logout();
+      const status = (error as any)?.status;
+      if (status === 401 || status === 403) {
+        logout();
+      }
     }
   }, [error]);
 

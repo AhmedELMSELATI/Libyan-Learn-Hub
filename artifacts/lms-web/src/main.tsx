@@ -9,10 +9,11 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const currentToken = localStorage.getItem('lms_token');
   if (currentToken) {
     init = init || {};
-    init.headers = {
-      ...init.headers,
-      'Authorization': `Bearer ${currentToken}`
-    };
+    
+    // Properly merge headers, handling both plain objects and Headers instances
+    const newHeaders = new Headers(init.headers);
+    newHeaders.set('Authorization', `Bearer ${currentToken}`);
+    init.headers = newHeaders;
   }
   return originalFetch(input, init);
 };
