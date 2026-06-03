@@ -29,15 +29,14 @@ export default function SessionRoom() {
   const [question, setQuestion] = useState('');
   const [isEnding, setIsEnding] = useState(false);
   
-  // State for Daily.co
-  const [dailyLoaded, setDailyLoaded] = useState(false);
+  // State for Jitsi
+  const [jitsiLoaded, setJitsiLoaded] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [activeRoomUrl, setActiveRoomUrl] = useState<string | null>(null);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   
-  const dailyRef = useRef<any>(null);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
+  const jitsiRef = useRef<any>(null);
+  const jitsiContainerRef = useRef<HTMLDivElement>(null);
 
   const [reportSession, setReportSession] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
@@ -77,100 +76,77 @@ export default function SessionRoom() {
     return () => setMediaActive(false);
   }, [hasJoined]);
 
-  // Cleanup Daily when leaving
+  // Cleanup Jitsi when leaving
   useEffect(() => {
     return () => {
-      if (dailyRef.current) {
-        dailyRef.current.destroy?.();
+      if (jitsiRef.current) {
+        jitsiRef.current.dispose?.();
       }
     };
   }, []);
 
-  const initDaily = (roomUrl: string, token: string) => {
-    if (dailyLoaded || !videoContainerRef.current) return;
-
-    if (!roomUrl) {
-      toast({
-        title: 'Session Room Error',
-        description: 'Failed to obtain a valid meeting room URL. Please ensure the Daily.co API key is configured correctly.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (roomUrl?.includes('mock.daily.co')) {
-      videoContainerRef.current.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background-color:#0f172a;color:white;text-align:center;font-family:sans-serif;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem; opacity: 0.5;"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
-          <h2 style="font-size:1.25rem;font-weight:bold;margin-bottom:0.5rem;">Simulated Live Session</h2>
-          <p style="opacity:0.6;font-size:0.875rem;">Daily.co API key missing.</p>
-          <p style="opacity:0.4;font-size:0.75rem;margin-top:1rem;word-break:break-all;max-width:300px;">${roomUrl}</p>
-        </div>
-      `;
-      setDailyLoaded(true);
-      return;
-    }
+  const initJitsi = (roomId: string) => {
+    if (jitsiLoaded || !jitsiContainerRef.current) return;
 
     const script = document.createElement('script');
-    script.src = 'https://unpkg.com/@daily-co/daily-js';
+    // Reverting to official meet.jit.si due to strict CSP iframe blocks on community servers
+    script.src = 'https://meet.jit.si/external_api.js';
     script.async = true;
     script.onload = () => {
-      if (!videoContainerRef.current) return;
-      const DailyIframe = (window as any).DailyIframe;
-      if (!DailyIframe) return;
+      if (!jitsiContainerRef.current) return;
+      const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
+      if (!JitsiMeetExternalAPI) return;
       
-      const callFrame = DailyIframe.createFrame(videoContainerRef.current, {
-        iframeStyle: {
-          width: '100%',
-          height: '100%',
-          border: '0',
-          backgroundColor: '#000'
+      const domain = 'meet.jit.si';
+      const options = {
+        roomName: roomId,
+        parentNode: jitsiContainerRef.current,
+        width: '100%',
+        height: '100%',
+        userInfo: { 
+          displayName: user?.fullName || 'Student', 
+          email: user?.email || '' 
         },
-        showLeaveButton: true,
-      });
+        configOverwrite: {
+          startWithAudioMuted: !session?.isTeacher,
+          startWithVideoMuted: !session?.isTeacher,
+          disableDeepLinking: true,
+          enableClosePage: false,
+          prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
+          disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
+          fileRecordingsEnabled: true,
+          localRecording: { enabled: true, format: 'flac' },
+          toolbarButtons: session?.isTeacher 
+            ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security', 'recording', 'localrecording']
+            : ['closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_BUTTONS: session?.isTeacher 
+            ? [
+                'microphone', 'camera', 'closedcaptions', 'desktop',
+                'fullscreen', 'fodeviceselection', 'hangup', 'chat',
+                'raisehand', 'tileview', 'select-background',
+                'mute-everyone', 'security', 'recording', 'localrecording'
+              ]
+            : [
+                'closedcaptions', 
+                'fullscreen', 'hangup', 'chat',
+                'raisehand', 'tileview'
+              ],
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          DEFAULT_REMOTE_DISPLAY_NAME: 'Student',
+        },
+      };
       
-      dailyRef.current = callFrame;
+      jitsiRef.current = new JitsiMeetExternalAPI(domain, options);
       
-      callFrame.join({ url: roomUrl, token, userName: user?.fullName || 'Student' })
-        .catch((e: any) => {
-          console.error("Daily join error stringified:", e?.message || e?.errorMsg, JSON.stringify(e));
-          toast({
-            title: 'Meeting Error',
-            description: e?.errorMsg || e?.message || 'Could not join the video call.',
-            variant: 'destructive'
-          });
-        });
-
-      // Handle events
-      callFrame.on('error', (e: any) => {
-        console.error("Daily error event stringified:", e?.message || e?.errorMsg, JSON.stringify(e));
-        toast({
-            title: 'Video Error',
-            description: e?.errorMsg || e?.message || 'An unexpected video error occurred.',
-            variant: 'destructive'
-        });
-      });
-      
-      callFrame.on('camera-error', (e: any) => {
-        console.error("Daily camera error:", e);
-        toast({
-            title: 'Camera/Microphone Error',
-            description: 'Could not access camera or microphone. Please check permissions.',
-            variant: 'destructive'
-        });
-      });
-
-      callFrame.on('left-meeting', () => {
+      // Handle hangup event to return to dashboard
+      jitsiRef.current.addListener('videoConferenceLeft', () => {
         setLocation('/dashboard');
       });
-      callFrame.on('recording-started', () => {
-        setIsRecording(true);
-      });
-      callFrame.on('recording-stopped', () => {
-        setIsRecording(false);
-      });
 
-      setDailyLoaded(true);
+      setJitsiLoaded(true);
     };
     document.head.appendChild(script);
   };
@@ -178,24 +154,15 @@ export default function SessionRoom() {
   const joinSession = async () => {
     try {
       const data = await api.post(`/room/sessions/${sessionId}/join`, {});
-      setActiveRoomUrl(data.roomUrl);
+      setActiveRoomId(data.roomId);
       setHasJoined(true);
       queryClient.invalidateQueries({ queryKey: ['/api/room/sessions', sessionId] });
       
-      // Initialize Daily immediately with the received roomUrl and token
-      setTimeout(() => initDaily(data.roomUrl, data.token), 100);
+      // Initialize Jitsi immediately with the received roomId
+      setTimeout(() => initJitsi(data.roomId), 100);
       
     } catch (err: any) {
       toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
-    }
-  };
-
-  const toggleRecording = () => {
-    if (!dailyRef.current) return;
-    if (isRecording) {
-      dailyRef.current.stopRecording();
-    } else {
-      dailyRef.current.startRecording();
     }
   };
 
@@ -403,17 +370,6 @@ export default function SessionRoom() {
             <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md"><Clock className="w-4 h-4 text-primary" />{session.durationMinutes} min</span>
             <span className="text-white/60 bg-white/5 px-2.5 py-1 rounded-md">Teacher: <span className="text-white">{session.teacherName}</span></span>
           </div>
-          {session.isTeacher && session.status === 'live' && hasJoined && (
-            <Button
-              variant="outline"
-              size="sm"
-              className={`ml-2 gap-2 h-8 ${isRecording ? 'bg-red-500/20 text-red-400 border-red-500/50 hover:bg-red-500/30 hover:text-red-300' : 'text-white border-white/20'}`}
-              onClick={toggleRecording}
-            >
-              <Video className="w-4 h-4" />
-              {isRecording ? 'Stop Recording' : 'Start Recording'}
-            </Button>
-          )}
           {session.isTeacher && session.status === 'live' && (
             <Button 
               variant="destructive" 
@@ -436,7 +392,7 @@ export default function SessionRoom() {
             renderWaitingRoom()
           ) : (
             <ScreenProtection>
-              <div ref={videoContainerRef} className="absolute inset-0 w-full h-full border-none" />
+              <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
               <WatermarkOverlay />
               {/* Mobile Chat Toggle Button */}
               <button 

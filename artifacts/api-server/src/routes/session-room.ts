@@ -106,91 +106,21 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
     }
 
     // Generate a stable, deterministic room ID for this session.
+    // This is used by the frontend Jitsi IFrame API — no external URL redirect needed.
     const roomId = `edulibya-${sessionId}-${crypto.createHash("md5").update(sessionId.toString()).digest("hex").slice(0, 8)}`;
-    
-    let roomUrl = "";
-    let token = "";
 
-    if (process.env.DAILY_API_KEY) {
-      try {
-        // 1. Create or get room
-        const roomRes = await fetch("https://api.daily.co/v1/rooms", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-          },
-          body: JSON.stringify({
-            name: roomId,
-          }),
-        });
-        const roomData = (await roomRes.json()) as any;
-        
-        if (!roomRes.ok) {
-          if (roomData.error === "invalid-request-error" || roomData.message?.includes("already exists")) {
-            // Assume room exists, fetch it
-            const getRoom = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
-              headers: { Authorization: `Bearer ${process.env.DAILY_API_KEY}` }
-            });
-            const existingRoom = (await getRoom.json()) as any;
-            if (getRoom.ok && existingRoom.url) {
-              roomUrl = existingRoom.url;
-            } else {
-              throw new Error(`Failed to retrieve existing room: ${existingRoom.message || existingRoom.error || "Unknown error"}`);
-            }
-          } else {
-            throw new Error(`Daily.co API error: ${roomData.message || roomData.error || "Unknown error"}`);
-          }
-        } else {
-          roomUrl = roomData.url;
-        }
-
-        // 2. Generate token
-        const tokenRes = await fetch("https://api.daily.co/v1/meeting-tokens", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
-          },
-          body: JSON.stringify({
-            properties: {
-              room_name: roomId,
-              is_owner: isTeacher,
-              user_name: (req as any).user.fullName || "User",
-            },
-          }),
-        });
-        const tokenData = (await tokenRes.json()) as any;
-        if (tokenRes.ok && tokenData.token) {
-          token = tokenData.token;
-        } else {
-          throw new Error(`Failed to generate meeting token: ${tokenData.message || tokenData.error || "Unknown error"}`);
-        }
-      } catch (dailyErr: any) {
-        console.error("Daily.co API integration error:", dailyErr);
-        res.status(500).json({ 
-          error: "Failed to initialize video call session", 
-          message: dailyErr.message || "Daily.co integration error" 
-        });
-        return;
-      }
-    } else {
-      roomUrl = `https://mock.daily.co/${roomId}`;
-      token = "mock-token";
-    }
-
-    // Persist the room ID/Url and mark session as live when teacher joins
+    // Persist the room ID and mark session as live when teacher joins
     if (isTeacher && session.status !== "live") {
       await db.update(liveSessionsTable)
-        .set({ meetingUrl: roomUrl, status: "live" })
+        .set({ meetingUrl: roomId, status: "live" })
         .where(eq(liveSessionsTable.id, sessionId));
     } else if (!session.meetingUrl) {
       await db.update(liveSessionsTable)
-        .set({ meetingUrl: roomUrl })
+        .set({ meetingUrl: roomId })
         .where(eq(liveSessionsTable.id, sessionId));
     }
 
-    res.json({ roomUrl, token, sessionId, isTeacher });
+    res.json({ roomId, sessionId, isTeacher });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

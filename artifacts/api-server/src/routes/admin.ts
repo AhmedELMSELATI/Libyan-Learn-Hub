@@ -457,8 +457,8 @@ router.post("/earnings/:earningId/pay", async (req, res) => {
     });
     res.json({ success: true });
   } catch (err: any) {
-    if (err.message === "Earning not found") return res.status(404).json({ error: err.message });
-    if (err.message === "Earning not available for payout") return res.status(400).json({ error: err.message });
+    if (err.message === "Earning not found") { res.status(404).json({ error: err.message }); return; }
+    if (err.message === "Earning not available for payout") { res.status(400).json({ error: err.message }); return; }
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
