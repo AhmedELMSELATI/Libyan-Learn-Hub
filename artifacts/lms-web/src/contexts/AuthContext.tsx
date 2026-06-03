@@ -28,25 +28,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return !alreadyUnlocked;
   });
 
-  // Monkey-patch fetch to automatically inject the token for all API calls
-  // This ensures the generated Orval client works transparently
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const currentToken = localStorage.getItem('lms_token');
-      if (currentToken) {
-        init = init || {};
-        init.headers = {
-          ...init.headers,
-          'Authorization': `Bearer ${currentToken}`
-        };
-      }
-      return originalFetch(input, init);
-    };
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
+  // We removed the fetch monkey-patch because it causes a race condition on mobile where React Query 
+  // executes before the patch applies. The token is now automatically injected directly inside custom-fetch.ts.
 
   const { data: user, isLoading, error } = useGetCurrentUser({
     query: {
