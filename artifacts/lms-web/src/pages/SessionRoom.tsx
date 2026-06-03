@@ -159,6 +159,7 @@ export default function SessionRoom() {
       queryClient.invalidateQueries({ queryKey: ['/api/room/sessions', sessionId] });
       
       // Initialize Jitsi immediately with the received roomId
+      console.log("JOINING JITSI WITH ROOM ID:", data.roomId, data);
       setTimeout(() => initJitsi(data.roomId), 100);
       
     } catch (err: any) {
