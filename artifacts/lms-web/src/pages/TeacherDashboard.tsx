@@ -589,16 +589,21 @@ function TeacherStudentsList({ api }: { api: any }) {
 function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; totalRevenue: number }) {
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
+  const [earningsData, setEarningsData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [amount, setAmount] = React.useState('');
   const [method, setMethod] = React.useState('bank_transfer');
   const [details, setDetails] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const fetchWithdrawals = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     try {
-      const data = await api.get('/payments/withdrawals/me');
-      setWithdrawals(data || []);
+      const [wd, ed] = await Promise.all([
+        api.get('/payments/withdrawals/me').catch(() => []),
+        api.get('/payments/earnings').catch(() => null)
+      ]);
+      setWithdrawals(wd || []);
+      setEarningsData(ed);
     } catch (e) {
     } finally {
       setLoading(false);
@@ -606,8 +611,8 @@ function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; 
   }, [api]);
 
   React.useEffect(() => {
-    fetchWithdrawals();
-  }, [fetchWithdrawals]);
+    fetchData();
+  }, [fetchData]);
 
   const handleRequestWithdrawal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -625,7 +630,7 @@ function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; 
       toast({ title: "Withdrawal request submitted successfully" });
       setAmount('');
       setDetails('');
-      fetchWithdrawals();
+      fetchData();
     } catch (err: any) {
       toast({ title: "Failed to request withdrawal", description: err.message, variant: "destructive" });
     } finally {
@@ -637,13 +642,35 @@ function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; 
 
   return (
     <div className="space-y-8">
+      {/* Overview Cards */}
+      {earningsData && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-card rounded-2xl border border-border p-4">
+            <p className="text-sm text-muted-foreground mb-1">Total Earned</p>
+            <div className="text-2xl font-bold">{earningsData.total.toFixed(2)} LYD</div>
+          </div>
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+            <p className="text-sm text-green-700 mb-1">Available to Withdraw</p>
+            <div className="text-2xl font-bold text-green-800">{earningsData.available.toFixed(2)} LYD</div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <p className="text-sm text-amber-700 mb-1">Pending Clearance</p>
+            <div className="text-2xl font-bold text-amber-800">{earningsData.pending.toFixed(2)} LYD</div>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <p className="text-sm text-blue-700 mb-1">Total Withdrawn</p>
+            <div className="text-2xl font-bold text-blue-800">{earningsData.paid.toFixed(2)} LYD</div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Balance Card */}
         <div className="bg-primary/10 border border-primary/20 rounded-3xl p-8 flex flex-col justify-center shadow-inner relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Wallet className="w-32 h-32 text-primary" />
           </div>
-          <h3 className="text-xl font-bold text-primary mb-2">Available Balance</h3>
+          <h3 className="text-xl font-bold text-primary mb-2">Wallet Balance</h3>
           <div className="text-5xl font-display font-extrabold text-primary mb-4">
             {balance.toFixed(2)} <span className="text-2xl font-bold">LYD</span>
           </div>
@@ -705,43 +732,88 @@ function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; 
         </div>
       </div>
 
-      {/* History */}
-      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-        <div className="p-5 border-b border-border bg-muted/30">
-          <h3 className="font-bold text-lg">Withdrawal History</h3>
-        </div>
-        {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading...</div>
-        ) : withdrawals.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No withdrawal requests found.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 border-b border-border text-left text-muted-foreground">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Date</th>
-                  <th className="px-5 py-3 font-semibold">Amount</th>
-                  <th className="px-5 py-3 font-semibold">Method</th>
-                  <th className="px-5 py-3 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {withdrawals.map((w: any) => (
-                  <tr key={w.id} className="hover:bg-muted/10">
-                    <td className="px-5 py-3">{new Date(w.createdAt).toLocaleDateString()}</td>
-                    <td className="px-5 py-3 font-bold">{parseFloat(w.amount).toFixed(2)} LYD</td>
-                    <td className="px-5 py-3 capitalize">{w.paymentMethod.replace('_', ' ')}</td>
-                    <td className="px-5 py-3">
-                      <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-green-500 hover:bg-green-600 text-white' : w.status === 'pending' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : ''}>
-                        {w.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Sales Ledger */}
+        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="p-5 border-b border-border bg-muted/30">
+            <h3 className="font-bold text-lg">Sales Ledger (Earnings)</h3>
           </div>
-        )}
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+          ) : !earningsData || earningsData.entries.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No earnings recorded yet.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 border-b border-border text-left text-muted-foreground sticky top-0">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Date</th>
+                    <th className="px-5 py-3 font-semibold">Item</th>
+                    <th className="px-5 py-3 font-semibold">Gross</th>
+                    <th className="px-5 py-3 font-semibold">Fee</th>
+                    <th className="px-5 py-3 font-semibold">Net</th>
+                    <th className="px-5 py-3 font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {earningsData.entries.map((e: any) => (
+                    <tr key={e.id} className="hover:bg-muted/10">
+                      <td className="px-5 py-3 whitespace-nowrap">{new Date(e.createdAt).toLocaleDateString()}</td>
+                      <td className="px-5 py-3">{e.itemName || 'Course/Session'}</td>
+                      <td className="px-5 py-3">{e.gross.toFixed(2)}</td>
+                      <td className="px-5 py-3 text-red-500">-{e.platformFee.toFixed(2)}</td>
+                      <td className="px-5 py-3 font-bold text-green-600">+{e.net.toFixed(2)}</td>
+                      <td className="px-5 py-3">
+                        <Badge variant={e.status === 'paid' ? 'default' : e.status === 'available' ? 'outline' : 'secondary'} className={e.status === 'paid' ? 'bg-blue-500 hover:bg-blue-600 text-white' : e.status === 'available' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
+                          {e.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Withdrawal History */}
+        <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="p-5 border-b border-border bg-muted/30">
+            <h3 className="font-bold text-lg">Withdrawal History</h3>
+          </div>
+          {loading ? (
+            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+          ) : withdrawals.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No withdrawal requests found.</div>
+          ) : (
+            <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 border-b border-border text-left text-muted-foreground sticky top-0">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Date</th>
+                    <th className="px-5 py-3 font-semibold">Amount</th>
+                    <th className="px-5 py-3 font-semibold">Method</th>
+                    <th className="px-5 py-3 font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {withdrawals.map((w: any) => (
+                    <tr key={w.id} className="hover:bg-muted/10">
+                      <td className="px-5 py-3 whitespace-nowrap">{new Date(w.createdAt).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 font-bold">{parseFloat(w.amount).toFixed(2)} LYD</td>
+                      <td className="px-5 py-3 capitalize">{w.paymentMethod.replace('_', ' ')}</td>
+                      <td className="px-5 py-3">
+                        <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-green-500 hover:bg-green-600 text-white' : w.status === 'pending' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : ''}>
+                          {w.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

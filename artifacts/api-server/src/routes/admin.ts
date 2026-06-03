@@ -362,15 +362,22 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
         await db.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
       }
       if (course) {
-        await db.insert(teacherEarningsTable).values({
-          teacherId: course.teacherId, paymentId,
-          courseId: course.id,
-          grossAmount: amount.toFixed(2),
-          platformFeePercent: platformFeePercent.toFixed(2),
-          platformFee: platformFee.toFixed(2),
-          netAmount: netAmount.toFixed(2),
-          currency: course.currency || "LYD",
-          status: "available",
+        await db.transaction(async (tx) => {
+          await tx.insert(teacherEarningsTable).values({
+            teacherId: course.teacherId, paymentId,
+            courseId: course.id,
+            grossAmount: amount.toFixed(2),
+            platformFeePercent: platformFeePercent.toFixed(2),
+            platformFee: platformFee.toFixed(2),
+            netAmount: netAmount.toFixed(2),
+            currency: course.currency || "LYD",
+            status: "available",
+          });
+          const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
+          if (teacher) {
+            const newBalance = (parseFloat(teacher.balance as string || "0") + netAmount);
+            await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, course.teacherId));
+          }
         });
       }
     }
@@ -433,12 +440,25 @@ router.get("/earnings", async (_req, res) => {
 router.post("/earnings/:earningId/pay", async (req, res) => {
   try {
     const earningId = parseInt(req.params.earningId);
-    const [earning] = await db.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.id, earningId)).limit(1);
-    if (!earning) { res.status(404).json({ error: "Earning not found" }); return; }
-    if (earning.status !== "available") { res.status(400).json({ error: "Earning not available for payout" }); return; }
-    await db.update(teacherEarningsTable).set({ status: "paid" }).where(eq(teacherEarningsTable.id, earningId));
+    await db.transaction(async (tx) => {
+      const [earning] = await tx.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.id, earningId)).limit(1);
+      if (!earning) { throw new Error("Earning not found"); }
+      if (earning.status !== "available") { throw new Error("Earning not available for payout"); }
+      await tx.update(teacherEarningsTable).set({ status: "paid" }).where(eq(teacherEarningsTable.id, earningId));
+      
+      const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, earning.teacherId)).limit(1);
+      if (teacher) {
+        const currentBalance = parseFloat(teacher.balance as string || "0");
+        const paidAmount = parseFloat(earning.netAmount as string);
+        await tx.update(usersTable)
+          .set({ balance: (currentBalance - paidAmount).toFixed(2), updatedAt: new Date() })
+          .where(eq(usersTable.id, earning.teacherId));
+      }
+    });
     res.json({ success: true });
   } catch (err: any) {
+    if (err.message === "Earning not found") return res.status(404).json({ error: err.message });
+    if (err.message === "Earning not available for payout") return res.status(400).json({ error: err.message });
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
@@ -446,9 +466,24 @@ router.post("/earnings/:earningId/pay", async (req, res) => {
 router.post("/earnings/pay-all/:teacherId", async (req, res) => {
   try {
     const teacherId = parseInt(req.params.teacherId);
-    const result = await db.update(teacherEarningsTable)
-      .set({ status: "paid" })
-      .where(and(eq(teacherEarningsTable.teacherId, teacherId), eq(teacherEarningsTable.status, "available")));
+    await db.transaction(async (tx) => {
+      const earnings = await tx.select().from(teacherEarningsTable)
+        .where(and(eq(teacherEarningsTable.teacherId, teacherId), eq(teacherEarningsTable.status, "available")));
+      if (earnings.length === 0) return;
+      
+      const totalAmount = earnings.reduce((sum, e) => sum + parseFloat(e.netAmount as string), 0);
+      await tx.update(teacherEarningsTable)
+        .set({ status: "paid" })
+        .where(and(eq(teacherEarningsTable.teacherId, teacherId), eq(teacherEarningsTable.status, "available")));
+        
+      const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
+      if (teacher) {
+        const currentBalance = parseFloat(teacher.balance as string || "0");
+        await tx.update(usersTable)
+          .set({ balance: (currentBalance - totalAmount).toFixed(2), updatedAt: new Date() })
+          .where(eq(usersTable.id, teacherId));
+      }
+    });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -572,34 +607,54 @@ router.put("/withdrawals/:id/status", async (req, res) => {
       .returning();
 
     if ((status === "approved" || status === "paid") && request.status === "pending") {
-      let amountToCover = parseFloat(updated.amount as string);
-      const earnings = await db.select().from(teacherEarningsTable)
-        .where(and(eq(teacherEarningsTable.teacherId, updated.teacherId), eq(teacherEarningsTable.status, "available")))
-        .orderBy(teacherEarningsTable.createdAt);
-
-      for (const earning of earnings) {
-        if (amountToCover <= 0.001) break;
-        const netAmount = parseFloat(earning.netAmount as string);
-        await db.update(teacherEarningsTable).set({ status: "paid" }).where(eq(teacherEarningsTable.id, earning.id));
-        amountToCover -= netAmount;
+      await db.transaction(async (tx) => {
+        let amountToCover = parseFloat(updated.amount as string);
         
-        if (amountToCover < -0.001) {
-           const refundAmount = Math.abs(amountToCover);
-           await db.insert(teacherEarningsTable).values({
-             teacherId: updated.teacherId,
-             paymentId: earning.paymentId,
-             courseId: earning.courseId,
-             sessionId: earning.sessionId,
-             grossAmount: refundAmount.toFixed(2),
-             platformFeePercent: "0.00",
-             platformFee: "0.00",
-             netAmount: refundAmount.toFixed(2),
-             currency: earning.currency,
-             status: "available"
-           });
-           break;
+        // Deduct from teacher's overall balance
+        const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, updated.teacherId)).limit(1);
+        if (teacher) {
+          const currentBalance = parseFloat(teacher.balance as string || "0");
+          await tx.update(usersTable)
+            .set({ balance: (currentBalance - amountToCover).toFixed(2), updatedAt: new Date() })
+            .where(eq(usersTable.id, updated.teacherId));
         }
-      }
+
+        const earnings = await tx.select().from(teacherEarningsTable)
+          .where(and(eq(teacherEarningsTable.teacherId, updated.teacherId), eq(teacherEarningsTable.status, "available")))
+          .orderBy(teacherEarningsTable.createdAt);
+
+        for (const earning of earnings) {
+          if (amountToCover <= 0.001) break;
+          const netAmount = parseFloat(earning.netAmount as string);
+          await tx.update(teacherEarningsTable).set({ status: "paid" }).where(eq(teacherEarningsTable.id, earning.id));
+          amountToCover -= netAmount;
+          
+          if (amountToCover < -0.001) {
+             const refundAmount = Math.abs(amountToCover);
+             await tx.insert(teacherEarningsTable).values({
+               teacherId: updated.teacherId,
+               paymentId: earning.paymentId,
+               courseId: earning.courseId,
+               sessionId: earning.sessionId,
+               grossAmount: refundAmount.toFixed(2),
+               platformFeePercent: "0.00",
+               platformFee: "0.00",
+               netAmount: refundAmount.toFixed(2),
+               currency: earning.currency,
+               status: "available"
+             });
+             // Add the refunded fragment back to the balance
+             const [updatedTeacher] = await tx.select().from(usersTable).where(eq(usersTable.id, updated.teacherId)).limit(1);
+             if (updatedTeacher) {
+               const newBalance = parseFloat(updatedTeacher.balance as string || "0");
+               await tx.update(usersTable)
+                 .set({ balance: (newBalance + refundAmount).toFixed(2), updatedAt: new Date() })
+                 .where(eq(usersTable.id, updated.teacherId));
+             }
+             break;
+          }
+        }
+      });
     }
 
     res.json({ success: true, withdrawal: updated });

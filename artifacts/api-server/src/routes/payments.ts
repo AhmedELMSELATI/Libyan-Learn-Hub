@@ -478,22 +478,36 @@ router.get("/earnings", requireAuth, async (req, res) => {
     const pending = earnings.filter(e => e.status === "pending").reduce((s, e) => s + parseFloat(e.netAmount), 0);
     const paid = earnings.filter(e => e.status === "paid").reduce((s, e) => s + parseFloat(e.netAmount), 0);
     const total = available + pending + paid;
-    res.json({
-      total: parseFloat(total.toFixed(2)),
-      available: parseFloat(available.toFixed(2)),
-      pending: parseFloat(pending.toFixed(2)),
-      paid: parseFloat(paid.toFixed(2)),
-      entries: earnings.map(e => ({
+    
+    const entries = await Promise.all(earnings.map(async (e) => {
+      let itemName = "–";
+      if (e.courseId) {
+        const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, e.courseId)).limit(1);
+        itemName = course?.title || `Course #${e.courseId}`;
+      } else if (e.sessionId) {
+        const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, e.sessionId)).limit(1);
+        itemName = session?.title || `Session #${e.sessionId}`;
+      }
+      return {
         id: e.id,
         courseId: e.courseId,
         sessionId: e.sessionId,
+        itemName,
         gross: parseFloat(e.grossAmount),
         platformFee: parseFloat(e.platformFee),
         net: parseFloat(e.netAmount),
         currency: e.currency,
         status: e.status,
         createdAt: e.createdAt,
-      })),
+      };
+    }));
+
+    res.json({
+      total: parseFloat(total.toFixed(2)),
+      available: parseFloat(available.toFixed(2)),
+      pending: parseFloat(pending.toFixed(2)),
+      paid: parseFloat(paid.toFixed(2)),
+      entries,
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

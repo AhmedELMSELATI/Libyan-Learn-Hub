@@ -55,7 +55,7 @@ export default function Checkout() {
     },
     onSuccess: (data) => {
       if (data.url) {
-        if (data.url.includes('succes=true')) {
+        if (data.url.includes('success=true')) {
             setStep('done');
         } else {
             // Redirect to the payment gateway
