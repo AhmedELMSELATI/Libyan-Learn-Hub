@@ -127,27 +127,26 @@ export default function SessionRoom() {
           backgroundColor: '#000'
         },
         showLeaveButton: true,
-        strictMode: true, // Prevents Daily from attempting to use localStorage, bypassing tracking prevention issues
       });
       
       dailyRef.current = callFrame;
       
       callFrame.join({ url: roomUrl, token, userName: user?.fullName || 'Student' })
         .catch((e: any) => {
-          console.error("Daily join error:", e);
+          console.error("Daily join error stringified:", e?.message || e?.errorMsg, JSON.stringify(e));
           toast({
             title: 'Meeting Error',
-            description: 'Could not join the video call. This may be due to browser Tracking Prevention blocking storage.',
+            description: e?.errorMsg || e?.message || 'Could not join the video call.',
             variant: 'destructive'
           });
         });
 
       // Handle events
       callFrame.on('error', (e: any) => {
-        console.error("Daily error event:", e);
+        console.error("Daily error event stringified:", e?.message || e?.errorMsg, JSON.stringify(e));
         toast({
             title: 'Video Error',
-            description: e?.errorMsg || 'An unexpected video error occurred.',
+            description: e?.errorMsg || e?.message || 'An unexpected video error occurred.',
             variant: 'destructive'
         });
       });
