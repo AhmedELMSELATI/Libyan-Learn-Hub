@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { liveSessionsTable, usersTable, enrollmentsTable } from "@workspace/db";
+import { liveSessionsTable, usersTable, enrollmentsTable, sessionRegistrationsTable } from "@workspace/db";
 import { eq, gte, count, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
@@ -9,7 +9,7 @@ import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
-async function formatSession(session: any, teacherCache?: Map<number, string>) {
+async function formatSession(session: any, userId?: number | null, teacherCache?: Map<number, string>) {
   let teacherName = "";
   if (teacherCache && teacherCache.has(session.teacherId)) {
     teacherName = teacherCache.get(session.teacherId)!;
@@ -18,6 +18,24 @@ async function formatSession(session: any, teacherCache?: Map<number, string>) {
     teacherName = teacher?.fullName || "";
     if (teacherCache) teacherCache.set(session.teacherId, teacherName);
   }
+
+  const [regCount] = await db.select({ total: count() }).from(sessionRegistrationsTable)
+    .where(eq(sessionRegistrationsTable.sessionId, session.id));
+  const participantCount = Number(regCount?.total || 0);
+
+  let isRegistered = false;
+  if (userId) {
+    const existing = await db.select().from(sessionRegistrationsTable)
+      .where(and(
+        eq(sessionRegistrationsTable.sessionId, session.id),
+        eq(sessionRegistrationsTable.userId, userId)
+      ))
+      .limit(1);
+    isRegistered = existing.length > 0;
+  }
+
+  const isTeacher = userId ? session.teacherId === userId : false;
+
   return {
     id: session.id,
     courseId: session.courseId,
@@ -32,7 +50,9 @@ async function formatSession(session: any, teacherCache?: Map<number, string>) {
     meetingUrl: session.meetingUrl,
     status: session.status,
     price: parseFloat(session.price || "0"),
-    participantCount: 0,
+    participantCount,
+    isRegistered: isRegistered || isTeacher,
+    isTeacher,
     cancellationReason: session.cancellationReason,
     recordingUrl: session.recordingUrl,
     createdAt: session.createdAt,
@@ -86,7 +106,7 @@ router.get("/", async (req, res) => {
     });
 
     const teacherCache = new Map<number, string>();
-    const result = await Promise.all(sessions.map(s => formatSession(s, teacherCache)));
+    const result = await Promise.all(sessions.map(s => formatSession(s, userId, teacherCache)));
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -122,7 +142,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
       durationMinutes, maxParticipants, meetingUrl,
       price: parseFloat(price).toFixed(2),
     }).returning();
-    res.status(201).json(await formatSession(session));
+    res.status(201).json(await formatSession(session, userId));
   } catch (err: any) {
     res.status(400).json({ error: "Failed to create session", message: err.message });
   }
@@ -130,9 +150,18 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
 router.get("/:sessionId", async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const payload = verifyToken(authHeader.slice(7));
+        userId = payload.userId;
+      } catch (e) {}
+    }
+
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
-    res.json(await formatSession(session));
+    res.json(await formatSession(session, userId));
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -199,7 +228,7 @@ router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), 
     res.json({
       success: true,
       message: "Session cancelled successfully",
-      session: await formatSession(updatedSession)
+      session: await formatSession(updatedSession, userId)
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -236,7 +265,7 @@ router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), asy
     res.json({
       success: true,
       message: "Session ended successfully",
-      session: await formatSession(updatedSession)
+      session: await formatSession(updatedSession, userId)
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

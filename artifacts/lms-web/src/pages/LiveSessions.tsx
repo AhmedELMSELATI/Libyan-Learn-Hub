@@ -42,9 +42,13 @@ export default function LiveSessions() {
     enabled: !!user,
   });
 
-  const handleEnterRoom = (sessionId: number) => {
+  const handleEnterRoom = (session: any) => {
     if (!isAuthenticated) { setLocation('/login'); return; }
-    setLocation(`/session/${sessionId}`);
+    if (!session.isRegistered && !session.isTeacher && parseFloat(session.price) > 0) {
+      setLocation(`/checkout/live/${session.id}`);
+      return;
+    }
+    setLocation(`/session/${session.id}`);
   };
 
   const submitReport = async (data: any) => {
@@ -218,7 +222,7 @@ export default function LiveSessions() {
                           <Button
                             disabled={isEnded || isFull}
                             className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : 'bg-primary hover:bg-primary/90'}`}
-                            onClick={() => handleEnterRoom(session.id)}
+                            onClick={() => handleEnterRoom(session)}
                           >
                             <Video className="w-4 h-4" />
                             {session.status === 'live' ? 'Join Live' : isEnded ? 'Ended' : isFull ? 'Session Full' : 'Enter Room'}

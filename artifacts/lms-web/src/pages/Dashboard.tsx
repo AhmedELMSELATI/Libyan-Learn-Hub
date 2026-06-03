@@ -61,8 +61,12 @@ export default function Dashboard() {
     } catch {}
   };
 
-  const handleJoinSession = (sessionId: number) => {
-    setLocation(`/session/${sessionId}`);
+  const handleJoinSession = (session: any) => {
+    if (!session.isRegistered && !session.isTeacher && parseFloat(session.price) > 0) {
+      setLocation(`/checkout/live/${session.id}`);
+      return;
+    }
+    setLocation(`/session/${session.id}`);
   };
 
   if (authLoading || isLoading) {
@@ -329,7 +333,7 @@ export default function Dashboard() {
                   <Button
                     className="mt-auto gap-2 bg-primary hover:bg-primary/90"
                     size="sm"
-                    onClick={() => handleJoinSession(session.id)}
+                    onClick={() => handleJoinSession(session)}
                   >
                     <Video className="w-3.5 h-3.5" />
                     {session.status === 'live' ? 'Join Live Session' : 'Enter Room'}

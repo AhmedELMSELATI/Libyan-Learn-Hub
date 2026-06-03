@@ -53,6 +53,12 @@ export default function SessionRoom() {
     refetchInterval: (query) => (query.state.data?.status === 'live' || hasJoined) ? 60000 : 5000, // Poll faster if waiting
   });
 
+  useEffect(() => {
+    if (session && !session.isRegistered && !session.isTeacher && parseFloat(session.price) > 0) {
+      setLocation(`/checkout/live/${session.id}`);
+    }
+  }, [session, setLocation]);
+
   const { data: questions, refetch: refetchQuestions } = useQuery({
     queryKey: ['/api/room/sessions', sessionId, 'questions'],
     queryFn: () => api.get(`/room/sessions/${sessionId}/questions`),

@@ -45,7 +45,7 @@ export default function Checkout() {
 
   const initiateMutation = useMutation({
     mutationFn: async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('lms_token');
       const res = await fetch(`${API_BASE}/payments/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
