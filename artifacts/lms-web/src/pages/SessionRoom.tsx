@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { useMediaActivity } from '@/contexts/MediaActivityContext';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,13 @@ import {
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
 
+import {
+  LiveKitRoom,
+  VideoConference,
+  RoomAudioRenderer,
+} from '@livekit/components-react';
+import '@livekit/components-styles';
+
 export default function SessionRoom() {
   const [, params] = useRoute('/session/:id');
   const sessionId = parseInt(params?.id || '0');
@@ -29,14 +36,11 @@ export default function SessionRoom() {
   const [question, setQuestion] = useState('');
   const [isEnding, setIsEnding] = useState(false);
   
-  // State for Jitsi
-  const [jitsiLoaded, setJitsiLoaded] = useState(false);
+  // State for LiveKit
   const [hasJoined, setHasJoined] = useState(false);
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
+  const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
-  
-  const jitsiRef = useRef<any>(null);
-  const jitsiContainerRef = useRef<HTMLDivElement>(null);
 
   const [reportSession, setReportSession] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
@@ -65,7 +69,7 @@ export default function SessionRoom() {
     refetchInterval: 5000,
   });
 
-  // Signal media active while Daily session is live — don't lock during streaming
+  // Signal media active while LiveKit session is live — don't lock during streaming
   useEffect(() => {
     if (hasJoined) {
       setMediaActive(true);
@@ -76,92 +80,13 @@ export default function SessionRoom() {
     return () => setMediaActive(false);
   }, [hasJoined]);
 
-  // Cleanup Jitsi when leaving
-  useEffect(() => {
-    return () => {
-      if (jitsiRef.current) {
-        jitsiRef.current.dispose?.();
-      }
-    };
-  }, []);
-
-  const initJitsi = (roomId: string) => {
-    if (jitsiLoaded || !jitsiContainerRef.current) return;
-
-    const script = document.createElement('script');
-    // Reverting to official meet.jit.si due to strict CSP iframe blocks on community servers
-    script.src = 'https://meet.jit.si/external_api.js';
-    script.async = true;
-    script.onload = () => {
-      if (!jitsiContainerRef.current) return;
-      const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
-      if (!JitsiMeetExternalAPI) return;
-      
-      const domain = 'meet.jit.si';
-      const options = {
-        roomName: roomId,
-        parentNode: jitsiContainerRef.current,
-        width: '100%',
-        height: '100%',
-        userInfo: { 
-          displayName: user?.fullName || 'Student', 
-          email: user?.email || '' 
-        },
-        configOverwrite: {
-          startWithAudioMuted: !session?.isTeacher,
-          startWithVideoMuted: !session?.isTeacher,
-          disableDeepLinking: true,
-          enableClosePage: false,
-          prejoinPageEnabled: false, // Skip prejoin, we have our own waiting room
-          disableShortcuts: !session?.isTeacher, // Prevent using keyboard shortcuts to unmute
-          fileRecordingsEnabled: true,
-          localRecording: { enabled: true, format: 'flac' },
-          toolbarButtons: session?.isTeacher 
-            ? ['microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup', 'chat', 'raisehand', 'tileview', 'select-background', 'mute-everyone', 'security', 'recording', 'localrecording']
-            : ['closedcaptions', 'fullscreen', 'hangup', 'chat', 'raisehand', 'tileview'],
-        },
-        interfaceConfigOverwrite: {
-          TOOLBAR_BUTTONS: session?.isTeacher 
-            ? [
-                'microphone', 'camera', 'closedcaptions', 'desktop',
-                'fullscreen', 'fodeviceselection', 'hangup', 'chat',
-                'raisehand', 'tileview', 'select-background',
-                'mute-everyone', 'security', 'recording', 'localrecording'
-              ]
-            : [
-                'closedcaptions', 
-                'fullscreen', 'hangup', 'chat',
-                'raisehand', 'tileview'
-              ],
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          DEFAULT_REMOTE_DISPLAY_NAME: 'Student',
-        },
-      };
-      
-      jitsiRef.current = new JitsiMeetExternalAPI(domain, options);
-      
-      // Handle hangup event to return to dashboard
-      jitsiRef.current.addListener('videoConferenceLeft', () => {
-        setLocation('/dashboard');
-      });
-
-      setJitsiLoaded(true);
-    };
-    document.head.appendChild(script);
-  };
-
   const joinSession = async () => {
     try {
       const data = await api.post(`/room/sessions/${sessionId}/join`, {});
-      setActiveRoomId(data.roomId);
+      setLiveKitToken(data.token);
+      setLiveKitUrl(data.livekitUrl);
       setHasJoined(true);
       queryClient.invalidateQueries({ queryKey: ['/api/room/sessions', sessionId] });
-      
-      // Initialize Jitsi immediately with the received roomId
-      console.log("JOINING JITSI WITH ROOM ID:", data.roomId, data);
-      setTimeout(() => initJitsi(data.roomId), 100);
-      
     } catch (err: any) {
       toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
     }
@@ -393,8 +318,35 @@ export default function SessionRoom() {
             renderWaitingRoom()
           ) : (
             <ScreenProtection>
-              <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full border-none" />
-              <WatermarkOverlay />
+              {liveKitToken && liveKitUrl ? (
+                <LiveKitRoom
+                  // Teachers start with camera + mic on; students start muted with no video
+                  video={session.isTeacher}
+                  audio={session.isTeacher}
+                  token={liveKitToken}
+                  serverUrl={liveKitUrl}
+                  className="absolute inset-0 w-full h-full"
+                  data-lk-theme="default"
+                  style={{ height: '100%', '--lk-bg': '#020817' } as React.CSSProperties}
+                  onDisconnected={() => setLocation('/dashboard')}
+                >
+                  {/* VideoConference provides the participant grid, screen-share layout, and media controls */}
+                  <VideoConference />
+                  {/* RoomAudioRenderer plays all remote audio tracks */}
+                  <RoomAudioRenderer />
+                </LiveKitRoom>
+              ) : (
+                <div className="flex items-center justify-center h-full bg-slate-900">
+                  <div className="flex flex-col items-center gap-3">
+                    <Radio className="w-10 h-10 text-primary animate-pulse" />
+                    <p className="text-white/50 text-sm">Connecting to classroom...</p>
+                  </div>
+                </div>
+              )}
+              {/* Watermark rendered above LiveKit UI — must be pointer-events-none to not block controls */}
+              <div className="absolute inset-0 z-[200] pointer-events-none">
+                <WatermarkOverlay />
+              </div>
               {/* Mobile Chat Toggle Button */}
               <button 
                 className="md:hidden absolute bottom-24 right-4 z-[60] bg-primary text-primary-foreground p-3.5 rounded-full shadow-xl hover:scale-105 transition-transform"

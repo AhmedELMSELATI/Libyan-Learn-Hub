@@ -81,6 +81,8 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.21",
+    "livekit-client": "^2.19.1",
     "react-hot-toast": "^2.6.0",
     "react-player": "^3.4.0"
   }

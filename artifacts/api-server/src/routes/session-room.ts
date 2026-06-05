@@ -7,6 +7,7 @@ import { eq, and, count, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
+import { AccessToken } from "livekit-server-sdk";
 
 const router = Router();
 
@@ -106,8 +107,7 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
     }
 
     // Generate a stable, deterministic room ID for this session.
-    // This is used by the frontend Jitsi IFrame API — no external URL redirect needed.
-    const roomId = `edulibya-${sessionId}-${crypto.createHash("md5").update(sessionId.toString()).digest("hex").slice(0, 8)}`;
+    const roomId = session.meetingUrl || `edulibya-${sessionId}-${crypto.createHash("md5").update(sessionId.toString()).digest("hex").slice(0, 8)}`;
 
     // Persist the room ID and mark session as live when teacher joins
     if (isTeacher && session.status !== "live") {
@@ -120,7 +120,33 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
         .where(eq(liveSessionsTable.id, sessionId));
     }
 
-    res.json({ roomId, sessionId, isTeacher });
+    // Generate LiveKit token
+    const livekitApiKey = process.env.LIVEKIT_API_KEY || "devkey";
+    const livekitApiSecret = process.env.LIVEKIT_API_SECRET || "secret";
+    const livekitUrl = process.env.LIVEKIT_URL || "ws://localhost:7880";
+
+    // Fetch user display name from DB
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const displayName = user?.fullName || (isTeacher ? "Teacher" : "Student");
+
+    // Build a signed JWT that grants the participant access to the room
+    const at = new AccessToken(livekitApiKey, livekitApiSecret, {
+      identity: `user-${userId}`,
+      name: displayName,
+    });
+
+    at.addGrant({
+      roomJoin: true,
+      room: roomId,
+      // Teachers can publish (camera + mic). Students can also publish to allow raising hand / mic.
+      canPublish: true,
+      canPublishData: true,
+      canSubscribe: true,
+    });
+
+    const token = await at.toJwt();
+
+    res.json({ roomId, sessionId, isTeacher, token, livekitUrl });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
