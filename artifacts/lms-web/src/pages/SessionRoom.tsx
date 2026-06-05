@@ -12,8 +12,9 @@ import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ThumbsUp, CheckCircle, Send, MessageSquare, Users, Clock,
-  Video, ArrowLeft, Radio, Flag, AlertCircle, X
+  Video, ArrowLeft, Radio, Flag, AlertCircle, X, Circle, Square
 } from 'lucide-react';
+import { useLocalRecording } from '@/hooks/useLocalRecording';
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
 
@@ -42,6 +43,8 @@ export default function SessionRoom() {
   const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
 
+
+
   const [reportSession, setReportSession] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
@@ -55,6 +58,9 @@ export default function SessionRoom() {
     enabled: !!sessionId && !!user,
     refetchInterval: (query) => (query.state.data?.status === 'live' || hasJoined) ? 60000 : 5000, // Poll faster if waiting
   });
+
+  // Local Recording hook
+  const { isRecording, startRecording, stopRecording } = useLocalRecording(session?.title || 'ClassSession');
 
   useEffect(() => {
     if (session && !session.isRegistered && !session.isTeacher && parseFloat(session.price) > 0) {
@@ -296,6 +302,17 @@ export default function SessionRoom() {
             <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md"><Clock className="w-4 h-4 text-primary" />{session.durationMinutes} min</span>
             <span className="text-white/60 bg-white/5 px-2.5 py-1 rounded-md">Teacher: <span className="text-white">{session.teacherName}</span></span>
           </div>
+          {session.isTeacher && session.status === 'live' && hasJoined && (
+            <Button 
+              variant={isRecording ? 'outline' : 'secondary'} 
+              size="sm" 
+              className={`ml-2 gap-2 h-8 ${isRecording ? 'border-red-500 text-red-500 hover:bg-red-500/10 animate-pulse' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+              onClick={isRecording ? stopRecording : startRecording}
+            >
+              {isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 text-red-500 fill-current" />}
+              {isRecording ? 'Stop Rec' : 'Record'}
+            </Button>
+          )}
           {session.isTeacher && session.status === 'live' && (
             <Button 
               variant="destructive" 
