@@ -46,8 +46,8 @@ export function ScreenProtection({ children, className = '' }: ScreenProtectionP
       }
     };
 
-    // visibilitychange: fires when the user switches browser tabs or minimises
-    // This is safe — it does NOT fire when clicking inside iframes (e.g. Jitsi)
+    // visibilitychange: fires when the user switches browser tabs or minimises.
+    // LiveKit renders directly in the DOM (no iframes), so this fires correctly.
     const handleVisibilityChange = () => {
       setIsObscured(document.hidden);
     };
