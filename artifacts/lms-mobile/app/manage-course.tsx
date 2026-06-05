@@ -194,6 +194,15 @@ export default function ManageCourseScreen() {
       Alert.alert(t("خطأ", "Error"), t("يرجى ملء عنوان الدرس", "Please fill lesson title"));
       return;
     }
+    
+    if (lessonForm.type === "video" && videoFile) {
+      Alert.alert(
+        t("مطلوب التحقق من الهوية", "Identity Verification Required"),
+        t("لدواعي أمنية، يرجى استخدام منصة الويب لرفع الفيديوهات حيث يتطلب ذلك التحقق من الوجه.", "For security reasons, please use the web platform to upload videos as it requires face verification.")
+      );
+      return;
+    }
+    
     const sectionLessons = sections.find(s => s.id === addLessonSectionId)?.lessons || [];
     try {
       setUploading(true);
@@ -251,6 +260,15 @@ export default function ManageCourseScreen() {
 
   const handleEditLesson = async () => {
     if (!editLessonTarget) return;
+
+    if (lessonForm.type === "video" && videoFile) {
+      Alert.alert(
+        t("مطلوب التحقق من الهوية", "Identity Verification Required"),
+        t("لدواعي أمنية، يرجى استخدام منصة الويب لتعديل الفيديوهات حيث يتطلب ذلك التحقق من الوجه.", "For security reasons, please use the web platform to update videos as it requires face verification.")
+      );
+      return;
+    }
+
     try {
       setUploading(true);
       let videoFilePath = lessonForm.videoFilePath;
