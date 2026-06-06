@@ -48,7 +48,10 @@ app.use(limiter);
 app.use((req, _res, next) => {
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const ct = req.headers['content-type'];
-    if (!ct || !ct.includes('application/json')) {
+    // Only override to application/json if content-type is completely missing
+    // or if it's text/plain (which happens when some proxies strip it)
+    // Do NOT override multipart/form-data or application/x-www-form-urlencoded
+    if (!ct || ct.includes('text/plain')) {
       req.headers['content-type'] = 'application/json';
     }
   }
