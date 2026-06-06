@@ -150,7 +150,7 @@ export default function BiometricsSetup() {
           let detectedPose: Pose | null = null;
           if      (yawRatio < 0.6)   detectedPose = "left";
           else if (yawRatio > 1.6)   detectedPose = "right";
-          else if (pitchRatio < 0.7) detectedPose = "down";
+          else if (pitchRatio < 0.85) detectedPose = "down"; // Relaxed threshold for 'down'
           else if (pitchRatio > 1.8) detectedPose = "up";
           else if (yawRatio > 0.8 && yawRatio < 1.2 && pitchRatio > 0.9 && pitchRatio < 1.4) {
             detectedPose = "front";
@@ -339,7 +339,7 @@ export default function BiometricsSetup() {
             {isCameraReady && (
               <>
                 <div
-                  className={`absolute inset-0 border-4 border-dashed m-6 rounded-full pointer-events-none transition-colors duration-500 ${
+                  className={`absolute inset-2 border-4 border-dashed rounded-[100%] pointer-events-none transition-colors duration-500 ${
                     capturedCount === POSES.length ? "border-green-500/80 bg-green-500/10" : "border-primary/40"
                   }`}
                 />
