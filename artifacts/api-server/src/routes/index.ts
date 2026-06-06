@@ -29,6 +29,7 @@ import copyrightComplaintsRouter from "./copyright-complaints.js";
 import verificationRouter from "./verification.js";
 import academyRouter from "./academy.js";
 import notificationsRouter from "./notifications.js";
+import biometricsRouter from "./biometrics.js";
 
 const router: IRouter = Router();
 
@@ -62,6 +63,7 @@ router.use("/advertisements", advertisementsRouter);
 router.use("/copyright-complaints", copyrightComplaintsRouter);
 router.use("/verification", verificationRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/biometrics", biometricsRouter);
 // Academy router
 router.use("/academy", academyRouter);
 

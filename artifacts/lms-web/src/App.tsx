@@ -36,6 +36,7 @@ const DMCAComplaint = React.lazy(() => import("@/pages/DMCAComplaint"));
 const Academy = React.lazy(() => import("@/pages/Academy"));
 const AcademyDashboard = React.lazy(() => import("@/pages/AcademyDashboard"));
 const AcademyApply = React.lazy(() => import("@/pages/AcademyApply"));
+const BiometricsSetup = React.lazy(() => import("@/pages/teacher/BiometricsSetup"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +124,7 @@ function Router() {
         <Route path="/tutoring" component={Tutoring} />
         <Route path="/teachers" component={Teachers} />
         <Route path="/teachers/:slug" component={TeacherProfile} />
+        <Route path="/teacher/biometrics-setup" component={BiometricsSetup} />
         <Route path="/search" component={SearchPage} />
         <Route path="/dmca" component={DMCAComplaint} />
         <Route path="/login" component={Auth} />

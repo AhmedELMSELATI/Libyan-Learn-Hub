@@ -6,6 +6,8 @@ import {
   slidesTable,
   quizzesTable,
   enrollmentsTable,
+  usersTable,
+  contentVerificationJobsTable
 } from "@workspace/db";
 import { eq, and, asc, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -175,6 +177,16 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
   try {
     const courseId = parseParam(req.params.courseId);
     const sectionId = parseParam(req.params.sectionId);
+    
+    // Enforce biometrics setup
+    const user = await db.query.usersTable.findFirst({
+      where: eq(usersTable.id, req.user!.id)
+    });
+    
+    if (req.user?.role === 'teacher' && !user?.biometricsVerified) {
+      return res.status(403).json({ error: "Biometric identity verification is required before uploading lessons." });
+    }
+
     const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, notes, notesAr, duration, order, isFree, type, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
     const [lesson] = await db
       .insert(lessonsTable)
@@ -186,6 +198,21 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
         chapter: chapter || null, pageNumber: pageNumber || null, subjectTags: subjectTags || null
       })
       .returning();
+
+    // Trigger biometric video verification if it's a video lesson by a teacher
+    if (req.user?.role === 'teacher' && type === 'video' && (videoUrl || videoFilePath)) {
+      // Simulate verification job
+      await db.insert(contentVerificationJobsTable).values({
+        teacherId: req.user!.id,
+        lessonId: lesson.id,
+        jobType: "face",
+        status: "processing"
+      });
+      // In a real scenario, this would queue a job for a background worker.
+      // We will simulate it by updating it to 'matched' after a delay if needed, 
+      // but 'processing' is fine for demonstration.
+    }
+
     res.status(201).json(lesson);
   } catch (err: any) {
     res.status(400).json({ error: "Failed to create lesson", message: err.message });

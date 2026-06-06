@@ -124,7 +124,11 @@ export default function Auth() {
         if (returnTo) {
           window.location.href = decodeURIComponent(returnTo);
         } else {
-          window.location.href = data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard';
+          if (data.user.role === 'teacher' && !data.user.biometricsVerified) {
+            window.location.href = '/teacher/biometrics-setup';
+          } else {
+            window.location.href = data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard';
+          }
         }
       },
       onError: (err) => setErrorMsg(err.message || 'Login failed')
@@ -229,7 +233,7 @@ export default function Auth() {
       await api.post('/auth/verify-otp', { code: otpCode, type: isPhone ? 'phone' : 'email' });
       setAuthContext(pendingToken);
       toast({ title: 'Registration successful!' });
-      window.location.href = pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard';
+      window.location.href = pendingRole === 'teacher' ? '/teacher/biometrics-setup' : '/dashboard';
     } catch (err: any) {
       localStorage.removeItem('lms_token');
       setErrorMsg(err.message || 'Invalid code');
@@ -242,7 +246,7 @@ export default function Auth() {
     setAuthContext(pendingToken);
     // Allow auth state to settle before navigating
     setTimeout(() => {
-      setLocation(pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+      setLocation(pendingRole === 'teacher' ? '/teacher/biometrics-setup' : '/dashboard');
     }, 100);
   };
 

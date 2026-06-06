@@ -34,6 +34,8 @@ export const usersTable = pgTable("users", {
   copyrightAgreedAt: timestamp("copyright_agreed_at"),
   profileSlug: varchar("profile_slug", { length: 255 }).unique(),
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  biometricProfile: text("biometric_profile"), // Will store JSON: { face: { front, left, right, up, down }, voice: { scriptText, status } }
+  biometricsVerified: boolean("biometrics_verified").notNull().default(false),
   // Monetization / subscription
   tier: teacherTierEnum("tier").notNull().default("free"),
   proExpiry: timestamp("pro_expiry"),

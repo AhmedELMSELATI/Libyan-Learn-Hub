@@ -10,7 +10,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
   PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle, HardDrive, Trophy, Zap, Wallet, Banknote,
-  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio
+  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -144,18 +144,35 @@ export default function TeacherDashboard() {
               </div>
             )}
             <div className="flex flex-wrap w-full sm:w-auto gap-3 mt-4 md:mt-0">
-              <Link href="/teacher/sessions/new" className="flex-1 sm:flex-none">
-                <Button variant="outline" className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/5">
+              <Link href={user?.biometricsVerified ? "/teacher/sessions/new" : "/teacher/biometrics-setup"} className="flex-1 sm:flex-none">
+                <Button variant="outline" className={`w-full gap-2 border-primary/30 text-primary hover:bg-primary/5 ${!user?.biometricsVerified ? "opacity-50" : ""}`}>
                   <Radio className="w-4 h-4" /> {t('teacher_dashboard.schedule_session')}
                 </Button>
               </Link>
-              <Link href="/teacher/courses/new" className="flex-1 sm:flex-none">
-                <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-md shadow-primary/20">
+              <Link href={user?.biometricsVerified ? "/teacher/courses/new" : "/teacher/biometrics-setup"} className="flex-1 sm:flex-none">
+                <Button className={`w-full gap-2 bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 ${!user?.biometricsVerified ? "opacity-50" : ""}`}>
                   <Plus className="w-4 h-4" /> {t('teacher_dashboard.new_course')}
                 </Button>
               </Link>
             </div>
           </div>
+
+          {!user?.biometricsVerified && (
+            <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-4">
+              <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-red-800 font-bold mb-1">Identity Verification Required</h3>
+                <p className="text-red-700 text-sm mb-3">
+                  You must complete the facial and voice biometric verification before you can upload courses or schedule live sessions.
+                </p>
+                <Link href="/teacher/biometrics-setup">
+                  <Button variant="destructive" size="sm">
+                    Complete Setup Now
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Stats row */}
           {isLoading ? (
@@ -265,7 +282,7 @@ export default function TeacherDashboard() {
                 <Video className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
                 <h3 className="text-xl font-bold">No courses yet</h3>
                 <p className="text-muted-foreground mt-2 mb-6">Create your first course to start teaching students.</p>
-                <Link href="/teacher/courses/new">
+                <Link href={user?.biometricsVerified ? "/teacher/courses/new" : "/teacher/biometrics-setup"}>
                   <Button>
                     <Plus className="w-4 h-4 mr-2" /> Create First Course
                   </Button>
@@ -349,7 +366,7 @@ export default function TeacherDashboard() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-display font-bold">My Live Sessions</h2>
-                <Link href="/teacher/sessions/new">
+                <Link href={user?.biometricsVerified ? "/teacher/sessions/new" : "/teacher/biometrics-setup"}>
                   <Button className="gap-2">
                     <Plus className="w-4 h-4" /> Schedule Session
                   </Button>
@@ -360,7 +377,7 @@ export default function TeacherDashboard() {
                   <Radio className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
                   <h3 className="text-xl font-bold">No live sessions scheduled</h3>
                   <p className="text-muted-foreground mt-2 mb-6">Schedule a live session to interact with your students in real-time.</p>
-                  <Link href="/teacher/sessions/new">
+                  <Link href={user?.biometricsVerified ? "/teacher/sessions/new" : "/teacher/biometrics-setup"}>
                     <Button>
                       <Plus className="w-4 h-4 mr-2" /> Schedule First Session
                     </Button>
