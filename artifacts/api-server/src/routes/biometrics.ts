@@ -133,7 +133,10 @@ router.post("/setup-voice", requireAuth, requireRole("teacher"), audioUpload.sin
     });
   } catch (error: any) {
     console.error("Setup Voice Error:", error);
-    res.status(500).json({ error: "Failed to save voice sample." });
+    res.status(500).json({ 
+      error: "Failed to save voice sample.", 
+      details: error?.message || String(error)
+    });
   }
 });
 

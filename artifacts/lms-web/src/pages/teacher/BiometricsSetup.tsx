@@ -254,7 +254,7 @@ export default function BiometricsSetup() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error ?? res.statusText);
+        throw new Error(err.details ? `${err.error}: ${err.details}` : (err.error ?? res.statusText));
       }
 
       await refetchUser();
