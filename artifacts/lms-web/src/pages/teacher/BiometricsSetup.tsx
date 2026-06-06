@@ -71,7 +71,7 @@ export default function BiometricsSetup() {
 
   // ── Start / stop camera when face step is active ───────────────────────────
   useEffect(() => {
-    if (step !== "face" || !isModelsLoaded) return;
+    if (step !== "face") return;
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } })
@@ -90,7 +90,7 @@ export default function BiometricsSetup() {
       streamRef.current = null;
       setIsCameraReady(false);
     };
-  }, [step, isModelsLoaded]);
+  }, [step]);
 
   // ── Face Tracking Loop ─────────────────────────────────────────────────────
   //
