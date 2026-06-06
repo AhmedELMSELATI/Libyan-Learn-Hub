@@ -173,17 +173,18 @@ router.get("/:sectionId/lessons", async (req, res) => {
   }
 });
 
-router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<any> => {
   try {
+    const reqUser = (req as any).user;
     const courseId = parseParam(req.params.courseId);
     const sectionId = parseParam(req.params.sectionId);
     
     // Enforce biometrics setup
     const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, req.user!.id)
+      where: eq(usersTable.id, reqUser.id)
     });
     
-    if (req.user?.role === 'teacher' && !user?.biometricsVerified) {
+    if (reqUser?.role === 'teacher' && !user?.biometricsVerified) {
       return res.status(403).json({ error: "Biometric identity verification is required before uploading lessons." });
     }
 
@@ -200,10 +201,10 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
       .returning();
 
     // Trigger biometric video verification if it's a video lesson by a teacher
-    if (req.user?.role === 'teacher' && type === 'video' && (videoUrl || videoFilePath)) {
+    if (reqUser?.role === 'teacher' && type === 'video' && (videoUrl || videoFilePath)) {
       // Simulate verification job
       await db.insert(contentVerificationJobsTable).values({
-        teacherId: req.user!.id,
+        teacherId: reqUser.id,
         lessonId: lesson.id,
         jobType: "face",
         status: "processing"

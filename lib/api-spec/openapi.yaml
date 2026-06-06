@@ -715,6 +715,15 @@ components:
           type: string
           enum: [ar, en]
           default: ar
+        passkey:
+          type: string
+          nullable: true
+        tier:
+          type: string
+          nullable: true
+        agreedToCommission:
+          type: boolean
+          nullable: true
       required:
         - email
         - password
@@ -778,6 +787,8 @@ components:
           type: boolean
         emailVerified:
           type: boolean
+        balance:
+          type: string
         createdAt:
           type: string
           format: date-time

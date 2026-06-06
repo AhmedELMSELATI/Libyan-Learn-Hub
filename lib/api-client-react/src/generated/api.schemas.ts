@@ -44,6 +44,9 @@ export interface RegisterRequest {
   phoneNumber?: string;
   role: RegisterRequestRole;
   language?: RegisterRequestLanguage;
+  passkey?: string | null;
+  tier?: string | null;
+  agreedToCommission?: boolean | null;
 }
 
 export interface LoginRequest {
@@ -80,6 +83,7 @@ export interface User {
   biometricsVerified?: boolean;
   phoneVerified?: boolean;
   emailVerified?: boolean;
+  balance?: string;
   createdAt: string;
 }
 

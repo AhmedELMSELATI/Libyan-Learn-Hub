@@ -39,7 +39,7 @@ function uploadToCloudinary(buffer: Buffer, options: Record<string, any>): Promi
 }
 
 // 1. Setup Face Descriptors
-router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res) => {
+router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res): Promise<any> => {
   try {
     const { faceDescriptors } = req.body;
     if (!faceDescriptors || !faceDescriptors.front || !faceDescriptors.left || !faceDescriptors.right || !faceDescriptors.up || !faceDescriptors.down) {
@@ -47,8 +47,9 @@ router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res)
     }
 
     // Get existing biometric profile or create new
+    const reqUser = (req as any).user;
     const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, req.user!.id),
+      where: eq(usersTable.id, reqUser.id),
     });
 
     let profile = safeParseJson(user?.biometricProfile, { face: {}, voice: {} });
@@ -57,7 +58,7 @@ router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res)
     await db
       .update(usersTable)
       .set({ biometricProfile: JSON.stringify(profile) })
-      .where(eq(usersTable.id, req.user!.id));
+      .where(eq(usersTable.id, reqUser.id));
 
     res.json({ message: "Facial descriptors saved successfully." });
   } catch (error: any) {
@@ -80,15 +81,16 @@ router.get("/voice-script", requireAuth, requireRole("teacher"), (req, res) => {
 });
 
 // 3. Setup Voice Recording
-router.post("/setup-voice", requireAuth, requireRole("teacher"), audioUpload.single("audio"), async (req, res) => {
+router.post("/setup-voice", requireAuth, requireRole("teacher"), audioUpload.single("audio"), async (req, res): Promise<any> => {
   try {
     const { scriptText } = req.body;
     if (!req.file || !scriptText) {
       return res.status(400).json({ error: "Audio file and script text are required." });
     }
 
+    const reqUser = (req as any).user;
     const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, req.user!.id),
+      where: eq(usersTable.id, reqUser.id),
     });
 
     // Upload audio to Cloudinary
@@ -116,7 +118,7 @@ router.post("/setup-voice", requireAuth, requireRole("teacher"), audioUpload.sin
         biometricsVerified: hasFace ? true : false,
         onboardingCompleted: hasFace ? true : false // Also mark onboarding as complete
       })
-      .where(eq(usersTable.id, req.user!.id));
+      .where(eq(usersTable.id, reqUser.id));
 
     res.json({ 
       message: "Voice sample saved and biometrics verified.", 

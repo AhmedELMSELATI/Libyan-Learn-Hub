@@ -29,6 +29,9 @@ export const RegisterBody = zod.object({
   phoneNumber: zod.string().optional(),
   role: zod.enum(["student", "teacher"]),
   language: zod.enum(["ar", "en"]).default(registerBodyLanguageDefault),
+  passkey: zod.string().nullish(),
+  tier: zod.string().nullish(),
+  agreedToCommission: zod.boolean().nullish(),
 });
 
 /**
@@ -54,6 +57,7 @@ export const LoginResponse = zod.object({
     biometricsVerified: zod.boolean().optional(),
     phoneVerified: zod.boolean().optional(),
     emailVerified: zod.boolean().optional(),
+    balance: zod.string().optional(),
     createdAt: zod.date(),
   }),
   token: zod.string(),
@@ -84,6 +88,7 @@ export const GetCurrentUserResponse = zod.object({
   biometricsVerified: zod.boolean().optional(),
   phoneVerified: zod.boolean().optional(),
   emailVerified: zod.boolean().optional(),
+  balance: zod.string().optional(),
   createdAt: zod.date(),
 });
 
@@ -681,6 +686,7 @@ export const UpdateProfileResponse = zod.object({
   biometricsVerified: zod.boolean().optional(),
   phoneVerified: zod.boolean().optional(),
   emailVerified: zod.boolean().optional(),
+  balance: zod.string().optional(),
   createdAt: zod.date(),
 });
 

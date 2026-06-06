@@ -22,5 +22,6 @@ export interface User {
   biometricsVerified?: boolean;
   phoneVerified?: boolean;
   emailVerified?: boolean;
+  balance?: string;
   createdAt: Date;
 }
