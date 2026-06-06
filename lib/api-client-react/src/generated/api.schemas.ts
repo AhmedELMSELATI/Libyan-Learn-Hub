@@ -76,7 +76,10 @@ export interface User {
   bio?: string | null;
   bioAr?: string | null;
   language: UserLanguage;
-  balance?: string;
+  hasPasskey?: boolean;
+  biometricsVerified?: boolean;
+  phoneVerified?: boolean;
+  emailVerified?: boolean;
   createdAt: string;
 }
 

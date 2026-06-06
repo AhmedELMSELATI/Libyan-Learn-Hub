@@ -770,6 +770,14 @@ components:
         language:
           type: string
           enum: [ar, en]
+        hasPasskey:
+          type: boolean
+        biometricsVerified:
+          type: boolean
+        phoneVerified:
+          type: boolean
+        emailVerified:
+          type: boolean
         createdAt:
           type: string
           format: date-time
