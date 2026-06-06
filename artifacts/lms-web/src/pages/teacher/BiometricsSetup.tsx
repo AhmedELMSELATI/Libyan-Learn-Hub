@@ -33,7 +33,6 @@ export default function BiometricsSetup() {
   const streamRef = useRef<MediaStream | null>(null);
   const [isModelsLoaded, setIsModelsLoaded] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [currentPoseIndex, setCurrentPoseIndex] = useState(0);
   const [capturedDescriptors, setCapturedDescriptors] = useState<Record<string, number[]>>({});
   const [isProcessingFace, setIsProcessingFace] = useState(false);
 
@@ -93,44 +92,93 @@ export default function BiometricsSetup() {
     };
   }, [step, isModelsLoaded]);
 
-  // ── Capture a single pose ──────────────────────────────────────────────────
-  const capturePose = async () => {
-    if (!videoRef.current || !isCameraReady) return;
-    setIsProcessingFace(true);
-    try {
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+  // ── Face Tracking Loop ──────────────────────────────────────────────────
+  const trackingLoopRef = useRef<number>(0);
 
-      if (!detection) {
-        toast({ title: "No face detected — ensure good lighting and look at the camera.", variant: "destructive" });
-        return;
+  useEffect(() => {
+    if (step !== "face" || !isModelsLoaded || !isCameraReady || isProcessingFace) return;
+
+    let isRunning = true;
+
+    const trackFace = async () => {
+      if (!videoRef.current || !isRunning) return;
+
+      try {
+        const detection = await faceapi
+          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
+        if (detection) {
+          const landmarks = detection.landmarks;
+          const nose = landmarks.getNose()[3]; // nose tip
+          const jawline = landmarks.getJawOutline();
+          const leftJaw = jawline[0];
+          const rightJaw = jawline[16];
+          const bottomJaw = jawline[8]; // chin
+          const noseBridge = landmarks.getNose()[0];
+
+          // Calculate Yaw
+          const distLeft = Math.hypot(nose.x - leftJaw.x, nose.y - leftJaw.y);
+          const distRight = Math.hypot(nose.x - rightJaw.x, nose.y - rightJaw.y);
+          const yawRatio = distLeft / distRight;
+
+          // Calculate Pitch
+          const distTop = Math.hypot(nose.x - noseBridge.x, nose.y - noseBridge.y);
+          const distBottom = Math.hypot(nose.x - bottomJaw.x, nose.y - bottomJaw.y);
+          const pitchRatio = distBottom / distTop;
+
+          let currentPose: Pose | null = null;
+          
+          if (yawRatio < 0.6) currentPose = "left";
+          else if (yawRatio > 1.6) currentPose = "right";
+          else if (pitchRatio < 0.7) currentPose = "down";
+          else if (pitchRatio > 1.8) currentPose = "up";
+          else if (yawRatio > 0.8 && yawRatio < 1.2 && pitchRatio > 0.9 && pitchRatio < 1.4) {
+            currentPose = "front";
+          }
+
+          if (currentPose) {
+            setCapturedDescriptors(prev => {
+              if (prev[currentPose!]) return prev; // Already captured
+              
+              const newDescriptors = { ...prev, [currentPose!]: Array.from(detection.descriptor) };
+              toast({ title: `✓ ${POSES.find(p => p.id === currentPose!)?.label} captured!` });
+              
+              if (Object.keys(newDescriptors).length === POSES.length) {
+                // All captured!
+                setIsProcessingFace(true);
+                api.post("/biometrics/setup-face", { faceDescriptors: newDescriptors })
+                  .then(() => {
+                    streamRef.current?.getTracks().forEach((t) => t.stop());
+                    toast({ title: "Face setup complete!" });
+                    setStep("voice");
+                  })
+                  .catch((err) => {
+                    toast({ title: "Error submitting face data: " + (err?.message ?? "unknown"), variant: "destructive" });
+                    setIsProcessingFace(false);
+                  });
+              }
+              return newDescriptors;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Tracking error:", err);
       }
 
-      const pose = POSES[currentPoseIndex].id;
-      const descriptor = Array.from(detection.descriptor);
-      const newDescriptors = { ...capturedDescriptors, [pose]: descriptor };
-      setCapturedDescriptors(newDescriptors);
-
-      if (currentPoseIndex < POSES.length - 1) {
-        // Move to next pose
-        setCurrentPoseIndex((p) => p + 1);
-        toast({ title: `✓ ${POSES[currentPoseIndex].label} captured!` });
-      } else {
-        // All 5 poses done — submit to backend
-        await api.post("/biometrics/setup-face", { faceDescriptors: newDescriptors });
-        // Stop the camera before moving on
-        streamRef.current?.getTracks().forEach((t) => t.stop());
-        toast({ title: "Face setup complete!" });
-        setStep("voice");
+      if (isRunning && !isProcessingFace) {
+        trackingLoopRef.current = requestAnimationFrame(trackFace);
       }
-    } catch (err: any) {
-      toast({ title: "Error processing face: " + (err?.message ?? "unknown"), variant: "destructive" });
-    } finally {
-      setIsProcessingFace(false);
-    }
-  };
+    };
+
+    trackFace();
+
+    return () => {
+      isRunning = false;
+      if (trackingLoopRef.current) cancelAnimationFrame(trackingLoopRef.current);
+    };
+  }, [step, isModelsLoaded, isCameraReady, isProcessingFace]);
 
   // ── Fetch voice script when entering voice step ────────────────────────────
   useEffect(() => {
@@ -247,7 +295,7 @@ export default function BiometricsSetup() {
           <div>
             <h2 className="text-2xl font-semibold text-center">Step 1 of 2 — Facial Recognition</h2>
             <p className="text-muted-foreground text-center text-sm mt-1">
-              Pose {currentPoseIndex + 1} of {POSES.length}
+              Look around to capture all {POSES.length} angles automatically
             </p>
           </div>
 
@@ -265,38 +313,30 @@ export default function BiometricsSetup() {
               className={`w-full h-full object-cover transition-opacity ${isCameraReady ? "opacity-100" : "opacity-0"}`}
             />
             {isCameraReady && (
-              <div className="absolute inset-0 border-4 border-dashed border-primary/40 m-6 rounded-full pointer-events-none" />
+              <div className={`absolute inset-0 border-4 border-dashed m-6 rounded-full pointer-events-none transition-colors duration-500 ${Object.keys(capturedDescriptors).length === POSES.length ? 'border-green-500/80 bg-green-500/10' : 'border-primary/40'}`} />
             )}
-          </div>
-
-          <div className="text-2xl font-bold text-primary animate-pulse">
-            ↗ {POSES[currentPoseIndex].label}
           </div>
 
           {/* Pose progress dots */}
-          <div className="flex gap-2">
-            {POSES.map((p, i) => (
-              <div
-                key={p.id}
-                className={`w-3 h-3 rounded-full transition-all ${
-                  i < currentPoseIndex ? "bg-green-500" : i === currentPoseIndex ? "bg-primary scale-125" : "bg-muted"
-                }`}
-              />
-            ))}
+          <div className="flex flex-col w-full gap-3 px-8">
+            {POSES.map((p) => {
+              const isCaptured = !!capturedDescriptors[p.id];
+              return (
+                <div key={p.id} className="flex items-center justify-between">
+                  <span className={`text-sm font-medium ${isCaptured ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {p.label}
+                  </span>
+                  <div className={`w-4 h-4 rounded-full transition-all ${isCaptured ? "bg-green-500" : "bg-muted animate-pulse"}`} />
+                </div>
+              );
+            })}
           </div>
 
-          <Button
-            size="lg"
-            onClick={capturePose}
-            disabled={!isCameraReady || isProcessingFace}
-            className="w-full max-w-xs gap-2"
-          >
-            {isProcessingFace ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</>
-            ) : (
-              <><Camera className="w-4 h-4" /> Capture — {POSES[currentPoseIndex].label}</>
-            )}
-          </Button>
+          {isProcessingFace && (
+             <div className="text-sm text-primary flex items-center gap-2 mt-4 animate-pulse">
+               <Loader2 className="w-4 h-4 animate-spin" /> Finalizing face setup...
+             </div>
+          )}
         </div>
       )}
 
