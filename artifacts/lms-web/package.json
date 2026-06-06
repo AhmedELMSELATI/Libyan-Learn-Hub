@@ -83,6 +83,7 @@
   "dependencies": {
     "@livekit/components-react": "^2.9.21",
     "@livekit/components-styles": "^1.2.0",
+    "@vladmandic/face-api": "^1.7.15",
     "livekit-client": "^2.19.1",
     "react-hot-toast": "^2.6.0",
     "react-player": "^3.4.0"
