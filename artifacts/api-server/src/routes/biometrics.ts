@@ -9,6 +9,12 @@ import { Readable } from "stream";
 
 const router = Router();
 
+// Safe JSON parse helper — returns default if value is null/invalid
+function safeParseJson(value: string | null | undefined, defaultValue: any = {}) {
+  if (!value) return defaultValue;
+  try { return JSON.parse(value); } catch { return defaultValue; }
+}
+
 const storage = multer.memoryStorage();
 const audioUpload = multer({
   storage,
@@ -45,7 +51,7 @@ router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res)
       where: eq(usersTable.id, req.user!.id),
     });
 
-    let profile = user?.biometricProfile ? JSON.parse(user.biometricProfile) : { face: {}, voice: {} };
+    let profile = safeParseJson(user?.biometricProfile, { face: {}, voice: {} });
     profile.face = faceDescriptors;
 
     await db
@@ -91,14 +97,16 @@ router.post("/setup-voice", requireAuth, requireRole("teacher"), audioUpload.sin
       resource_type: "video", // Cloudinary uses 'video' for audio
     });
 
-    let profile = user?.biometricProfile ? JSON.parse(user.biometricProfile) : { face: {}, voice: {} };
+    let profile = safeParseJson(user?.biometricProfile, { face: {}, voice: {} });
     profile.voice = {
       scriptText,
-      status: "verified", // Auto-verifying for demonstration as requested by the plan
+      audioUrl: result.secure_url,
+      status: "verified",
     };
 
-    // If both face and voice are present, mark biometricsVerified as true
-    const hasFace = profile.face && Object.keys(profile.face).length === 5;
+    // All 5 required face poses must be present before we mark as verified
+    const requiredPoses = ["front", "left", "right", "up", "down"];
+    const hasFace = profile.face && requiredPoses.every((p) => Array.isArray(profile.face[p]) && profile.face[p].length > 0);
     
     await db
       .update(usersTable)

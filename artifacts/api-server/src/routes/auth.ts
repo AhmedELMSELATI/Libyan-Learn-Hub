@@ -130,6 +130,7 @@ router.post("/register", authLimiter, async (req, res) => {
         storageLimitBytes: plan.storageLimitBytes,
         isBonusUnlocked: user.isBonusUnlocked,
         hasPasskey: !!user.passkeyHash,
+        biometricsVerified: user.biometricsVerified,
         createdAt: user.createdAt,
       },
       token,
@@ -243,6 +244,7 @@ router.post("/login", authLimiter, async (req, res) => {
         isBonusUnlocked: user.isBonusUnlocked,
         balance: user.balance ?? "0",
         hasPasskey: !!user.passkeyHash,
+        biometricsVerified: user.biometricsVerified,
         createdAt: user.createdAt,
       },
       token,
@@ -314,6 +316,7 @@ router.get("/me", requireAuth, async (req, res) => {
     isBonusUnlocked: user.isBonusUnlocked,
     balance: user.balance ?? "0",
     hasPasskey: !!user.passkeyHash,
+    biometricsVerified: user.biometricsVerified,
     createdAt: user.createdAt,
   });
 });
