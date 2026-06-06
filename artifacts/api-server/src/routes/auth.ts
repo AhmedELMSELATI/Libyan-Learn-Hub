@@ -133,10 +133,6 @@ router.post("/register", authLimiter, async (req, res) => {
         createdAt: user.createdAt,
       },
       token,
-      otpCode,
-      otpMessage: user.phoneNumber
-        ? `Your verification code is: ${otpCode} (In production this would be sent via SMS to ${user.phoneNumber})`
-        : `Your email verification code is: ${otpCode}`,
     });
   } catch (err: any) {
     res.status(400).json({ error: "Validation failed", message: err.message });
@@ -166,13 +162,7 @@ router.post("/send-otp", requireAuth, async (req, res) => {
       }
     }
 
-    res.json({
-      message: "OTP sent",
-      otpCode,
-      otpMessage: user.phoneNumber
-        ? `Your verification code is: ${otpCode} (In production this would be sent via SMS to ${user.phoneNumber})`
-        : `Your verification code is: ${otpCode}`,
-    });
+    res.json({ message: "OTP sent" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

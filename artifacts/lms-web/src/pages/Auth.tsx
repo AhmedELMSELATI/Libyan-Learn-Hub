@@ -58,7 +58,7 @@ export default function Auth() {
   const [resetEmail, setResetEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [otpInfo, setOtpInfo] = useState<{ message: string; code: string } | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string>('');
   const [pendingToken, setPendingToken] = useState<string>('');
   const [pendingRole, setPendingRole] = useState<string>('student');
   const [otpCode, setOtpCode] = useState('');
@@ -98,7 +98,6 @@ export default function Auth() {
         email: registerForm.getValues('email'), 
         type: isPhone ? 'phone' : 'email' 
       });
-      setOtpInfo({ message: data.otpMessage, code: data.otpCode });
       setResendTimer(60);
     } catch (err: any) {
       setErrorMsg(err.message || 'Resend failed');
@@ -137,7 +136,7 @@ export default function Auth() {
       onSuccess: (data: any) => {
         setPendingToken(data.token);
         setPendingRole(data.user.role);
-        setOtpInfo({ message: data.otpMessage, code: data.otpCode });
+        setPendingEmail(data.user.email);
         setStep('otp');
       },
       onError: (err) => setErrorMsg(err.message || 'Registration failed')
@@ -159,9 +158,9 @@ export default function Auth() {
     try {
       const res = await api.post('/auth/forgot-password', { email: resetEmail });
       if (res.otpMessage) {
-        setOtpInfo({ message: res.otpMessage, code: res.otpCode });
+        // password reset OTP was sent to email
       } else {
-        setOtpInfo(null);
+        // no message
       }
       setStep('reset');
     } catch (err: any) {
@@ -317,12 +316,7 @@ export default function Auth() {
             <p className="text-muted-foreground mt-2 text-sm">Enter the code and your new password</p>
           </div>
 
-          {otpInfo && (
-            <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary/80">
-              <p className="font-medium mb-1">Development Mode:</p>
-              <p>{otpInfo.message}</p>
-            </div>
-          )}
+
 
           {errorMsg && (
             <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
@@ -381,12 +375,13 @@ export default function Auth() {
             <p className="text-muted-foreground mt-2 text-sm">Enter the 6-digit verification code</p>
           </div>
 
-          {otpInfo && (
-            <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary/80">
-              <p className="font-medium mb-1">Development Mode:</p>
-              <p>{otpInfo.message}</p>
+          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-700 dark:text-emerald-400 flex gap-3 items-start">
+            <Mail className="w-5 h-5 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">Check your email</p>
+              <p className="mt-0.5 opacity-80">We sent a 6-digit verification code to <span className="font-medium">{pendingEmail}</span>. Please check your inbox (and spam folder).</p>
             </div>
-          )}
+          </div>
 
           {errorMsg && (
             <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
