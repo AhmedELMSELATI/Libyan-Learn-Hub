@@ -98,11 +98,12 @@ router.post("/register", authLimiter, async (req, res) => {
     const token = signToken({ userId: user.id, role: user.role });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
 
-    if (!user.phoneNumber && user.email) {
+    if (user.email) {
       sendEmail({
         to: user.email,
         subject: "Welcome to Libyan Learn Hub - Verification Code",
-        text: `Hello ${user.fullName},\n\nYour email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+        text: `Hello ${user.fullName},\n\nYour account verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+        html: `<div dir="ltr"><p>Hello ${user.fullName},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
       }).catch((err) => console.error("Failed to send welcome OTP email:", err));
     }
 
@@ -148,11 +149,12 @@ router.post("/send-otp", requireAuth, async (req, res) => {
       .where(eq(usersTable.id, userId))
       .returning();
 
-    if (!user.phoneNumber && user.email) {
+    if (user.email) {
       sendEmail({
         to: user.email,
         subject: "Libyan Learn Hub - Verification Code",
-        text: `Hello ${user.fullName || "User"},\n\nYour new email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+        text: `Hello ${user.fullName || "User"},\n\nYour new verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+        html: `<div dir="ltr"><p>Hello ${user.fullName || "User"},</p><p>Your new verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
       }).catch((err) => console.error("Failed to send OTP email:", err));
     }
 

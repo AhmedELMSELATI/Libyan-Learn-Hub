@@ -93,7 +93,7 @@ export default function Auth() {
     if (resendTimer > 0) return;
     setErrorMsg('');
     try {
-      const data = await api.post('/auth/resend-otp', { email: registerForm.getValues('email'), type: 'phone' });
+      const data = await api.post('/auth/send-otp', { email: registerForm.getValues('email'), type: 'phone' });
       setOtpInfo({ message: data.otpMessage, code: data.otpCode });
       setResendTimer(60);
     } catch (err: any) {
