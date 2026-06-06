@@ -9,6 +9,13 @@ import { Readable } from "stream";
 
 const router = Router();
 
+// Configure Cloudinary (must be done before any upload calls)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // Safe JSON parse helper — returns default if value is null/invalid
 function safeParseJson(value: string | null | undefined, defaultValue: any = {}) {
   if (!value) return defaultValue;
