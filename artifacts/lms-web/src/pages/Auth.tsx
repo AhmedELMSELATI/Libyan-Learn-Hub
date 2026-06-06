@@ -93,7 +93,11 @@ export default function Auth() {
     if (resendTimer > 0) return;
     setErrorMsg('');
     try {
-      const data = await api.post('/auth/send-otp', { email: registerForm.getValues('email'), type: 'phone' });
+      const isPhone = !!registerForm.getValues('phoneNumber');
+      const data = await api.post('/auth/send-otp', { 
+        email: registerForm.getValues('email'), 
+        type: isPhone ? 'phone' : 'email' 
+      });
       setOtpInfo({ message: data.otpMessage, code: data.otpCode });
       setResendTimer(60);
     } catch (err: any) {
@@ -221,7 +225,9 @@ export default function Auth() {
     setErrorMsg('');
     try {
       localStorage.setItem('lms_token', pendingToken);
-      await api.post('/auth/verify-otp', { code: otpCode, type: 'phone' });
+      // Determine type based on whether the user entered a phone number or email
+      const isPhone = !!registerForm.getValues('phoneNumber');
+      await api.post('/auth/verify-otp', { code: otpCode, type: isPhone ? 'phone' : 'email' });
       setAuthContext(pendingToken);
       toast({ title: 'Registration successful!' });
       window.location.href = pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard';
