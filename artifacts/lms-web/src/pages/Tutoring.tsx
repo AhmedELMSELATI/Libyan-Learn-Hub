@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
@@ -9,52 +8,47 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
-  BookOpen, Clock, DollarSign, Users, Star, Plus, Filter,
-  Send, CheckCircle, XCircle, MessageSquare, Calendar, Search, Edit2, Trash2, Eye, ExternalLink, Settings
+  Clock, Calendar, MessageSquare, Send, Settings, ExternalLink
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 
+// ─── Constants ─────────────────────────────────────────────────────────────────
 const GRADE_LEVELS = [
-  { value: 'grade_10', label: 'Grade 10 / الصف العاشر' },
-  { value: 'grade_11', label: 'Grade 11 / الصف الحادي عشر' },
-  { value: 'grade_12', label: 'Grade 12 / الصف الثاني عشر' },
-  { value: 'university', label: 'University / الجامعة' },
+  { value: 'grade_1_6',   label: 'Grade 1–6 / الصف الأول - السادس' },
+  { value: 'grade_7_9',   label: 'Grade 7–9 / الصف السابع - التاسع' },
+  { value: 'grade_10_12', label: 'Grade 10–12 / الصف العاشر - الثاني عشر' },
+  { value: 'university',  label: 'University / الجامعة' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  accepted: 'bg-green-100 text-green-800 border-green-200',
-  rescheduled_by_teacher: 'bg-blue-100 text-blue-800 border-blue-200',
-  declined: 'bg-red-100 text-red-800 border-red-200',
-  cancelled: 'bg-gray-100 text-gray-700 border-gray-200',
-  completed: 'bg-purple-100 text-purple-800 border-purple-200',
+  pending:                 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  accepted:                'bg-green-100 text-green-800 border-green-200',
+  rescheduled_by_teacher:  'bg-blue-100 text-blue-800 border-blue-200',
+  declined:                'bg-red-100 text-red-800 border-red-200',
+  cancelled:               'bg-gray-100 text-gray-700 border-gray-200',
+  completed:               'bg-purple-100 text-purple-800 border-purple-200',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending / قيد الانتظار',
-  accepted: 'Accepted / مقبول',
+  pending:                'Pending / قيد الانتظار',
+  accepted:               'Accepted / مقبول',
   rescheduled_by_teacher: 'New Time Proposed / وقت مقترح',
-  declined: 'Declined / مرفوض',
-  cancelled: 'Cancelled / ملغي',
-  completed: 'Completed / مكتمل',
+  declined:               'Declined / مرفوض',
+  cancelled:              'Cancelled / ملغي',
+  completed:              'Completed / مكتمل',
 };
 
-function gradeLevelLabel(value: string) {
-  return GRADE_LEVELS.find(g => g.value === value)?.label || value || '—';
-}
-
-// ─── Settings Modal (Teacher) ────────────────────────────────────────────────
+// ─── Settings Modal (Teacher) ─────────────────────────────────────────────────
 function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
   const { toast } = useToast();
   const { user, refetchUser } = useAuth();
-  
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+
+  const { control, register, handleSubmit, formState: { isSubmitting } } = useForm({
     defaultValues: {
-      isTutoringEnabled: (user as any)?.isTutoringEnabled || false,
-      tutoringHourlyRate: (user as any)?.tutoringHourlyRate || '0',
+      isTutoringEnabled: !!(user as any)?.isTutoringEnabled,
+      tutoringHourlyRate: (user as any)?.tutoringHourlyRate?.toString() || '0',
       tutoringSubjects: (user as any)?.tutoringSubjects || '',
     }
   });
@@ -62,12 +56,12 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   const onSubmit = async (data: any) => {
     try {
       await api.put('/tutoring/settings', {
-        isTutoringEnabled: data.isTutoringEnabled,
-        tutoringHourlyRate: parseFloat(data.tutoringHourlyRate),
+        isTutoringEnabled: !!data.isTutoringEnabled,
+        tutoringHourlyRate: parseFloat(data.tutoringHourlyRate) || 0,
         tutoringSubjects: data.tutoringSubjects,
       });
       refetchUser();
-      toast({ title: 'Settings updated successfully' });
+      toast({ title: 'Tutoring settings updated successfully!' });
       onClose();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -76,27 +70,55 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Tutoring Settings / إعدادات الخصوصي</DialogTitle>
+          <DialogTitle>Tutoring Settings / إعدادات التدريس الخاص</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="isTutoringEnabled" {...register('isTutoringEnabled')} />
-            <label htmlFor="isTutoringEnabled" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Enable 1-to-1 Tutoring
-            </label>
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 pt-2">
+          {/* Enable toggle — use Controller to properly bind a native checkbox */}
+          <Controller
+            name="isTutoringEnabled"
+            control={control}
+            render={({ field }) => (
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={!!field.value}
+                  onChange={e => field.onChange(e.target.checked)}
+                  className="w-4 h-4 accent-primary"
+                  id="isTutoringEnabled"
+                />
+                <div>
+                  <div className="text-sm font-semibold">Enable 1-to-1 Tutoring</div>
+                  <div className="text-xs text-muted-foreground">Students will be able to request private sessions with you</div>
+                </div>
+              </label>
+            )}
+          />
+
           <div>
             <label className="text-sm font-medium block mb-1">Hourly Rate (LYD)</label>
-            <Input {...register('tutoringHourlyRate')} type="number" min="0" step="0.01" />
+            <Input
+              {...register('tutoringHourlyRate')}
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="e.g. 80"
+            />
           </div>
+
           <div>
             <label className="text-sm font-medium block mb-1">Subjects Taught</label>
-            <Input {...register('tutoringSubjects')} placeholder="e.g., Math, Physics" />
+            <Input
+              {...register('tutoringSubjects')}
+              placeholder="e.g. Math, Physics, Arabic"
+            />
           </div>
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>Save</Button>
+
+          <div className="flex gap-2 pt-1">
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save Settings'}
+            </Button>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           </div>
         </form>
@@ -105,21 +127,29 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-// ─── Propose Time Modal (Teacher) ────────────────────────────────────────────
-function ProposeTimeModal({ request, open, onClose }: { request: any; open: boolean; onClose: () => void }) {
+// ─── Propose Time Modal (Teacher) ─────────────────────────────────────────────
+function ProposeTimeModal({
+  request, open, onClose
+}: { request: any; open: boolean; onClose: () => void }) {
   const api = useApi();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [proposedAt, setProposedAt] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Get a min datetime (now) for the input
+  const minDateTime = new Date();
+  minDateTime.setMinutes(minDateTime.getMinutes() + 5);
+  const minStr = minDateTime.toISOString().slice(0, 16);
+
   const onSubmit = async () => {
     if (!proposedAt) return;
     setLoading(true);
     try {
       await api.post(`/tutoring/requests/${request.id}/propose-time`, { proposedAt });
-      toast({ title: 'New time proposed' });
+      toast({ title: 'New time proposed to student' });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
+      setProposedAt('');
       onClose();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -129,18 +159,31 @@ function ProposeTimeModal({ request, open, onClose }: { request: any; open: bool
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={v => { if (!v) { setProposedAt(''); onClose(); } }}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>Propose New Time</DialogTitle>
         </DialogHeader>
+        {request && (
+          <p className="text-sm text-muted-foreground -mt-2">
+            For: <strong>{request.subject}</strong>
+            {request.topic ? ` — ${request.topic}` : ''}
+          </p>
+        )}
         <div className="py-2">
-          <label className="text-sm font-medium block mb-1">New Date & Time</label>
-          <Input type="datetime-local" value={proposedAt} onChange={e => setProposedAt(e.target.value)} />
+          <label className="text-sm font-medium block mb-1">New Date &amp; Time</label>
+          <Input
+            type="datetime-local"
+            value={proposedAt}
+            min={minStr}
+            onChange={e => setProposedAt(e.target.value)}
+          />
         </div>
         <div className="flex gap-2">
-          <Button onClick={onSubmit} disabled={loading || !proposedAt} className="flex-1">Send Proposal</Button>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={onSubmit} disabled={loading || !proposedAt} className="flex-1">
+            {loading ? 'Sending...' : 'Send Proposal'}
+          </Button>
+          <Button variant="outline" onClick={() => { setProposedAt(''); onClose(); }}>Cancel</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -152,18 +195,21 @@ function RequestSessionForm() {
   const api = useApi();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const { data: tutors = [] } = useQuery<any[]>({
     queryKey: ['/api/tutoring/tutors'],
     queryFn: () => api.get('/tutoring/tutors'),
   });
 
-  const { register, handleSubmit, watch, reset, formState: { isSubmitting } } = useForm({
+  const {
+    register, handleSubmit, watch, reset, control,
+    formState: { isSubmitting, errors }
+  } = useForm({
     defaultValues: {
       isUrgent: false,
       teacherId: '',
       subject: '',
-      lecturerLevel: 'grade_10',
+      lecturerLevel: 'grade_10_12',
       topic: '',
       preferredAt: '',
       durationMinutes: '60',
@@ -173,27 +219,40 @@ function RequestSessionForm() {
 
   const isUrgent = watch('isUrgent');
 
+  // Build min datetime string (1 hour from now)
+  const minDT = new Date();
+  minDT.setHours(minDT.getHours() + 1);
+  const minDTStr = minDT.toISOString().slice(0, 16);
+
   const onSubmit = async (data: any) => {
     try {
       await api.post('/tutoring/requests', {
         ...data,
+        isUrgent: !!data.isUrgent,
         teacherId: data.isUrgent ? null : (data.teacherId ? parseInt(data.teacherId) : null),
         durationMinutes: parseInt(data.durationMinutes),
       });
-      toast({ title: 'Request submitted successfully! 100 LYD held from balance.' });
+      toast({ title: '✅ Request submitted! 100 LYD has been held from your balance.' });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
       reset();
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to submit request', variant: 'destructive' });
+      toast({
+        title: 'Failed to submit request',
+        description: err.message || 'Please check your balance and try again.',
+        variant: 'destructive'
+      });
     }
   };
 
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-      <h2 className="text-xl font-bold mb-4">Request a 1-to-1 Session</h2>
-      <p className="text-sm text-muted-foreground mb-6">Note: Reserving a session will hold 100 dinars from your wallet balance. If cancelled or declined, it will be refunded instantly.</p>
-      
+      <h2 className="text-xl font-bold mb-1">Request a 1-to-1 Session</h2>
+      <p className="text-sm text-muted-foreground mb-6">
+        A reservation of <strong>100 LYD</strong> will be held from your wallet. It's refunded instantly if the request is cancelled or declined.
+      </p>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Row 1: Lecturer Level + Subject */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium block mb-1">Lecturer Level</label>
@@ -202,60 +261,231 @@ function RequestSessionForm() {
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium block mb-1">Subject</label>
-            <Input {...register('subject', { required: true })} placeholder="e.g. Mathematics" />
+            <label className="text-sm font-medium block mb-1">Subject <span className="text-destructive">*</span></label>
+            <Input
+              {...register('subject', { required: 'Subject is required' })}
+              placeholder="e.g. Mathematics"
+              className={errors.subject ? 'border-destructive' : ''}
+            />
+            {errors.subject && <p className="text-xs text-destructive mt-1">{errors.subject.message as string}</p>}
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-lg border border-border">
-          <Checkbox id="isUrgent" {...register('isUrgent')} />
-          <label htmlFor="isUrgent" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            Mark as Urgent (Any available teacher can accept)
-          </label>
-        </div>
+        {/* Urgent toggle — use Controller for proper boolean binding */}
+        <Controller
+          name="isUrgent"
+          control={control}
+          render={({ field }) => (
+            <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${field.value ? 'border-red-300 bg-red-50' : 'border-border bg-muted/30 hover:bg-muted/50'}`}>
+              <input
+                type="checkbox"
+                checked={!!field.value}
+                onChange={e => field.onChange(e.target.checked)}
+                className="w-4 h-4 accent-red-500"
+                id="isUrgent"
+              />
+              <div>
+                <div className="text-sm font-semibold">🚨 Mark as Urgent</div>
+                <div className="text-xs text-muted-foreground">Any available teacher can accept immediately — you can't pick a specific teacher</div>
+              </div>
+            </label>
+          )}
+        />
 
+        {/* Teacher select — only shown if not urgent */}
         {!isUrgent && (
           <div>
             <label className="text-sm font-medium block mb-1">Select Teacher (Optional)</label>
             <select {...register('teacherId')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
-              <option value="">Any Teacher / أي معلم</option>
-              {tutors.map(t => (
-                <option key={t.id} value={t.id}>{t.fullName}</option>
+              <option value="">Any Teacher / أي معلم متاح</option>
+              {tutors.map((t: any) => (
+                <option key={t.id} value={t.id}>
+                  {t.fullName}{t.tutoringSubjects ? ` — ${t.tutoringSubjects}` : ''}
+                </option>
               ))}
             </select>
+            {tutors.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">No tutors have enabled 1-to-1 sessions yet.</p>
+            )}
           </div>
         )}
 
+        {/* Row 2: Date/Time + Duration */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium block mb-1">Preferred Date & Time</label>
-            <Input {...register('preferredAt', { required: true })} type="datetime-local" />
+            <label className="text-sm font-medium block mb-1">Preferred Date &amp; Time <span className="text-destructive">*</span></label>
+            <Input
+              {...register('preferredAt', { required: 'Date & time is required' })}
+              type="datetime-local"
+              min={minDTStr}
+              className={errors.preferredAt ? 'border-destructive' : ''}
+            />
+            {errors.preferredAt && <p className="text-xs text-destructive mt-1">{errors.preferredAt.message as string}</p>}
           </div>
           <div>
-            <label className="text-sm font-medium block mb-1">Duration (Minutes)</label>
+            <label className="text-sm font-medium block mb-1">Duration</label>
             <select {...register('durationMinutes')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
               <option value="30">30 minutes</option>
-              <option value="60">60 minutes</option>
+              <option value="60">60 minutes (1 hour)</option>
               <option value="90">90 minutes</option>
-              <option value="120">120 minutes</option>
+              <option value="120">120 minutes (2 hours)</option>
             </select>
           </div>
         </div>
 
+        {/* Specific Topic */}
         <div>
           <label className="text-sm font-medium block mb-1">Specific Topic</label>
-          <Input {...register('topic')} placeholder="What do you want to focus on?" />
+          <Input {...register('topic')} placeholder="e.g. Quadratic equations, Photosynthesis..." />
         </div>
 
+        {/* Message */}
         <div>
           <label className="text-sm font-medium block mb-1">Message to Teacher</label>
-          <textarea {...register('message')} rows={3} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none" placeholder="Any extra details..." />
+          <textarea
+            {...register('message')}
+            rows={3}
+            className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none"
+            placeholder="Any extra context, your current level, resources needed..."
+          />
         </div>
 
-        <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
-          <Send className="w-4 h-4" /> {isSubmitting ? 'Reserving...' : 'Submit Request (100 LYD)'}
+        <Button type="submit" className="w-full gap-2 h-11" disabled={isSubmitting}>
+          <Send className="w-4 h-4" />
+          {isSubmitting ? 'Submitting…' : 'Submit Request (100 LYD reserved)'}
         </Button>
       </form>
+    </div>
+  );
+}
+
+// ─── Request Card ─────────────────────────────────────────────────────────────
+function RequestCard({
+  r,
+  isTeacher,
+  onTeacherAction,
+  onStudentAction,
+  onProposeTime,
+}: {
+  r: any;
+  isTeacher: boolean;
+  onTeacherAction: (id: number, action: 'accept' | 'decline') => void;
+  onStudentAction: (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete') => void;
+  onProposeTime: (r: any) => void;
+}) {
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 hover:border-primary/30 transition-colors">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {/* Status + badges */}
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <Badge className={STATUS_COLORS[r.status]}>{STATUS_LABELS[r.status] || r.status}</Badge>
+            {r.isUrgent && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 Urgent</Badge>}
+            <span className="text-xs text-muted-foreground font-mono">#{r.id}</span>
+          </div>
+
+          {/* Subject + topic */}
+          <h3 className="font-bold text-lg leading-tight">
+            {r.subject}
+            {r.topic && <span className="text-muted-foreground font-normal text-base"> — {r.topic}</span>}
+          </h3>
+
+          {/* Counterpart name */}
+          <p className="text-sm text-muted-foreground mt-1">
+            {isTeacher
+              ? `Student: ${r.studentName || '—'}`
+              : `Teacher: ${r.teacherName || 'Any Available Teacher'}`}
+          </p>
+
+          {/* Level */}
+          {r.lecturerLevel && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Level: {GRADE_LEVELS.find(g => g.value === r.lecturerLevel)?.label || r.lecturerLevel}
+            </p>
+          )}
+
+          {/* Times */}
+          <div className="flex flex-wrap gap-4 mt-3 text-sm">
+            <div className="flex items-center gap-1.5 text-foreground">
+              <Calendar className="w-4 h-4 text-primary shrink-0" />
+              <span>Preferred: {new Date(r.preferredAt).toLocaleString()}</span>
+            </div>
+            {r.proposedAt && (
+              <div className="flex items-center gap-1.5 text-blue-600 font-medium">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>Proposed: {new Date(r.proposedAt).toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>{r.durationMinutes} min</span>
+            </div>
+          </div>
+
+          {/* Message */}
+          {r.message && (
+            <div className="mt-3 p-3 bg-muted/50 rounded-xl text-sm border border-border/50">
+              <MessageSquare className="w-4 h-4 inline mr-2 text-muted-foreground" />
+              {r.message}
+            </div>
+          )}
+        </div>
+
+        {/* Right side: amount + actions */}
+        <div className="shrink-0 flex flex-col items-end gap-2 min-w-[140px]">
+          <div className="text-xl font-bold text-primary">{r.totalAmount} LYD</div>
+
+          {/* Meeting link (if accepted) */}
+          {r.status === 'accepted' && r.meetingUrl && (
+            <Button asChild size="sm" className="w-full bg-green-600 hover:bg-green-700 gap-2">
+              <a href={r.meetingUrl} target="_blank" rel="noreferrer">
+                <ExternalLink className="w-3.5 h-3.5" /> Join Meeting
+              </a>
+            </Button>
+          )}
+
+          {/* Teacher actions */}
+          {isTeacher && r.status === 'pending' && (
+            <div className="flex flex-col gap-2 w-full">
+              <Button size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={() => onTeacherAction(r.id, 'accept')}>
+                ✓ Accept
+              </Button>
+              <Button size="sm" variant="outline" className="w-full" onClick={() => onProposeTime(r)}>
+                📅 Propose Time
+              </Button>
+              <Button size="sm" variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onTeacherAction(r.id, 'decline')}>
+                ✗ Decline
+              </Button>
+            </div>
+          )}
+
+          {/* Student: accept/decline proposed time */}
+          {!isTeacher && r.status === 'rescheduled_by_teacher' && (
+            <div className="flex flex-col gap-2 w-full">
+              <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => onStudentAction(r.id, 'accept-proposed-time')}>
+                ✓ Accept New Time
+              </Button>
+              <Button size="sm" variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
+                ✗ Decline &amp; Refund
+              </Button>
+            </div>
+          )}
+
+          {/* Student: cancel pending request */}
+          {!isTeacher && r.status === 'pending' && (
+            <Button size="sm" variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
+              Cancel &amp; Refund
+            </Button>
+          )}
+
+          {/* Student: mark accepted session as complete */}
+          {!isTeacher && r.status === 'accepted' && (
+            <Button size="sm" variant="outline" className="w-full border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onStudentAction(r.id, 'complete')}>
+              ✓ Mark as Complete
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -266,22 +496,23 @@ export default function Tutoring() {
   const api = useApi();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
 
-  const [tab, setTab] = useState<'request' | 'requests'>('request');
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+  const [tab, setTab] = useState<'request' | 'requests'>(isTeacher ? 'requests' : 'request');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proposeFor, setProposeFor] = useState<any>(null);
 
   const { data: requests = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/tutoring/requests'],
     queryFn: () => api.get('/tutoring/requests'),
-    refetchInterval: 10000, // Poll for updates every 10s
+    refetchInterval: 12000,
+    enabled: !!user,
   });
 
   const handleTeacherAction = async (id: number, action: 'accept' | 'decline') => {
     try {
       await api.post(`/tutoring/requests/${id}/${action}`, {});
-      toast({ title: `Request ${action}ed successfully!` });
+      toast({ title: action === 'accept' ? '✅ Request accepted! Meeting link generated.' : '✅ Request declined. Student has been refunded.' });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -291,7 +522,12 @@ export default function Tutoring() {
   const handleStudentAction = async (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete') => {
     try {
       await api.post(`/tutoring/requests/${id}/${action}`, {});
-      toast({ title: `Action ${action} successful!` });
+      const messages: Record<string, string> = {
+        'accept-proposed-time': '✅ New time accepted! Meeting link is ready.',
+        'cancel': '✅ Request cancelled. Your 100 LYD has been refunded.',
+        'complete': '✅ Session marked as complete. Thank you!',
+      };
+      toast({ title: messages[action] });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -303,7 +539,7 @@ export default function Tutoring() {
       {/* Header */}
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-border py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between gap-4">
+          <div className="flex items-end justify-between gap-4 flex-wrap">
             <div>
               <p className="text-sm text-primary font-semibold uppercase tracking-widest mb-1">1-to-1 Tutoring</p>
               <h1 className="text-3xl font-display font-bold">
@@ -311,13 +547,13 @@ export default function Tutoring() {
               </h1>
               <p className="text-muted-foreground mt-2 max-w-xl">
                 {isTeacher
-                  ? 'Accept student requests, propose new times, and conduct private video sessions.'
-                  : 'Request private tutoring with expert teachers. Secure your slot directly through the platform.'}
+                  ? 'Accept student requests, propose alternative times, and conduct private sessions.'
+                  : 'Request private tutoring with expert teachers. A 100 LYD deposit secures your slot.'}
               </p>
             </div>
             {isTeacher && (
               <Button variant="outline" className="gap-2 shrink-0 bg-background" onClick={() => setSettingsOpen(true)}>
-                <Settings className="w-4 h-4" /> Settings
+                <Settings className="w-4 h-4" /> Tutoring Settings
               </Button>
             )}
           </div>
@@ -337,9 +573,14 @@ export default function Tutoring() {
           )}
           <button
             onClick={() => setTab('requests')}
-            className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${tab === 'requests' || isTeacher ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+            className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${tab === 'requests' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
           >
-            {isTeacher ? '📥 Incoming & Scheduled Sessions' : '📋 My Sessions'}
+            {isTeacher ? '📥 Incoming & My Sessions' : '📋 My Sessions'}
+            {requests.length > 0 && (
+              <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-primary text-primary-foreground rounded-full">
+                {requests.filter((r: any) => r.status === 'pending').length || requests.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -350,100 +591,36 @@ export default function Tutoring() {
           </div>
         )}
 
-        {/* List of Requests */}
-        {(tab === 'requests' || isTeacher) && (
+        {/* Session List */}
+        {tab === 'requests' && (
           <div className="space-y-4">
             {isLoading ? (
-              <div className="p-10 text-center text-muted-foreground">Loading requests...</div>
+              <div className="p-10 text-center text-muted-foreground">Loading sessions…</div>
             ) : requests.length === 0 ? (
               <div className="bg-card border border-border rounded-2xl p-12 text-center">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-bold">No sessions found</h3>
-                <p className="text-muted-foreground text-sm mt-1">You have no tutoring sessions requested yet.</p>
+                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
+                <h3 className="text-lg font-bold">No sessions yet</h3>
+                <p className="text-muted-foreground text-sm mt-1">
+                  {isTeacher
+                    ? 'Student requests will appear here. Make sure you have enabled tutoring in settings.'
+                    : 'Submit a request from the "Request Session" tab to get started.'}
+                </p>
+                {isTeacher && (
+                  <Button variant="outline" className="mt-4 gap-2" onClick={() => setSettingsOpen(true)}>
+                    <Settings className="w-4 h-4" /> Open Tutoring Settings
+                  </Button>
+                )}
               </div>
             ) : (
               requests.map((r: any) => (
-                <div key={r.id} className="bg-card border border-border rounded-2xl p-5 hover:border-primary/30 transition-colors">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Badge className={STATUS_COLORS[r.status]}>{STATUS_LABELS[r.status]}</Badge>
-                        {r.isUrgent && <Badge className="bg-red-100 text-red-800 border-red-200">Urgent</Badge>}
-                        <span className="text-xs text-muted-foreground font-medium">#{r.id}</span>
-                      </div>
-                      <h3 className="font-bold text-lg">{r.subject} {r.topic && <span className="text-muted-foreground font-normal">— {r.topic}</span>}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {isTeacher ? `Student: ${r.studentName}` : `Teacher: ${r.teacherName || 'Any Teacher'}`}
-                      </p>
-                      
-                      <div className="flex flex-wrap gap-4 mt-3 text-sm">
-                        <div className="flex items-center gap-1.5 text-foreground">
-                          <Calendar className="w-4 h-4 text-primary" />
-                          <span>Prefers: {new Date(r.preferredAt).toLocaleString()}</span>
-                        </div>
-                        {r.proposedAt && (
-                          <div className="flex items-center gap-1.5 text-blue-600 font-medium">
-                            <Clock className="w-4 h-4" />
-                            <span>Proposed: {new Date(r.proposedAt).toLocaleString()}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          <span>{r.durationMinutes} min</span>
-                        </div>
-                      </div>
-
-                      {r.message && (
-                        <div className="mt-4 p-3 bg-muted/50 rounded-xl text-sm border border-border/50">
-                          <MessageSquare className="w-4 h-4 inline mr-2 text-muted-foreground" />
-                          {r.message}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="shrink-0 flex flex-col items-end gap-2">
-                      <div className="text-xl font-bold text-primary">{r.totalAmount} LYD</div>
-                      
-                      {/* Meeting Link */}
-                      {r.status === 'accepted' && r.meetingUrl && (
-                        <Button asChild className="w-full bg-green-600 hover:bg-green-700">
-                          <a href={r.meetingUrl} target="_blank" rel="noreferrer">
-                            <ExternalLink className="w-4 h-4 mr-2" /> Join Meeting
-                          </a>
-                        </Button>
-                      )}
-
-                      {/* Teacher Actions */}
-                      {isTeacher && r.status === 'pending' && (
-                        <div className="flex flex-col gap-2 w-full mt-2">
-                          <Button size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleTeacherAction(r.id, 'accept')}>Accept</Button>
-                          <Button size="sm" variant="outline" className="w-full" onClick={() => setProposeFor(r)}>Propose Time</Button>
-                          <Button size="sm" variant="ghost" className="w-full text-red-600 hover:text-red-700" onClick={() => handleTeacherAction(r.id, 'decline')}>Decline</Button>
-                        </div>
-                      )}
-
-                      {/* Student Actions */}
-                      {!isTeacher && r.status === 'rescheduled_by_teacher' && (
-                        <div className="flex flex-col gap-2 w-full mt-2">
-                          <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => handleStudentAction(r.id, 'accept-proposed-time')}>Accept New Time</Button>
-                          <Button size="sm" variant="ghost" className="w-full text-red-600 hover:text-red-700" onClick={() => handleStudentAction(r.id, 'cancel')}>Decline & Refund</Button>
-                        </div>
-                      )}
-                      
-                      {!isTeacher && r.status === 'pending' && (
-                        <Button size="sm" variant="outline" className="w-full text-red-600 border-red-200 mt-2 hover:bg-red-50" onClick={() => handleStudentAction(r.id, 'cancel')}>
-                          Cancel Request
-                        </Button>
-                      )}
-
-                      {!isTeacher && r.status === 'accepted' && (
-                        <Button size="sm" variant="outline" className="w-full border-purple-200 text-purple-700 mt-2 hover:bg-purple-50" onClick={() => handleStudentAction(r.id, 'complete')}>
-                          Mark as Complete
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <RequestCard
+                  key={r.id}
+                  r={r}
+                  isTeacher={isTeacher}
+                  onTeacherAction={handleTeacherAction}
+                  onStudentAction={handleStudentAction}
+                  onProposeTime={setProposeFor}
+                />
               ))
             )}
           </div>

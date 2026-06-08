@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tutoringRequestsTable, usersTable, paymentsTable } from "@workspace/db";
-import { eq, and, desc, isNull, sql } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
 
 const router = Router();
 
-// List tutors (teachers with tutoring enabled)
+// ─── List tutors (teachers with tutoring enabled) ────────────────────────────
 router.get("/tutors", async (_req, res) => {
   try {
     const tutors = await db.select().from(usersTable)
@@ -28,13 +28,22 @@ router.get("/tutors", async (_req, res) => {
   }
 });
 
-// Update teacher tutoring settings
+// ─── Update teacher tutoring settings ────────────────────────────────────────
 router.put("/settings", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId, role } = (req as any).user;
+    if (role !== "teacher" && role !== "admin") {
+      res.status(403).json({ error: "Only teachers can update tutoring settings" });
+      return;
+    }
     const { isTutoringEnabled, tutoringHourlyRate, tutoringSubjects } = req.body;
     const [updated] = await db.update(usersTable)
-      .set({ isTutoringEnabled, tutoringHourlyRate: tutoringHourlyRate?.toString(), tutoringSubjects, updatedAt: new Date() })
+      .set({
+        isTutoringEnabled: !!isTutoringEnabled,
+        tutoringHourlyRate: tutoringHourlyRate != null ? tutoringHourlyRate.toString() : "0",
+        tutoringSubjects: tutoringSubjects || null,
+        updatedAt: new Date()
+      })
       .where(eq(usersTable.id, userId))
       .returning();
     res.json({ success: true, isTutoringEnabled: updated.isTutoringEnabled });
@@ -43,23 +52,40 @@ router.put("/settings", requireAuth, async (req, res) => {
   }
 });
 
-// Get my tutoring requests (student or teacher)
+// ─── Get my tutoring requests (student or teacher) ───────────────────────────
 router.get("/requests", requireAuth, async (req, res) => {
   try {
     const { userId, role } = (req as any).user;
     let requests;
+
     if (role === "student") {
+      // Students see their own requests
       requests = await db.select().from(tutoringRequestsTable)
-        .where(eq(tutoringRequestsTable.studentId, userId)).orderBy(desc(tutoringRequestsTable.createdAt));
+        .where(eq(tutoringRequestsTable.studentId, userId))
+        .orderBy(desc(tutoringRequestsTable.createdAt));
     } else {
+      // Teachers/admins see:
+      //  • Requests explicitly assigned to them
+      //  • Urgent requests with no teacher assigned (open pool)
+      //  • Non-urgent requests with no teacher assigned (any-teacher requests)
       requests = await db.select().from(tutoringRequestsTable)
         .where(
-          sql`${tutoringRequestsTable.teacherId} = ${userId} OR (${tutoringRequestsTable.isUrgent} = true AND ${tutoringRequestsTable.teacherId} IS NULL)`
-        ).orderBy(desc(tutoringRequestsTable.createdAt));
+          or(
+            eq(tutoringRequestsTable.teacherId, userId),
+            and(
+              isNull(tutoringRequestsTable.teacherId),
+              eq(tutoringRequestsTable.status, "pending")
+            )
+          )
+        )
+        .orderBy(desc(tutoringRequestsTable.createdAt));
     }
+
     const result = await Promise.all(requests.map(async (r) => {
       const [student] = await db.select().from(usersTable).where(eq(usersTable.id, r.studentId)).limit(1);
-      const [teacher] = r.teacherId ? await db.select().from(usersTable).where(eq(usersTable.id, r.teacherId)).limit(1) : [null];
+      const [teacher] = r.teacherId
+        ? await db.select().from(usersTable).where(eq(usersTable.id, r.teacherId)).limit(1)
+        : [null];
       return {
         ...r,
         hourlyRate: parseFloat(r.hourlyRate),
@@ -70,24 +96,51 @@ router.get("/requests", requireAuth, async (req, res) => {
         teacherEmail: teacher?.email,
       };
     }));
+
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 
-// Student creates a tutoring request
+// ─── Student creates a tutoring request ──────────────────────────────────────
 router.post("/requests", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId, role } = (req as any).user;
+
+    if (role !== "student") {
+      res.status(403).json({ error: "Only students can create tutoring requests" });
+      return;
+    }
+
     const { teacherId, categoryId, lecturerLevel, isUrgent, subject, topic, preferredAt, durationMinutes, message, attachmentsUrl } = req.body;
+
+    // Validate required fields
+    if (!subject || !subject.trim()) {
+      res.status(400).json({ error: "Subject is required" });
+      return;
+    }
+    if (!preferredAt) {
+      res.status(400).json({ error: "Preferred date & time is required" });
+      return;
+    }
+    const preferredDate = new Date(preferredAt);
+    if (isNaN(preferredDate.getTime())) {
+      res.status(400).json({ error: "Invalid preferred date & time" });
+      return;
+    }
+    if (preferredDate < new Date()) {
+      res.status(400).json({ error: "Preferred date must be in the future" });
+      return;
+    }
 
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
     const cost = 100;
     if (parseFloat(user.balance) < cost) {
-      res.status(400).json({ error: "Insufficient balance. Minimum 100 dinars required." }); return;
+      res.status(400).json({ error: "Insufficient balance. Minimum 100 dinars required to reserve a session." });
+      return;
     }
 
     const result = await db.transaction(async (tx) => {
@@ -96,10 +149,12 @@ router.post("/requests", requireAuth, async (req, res) => {
         .set({ balance: sql`${usersTable.balance} - ${cost}` })
         .where(eq(usersTable.id, userId));
 
-      // Determine rate (default to something if urgent)
+      // Determine hourly rate
       let hourlyRate = "0.00";
-      if (teacherId && !isUrgent) {
-        const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
+      const resolvedTeacherId = isUrgent ? null : (teacherId ? parseInt(teacherId) : null);
+
+      if (resolvedTeacherId) {
+        const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, resolvedTeacherId)).limit(1);
         if (teacher) hourlyRate = teacher.tutoringHourlyRate || "0.00";
       }
 
@@ -108,13 +163,13 @@ router.post("/requests", requireAuth, async (req, res) => {
         studentId: userId,
         categoryId: categoryId || null,
         lecturerLevel: lecturerLevel || null,
-        teacherId: isUrgent ? null : (teacherId || null),
-        isUrgent: isUrgent || false,
-        subject: subject || "General",
-        topic: topic || "",
-        preferredAt: new Date(preferredAt),
-        durationMinutes: durationMinutes || 60,
-        message: message || null,
+        teacherId: resolvedTeacherId,
+        isUrgent: !!isUrgent,
+        subject: subject.trim(),
+        topic: topic?.trim() || "",
+        preferredAt: preferredDate,
+        durationMinutes: parseInt(durationMinutes) || 60,
+        message: message?.trim() || null,
         attachmentsUrl: attachmentsUrl || null,
         hourlyRate,
         totalAmount: cost.toString(),
@@ -122,16 +177,16 @@ router.post("/requests", requireAuth, async (req, res) => {
         currency: "LYD",
       }).returning();
 
-      // Create pending payment
+      // Create pending payment record
       await tx.insert(paymentsTable).values({
         userId,
         tutoringRequestId: request.id,
         amount: cost.toString(),
         method: "wallet",
         status: "pending",
-        notes: "Tutoring request reservation"
+        notes: `Tutoring request #${request.id} reservation`,
       });
-      
+
       return request;
     });
 
@@ -141,15 +196,24 @@ router.post("/requests", requireAuth, async (req, res) => {
   }
 });
 
-// Teacher accepts a request
+// ─── Teacher accepts a request ────────────────────────────────────────────────
+// This handles:
+//   1. Urgent requests (race — first teacher wins)
+//   2. Non-urgent requests assigned to a specific teacher
+//   3. Non-urgent "any teacher" requests (teacherId=null, isUrgent=false)
 router.post("/requests/:id/accept", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId, role } = (req as any).user;
+    if (role !== "teacher" && role !== "admin") {
+      res.status(403).json({ error: "Only teachers can accept tutoring requests" });
+      return;
+    }
+
     const requestId = parseParam(req.params.id);
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
-    const [request] = await db.select().from(tutoringRequestsTable).where(eq(tutoringRequestsTable.id, requestId)).limit(1);
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-
     if (request.status !== "pending") {
       res.status(400).json({ error: "Request is no longer pending" }); return;
     }
@@ -157,51 +221,71 @@ router.post("/requests/:id/accept", requireAuth, async (req, res) => {
     const roomId = `edulibya-tutoring-${requestId}-${crypto.randomBytes(4).toString("hex")}`;
     const meetingUrl = `https://meet.jit.si/${roomId}`;
 
-    if (request.isUrgent && request.teacherId === null) {
-      // Race condition for urgent request
+    // Case: request has no assigned teacher (urgent OR any-teacher) — first teacher wins
+    if (request.teacherId === null) {
       const [updated] = await db.update(tutoringRequestsTable)
         .set({ teacherId: userId, status: "accepted", meetingUrl, updatedAt: new Date() })
-        .where(and(eq(tutoringRequestsTable.id, requestId), isNull(tutoringRequestsTable.teacherId), eq(tutoringRequestsTable.status, "pending")))
+        .where(and(
+          eq(tutoringRequestsTable.id, requestId),
+          isNull(tutoringRequestsTable.teacherId),
+          eq(tutoringRequestsTable.status, "pending")
+        ))
         .returning();
-      if (!updated) { res.status(400).json({ error: "Request already taken" }); return; }
+
+      if (!updated) {
+        res.status(409).json({ error: "Request was already taken by another teacher" });
+        return;
+      }
       res.json({ success: true, meetingUrl, updated });
-    } else if (request.teacherId === userId) {
+      return;
+    }
+
+    // Case: request is assigned to a specific teacher
+    if (request.teacherId === userId) {
       const [updated] = await db.update(tutoringRequestsTable)
         .set({ status: "accepted", meetingUrl, updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId))
         .returning();
       res.json({ success: true, meetingUrl, updated });
-    } else {
-      res.status(403).json({ error: "Not authorized to accept this request" });
+      return;
     }
+
+    res.status(403).json({ error: "This request is assigned to a different teacher" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 
-// Teacher declines
+// ─── Teacher declines a request ───────────────────────────────────────────────
 router.post("/requests/:id/decline", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
-    const requestId = parseParam(req.params.id);
-
-    const [request] = await db.select().from(tutoringRequestsTable).where(eq(tutoringRequestsTable.id, requestId)).limit(1);
-    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-
-    if (request.teacherId !== userId && !request.isUrgent) {
-      res.status(403).json({ error: "Not authorized" }); return;
+    const { userId, role } = (req as any).user;
+    if (role !== "teacher" && role !== "admin") {
+      res.status(403).json({ error: "Only teachers can decline tutoring requests" });
+      return;
     }
 
+    const requestId = parseParam(req.params.id);
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+
     if (request.status !== "pending" && request.status !== "rescheduled_by_teacher") {
-       res.status(400).json({ error: "Cannot decline in current status" }); return;
+      res.status(400).json({ error: "Cannot decline a request in its current status" }); return;
+    }
+
+    // Authorization: must be the assigned teacher OR an unassigned (any-teacher) request
+    if (request.teacherId !== null && request.teacherId !== userId) {
+      res.status(403).json({ error: "This request is assigned to a different teacher" }); return;
     }
 
     await db.transaction(async (tx) => {
       await tx.update(tutoringRequestsTable)
         .set({ status: "declined", updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
-      
-      // Refund student
+
+      // Refund student in full
       await tx.update(usersTable)
         .set({ balance: sql`${usersTable.balance} + ${parseFloat(request.totalAmount)}` })
         .where(eq(usersTable.id, request.studentId));
@@ -217,76 +301,122 @@ router.post("/requests/:id/decline", requireAuth, async (req, res) => {
   }
 });
 
-// Teacher proposes a new time
+// ─── Teacher proposes a new time ─────────────────────────────────────────────
 router.post("/requests/:id/propose-time", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId, role } = (req as any).user;
+    if (role !== "teacher" && role !== "admin") {
+      res.status(403).json({ error: "Only teachers can propose a new time" });
+      return;
+    }
+
     const requestId = parseParam(req.params.id);
     const { proposedAt } = req.body;
+
     if (!proposedAt) { res.status(400).json({ error: "proposedAt is required" }); return; }
-    
+
+    const proposedDate = new Date(proposedAt);
+    if (isNaN(proposedDate.getTime())) {
+      res.status(400).json({ error: "Invalid proposed date" }); return;
+    }
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "pending") {
+      res.status(400).json({ error: "Can only propose a time for pending requests" }); return;
+    }
+
+    // Authorization: must be assigned teacher OR unassigned request (any-teacher)
+    if (request.teacherId !== null && request.teacherId !== userId) {
+      res.status(403).json({ error: "This request is assigned to a different teacher" }); return;
+    }
+
+    // If unassigned, assign this teacher when proposing
     const [updated] = await db.update(tutoringRequestsTable)
-      .set({ status: "rescheduled_by_teacher", proposedAt: new Date(proposedAt), updatedAt: new Date() })
-      .where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.teacherId, userId), eq(tutoringRequestsTable.status, "pending")))
+      .set({
+        teacherId: request.teacherId ?? userId,  // claim the request
+        status: "rescheduled_by_teacher",
+        proposedAt: proposedDate,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(tutoringRequestsTable.id, requestId),
+        eq(tutoringRequestsTable.status, "pending")
+      ))
       .returning();
-    if (!updated) { res.status(404).json({ error: "Request not found, not in pending state, or unauthorized" }); return; }
+
+    if (!updated) { res.status(409).json({ error: "Request no longer pending or already taken" }); return; }
+
     res.json({ success: true, updated });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 
-// Student accepts teacher's proposed time
+// ─── Student accepts teacher's proposed time ──────────────────────────────────
 router.post("/requests/:id/accept-proposed-time", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
     const requestId = parseParam(req.params.id);
-    
-    const [request] = await db.select().from(tutoringRequestsTable).where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.studentId, userId)));
-    if (!request || request.status !== "rescheduled_by_teacher" || !request.proposedAt) {
-       res.status(400).json({ error: "Invalid request to accept proposed time" });
-       return;
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(and(
+        eq(tutoringRequestsTable.id, requestId),
+        eq(tutoringRequestsTable.studentId, userId)
+      )).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "rescheduled_by_teacher" || !request.proposedAt) {
+      res.status(400).json({ error: "No pending time proposal for this request" }); return;
     }
 
     const roomId = `edulibya-tutoring-${requestId}-${crypto.randomBytes(4).toString("hex")}`;
     const meetingUrl = `https://meet.jit.si/${roomId}`;
-    
+
     const [updated] = await db.update(tutoringRequestsTable)
-      .set({ 
-         status: "accepted", 
-         preferredAt: request.proposedAt,
-         proposedAt: null,
-         meetingUrl, 
-         updatedAt: new Date() 
+      .set({
+        status: "accepted",
+        preferredAt: request.proposedAt,
+        proposedAt: null,
+        meetingUrl,
+        updatedAt: new Date()
       })
       .where(eq(tutoringRequestsTable.id, requestId))
       .returning();
-      
+
     res.json({ success: true, meetingUrl, updated });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 
-// Student cancels
+// ─── Student cancels a request ────────────────────────────────────────────────
 router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
     const requestId = parseParam(req.params.id);
 
-    const [request] = await db.select().from(tutoringRequestsTable).where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.studentId, userId))).limit(1);
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(and(
+        eq(tutoringRequestsTable.id, requestId),
+        eq(tutoringRequestsTable.studentId, userId)
+      )).limit(1);
+
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
-    if (request.status === "completed" || request.status === "cancelled" || request.status === "declined") {
-      res.status(400).json({ error: "Cannot cancel a completed, cancelled or declined session" }); return;
+    if (["completed", "cancelled", "declined"].includes(request.status)) {
+      res.status(400).json({ error: "Cannot cancel a request that is already completed, cancelled, or declined" });
+      return;
     }
 
     await db.transaction(async (tx) => {
       await tx.update(tutoringRequestsTable)
         .set({ status: "cancelled", updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
-      
-      // Refund
+
+      // Refund student in full
       await tx.update(usersTable)
         .set({ balance: sql`${usersTable.balance} + ${parseFloat(request.totalAmount)}` })
         .where(eq(usersTable.id, request.studentId));
@@ -302,36 +432,56 @@ router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
   }
 });
 
-// Student rates after session
+// ─── Student rates a completed session ───────────────────────────────────────
 router.post("/requests/:id/rate", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
     const requestId = parseParam(req.params.id);
     const { rating, review } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      res.status(400).json({ error: "Rating must be between 1 and 5" }); return;
+    }
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(and(
+        eq(tutoringRequestsTable.id, requestId),
+        eq(tutoringRequestsTable.studentId, userId)
+      )).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "completed") {
+      res.status(400).json({ error: "Can only rate completed sessions" }); return;
+    }
+
     await db.update(tutoringRequestsTable)
-      .set({ studentRating: rating, studentReview: review, updatedAt: new Date() })
-      .where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.studentId, userId)));
+      .set({ studentRating: rating, studentReview: review || null, updatedAt: new Date() })
+      .where(eq(tutoringRequestsTable.id, requestId));
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 
-// Mark session as complete (deduct from reserve and add to teacher)
+// ─── Mark session as complete ─────────────────────────────────────────────────
 router.post("/requests/:id/complete", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
     const requestId = parseParam(req.params.id);
 
-    const [request] = await db.select().from(tutoringRequestsTable).where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
+    // Only student or teacher involved in this session can mark complete
     if (request.teacherId !== userId && request.studentId !== userId) {
-      res.status(403).json({ error: "Not authorized" }); return;
+      res.status(403).json({ error: "Not authorized to complete this request" }); return;
     }
 
     if (request.status !== "accepted") {
-      res.status(400).json({ error: "Request must be accepted before completing" }); return;
+      res.status(400).json({ error: "Only accepted sessions can be marked as complete" }); return;
     }
 
     await db.transaction(async (tx) => {
@@ -342,11 +492,13 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
       await tx.update(paymentsTable)
         .set({ status: "completed", updatedAt: new Date() })
         .where(eq(paymentsTable.tutoringRequestId, requestId));
-        
-      // Transfer to teacher's balance
+
+      // Pay teacher
       if (request.teacherId) {
+        const platformFee = parseFloat(request.totalAmount) * 0.15; // 15% platform fee
+        const teacherPayout = parseFloat(request.totalAmount) - platformFee;
         await tx.update(usersTable)
-          .set({ balance: sql`${usersTable.balance} + ${parseFloat(request.totalAmount)}` }) 
+          .set({ balance: sql`${usersTable.balance} + ${teacherPayout}` })
           .where(eq(usersTable.id, request.teacherId));
       }
     });
