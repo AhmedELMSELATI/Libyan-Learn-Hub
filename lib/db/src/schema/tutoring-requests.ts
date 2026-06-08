@@ -1,5 +1,6 @@
-import { pgTable, serial, integer, text, varchar, numeric, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, varchar, numeric, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { categoriesTable } from "./categories";
 
 export const tutoringStatusEnum = pgEnum("tutoring_status", [
   "pending", "accepted", "declined", "completed", "cancelled",
@@ -9,9 +10,13 @@ export const tutoringStatusEnum = pgEnum("tutoring_status", [
 export const tutoringRequestsTable = pgTable("tutoring_requests", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").notNull().references(() => usersTable.id),
-  teacherId: integer("teacher_id").notNull().references(() => usersTable.id),
+  teacherId: integer("teacher_id").references(() => usersTable.id),
+  categoryId: integer("category_id").references(() => categoriesTable.id),
   subject: varchar("subject", { length: 255 }).notNull(),
   topic: text("topic").notNull(),
+  lecturerLevel: varchar("lecturer_level", { length: 100 }),
+  isUrgent: boolean("is_urgent").notNull().default(false),
+  attachmentsUrl: text("attachments_url"),
   preferredAt: timestamp("preferred_at").notNull(),
   proposedAt: timestamp("proposed_at"),
   durationMinutes: integer("duration_minutes").notNull().default(60),

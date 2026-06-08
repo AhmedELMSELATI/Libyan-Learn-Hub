@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { coursesTable } from "./courses";
+import { tutoringRequestsTable } from "./tutoring-requests";
 
 export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "cash", "mobile_wallet", "wallet", "redeem_card"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed", "refunded"]);
@@ -12,6 +13,7 @@ export const paymentsTable = pgTable("payments", {
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   courseId: integer("course_id").references(() => coursesTable.id, { onDelete: "set null" }),
   sessionId: integer("session_id"),
+  tutoringRequestId: integer("tutoring_request_id").references(() => tutoringRequestsTable.id, { onDelete: "set null" }),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 10 }).notNull().default("LYD"),
   method: paymentMethodEnum("method").notNull().default("bank_transfer"),
