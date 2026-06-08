@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -493,7 +493,7 @@ function RequestCard({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Tutoring() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const api = useApi();
   const queryClient = useQueryClient();
@@ -546,11 +546,14 @@ export default function Tutoring() {
     <PageContainer>
       {showLoginModal && (
         <Dialog open={true}>
-          <DialogContent 
-            onInteractOutside={(e) => e.preventDefault()} 
+          <DialogContent
+            onInteractOutside={(e) => e.preventDefault()}
             onEscapeKeyDown={(e) => e.preventDefault()}
-            className="sm:max-w-[400px] [&>button]:hidden"
+            className="sm:max-w-[400px]"
+            style={{ '--close-btn-display': 'none' } as React.CSSProperties}
           >
+            {/* Hide the built-in close button via a style override on its parent */}
+            <style>{`.tutoring-login-modal [data-radix-dialog-close] { display: none; }`}</style>
             <DialogHeader>
               <DialogTitle className="text-center text-xl">Login Required / تسجيل الدخول مطلوب</DialogTitle>
             </DialogHeader>
@@ -573,6 +576,8 @@ export default function Tutoring() {
         </Dialog>
       )}
 
+      {/* Page content — visually blurred by the modal overlay when not logged in */}
+      <div className={showLoginModal ? 'pointer-events-none select-none' : ''}>
       {/* Header */}
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-border py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -663,6 +668,7 @@ export default function Tutoring() {
           </div>
         )}
       </div>
+      </div> {/* end pointer-events wrapper */}
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ProposeTimeModal request={proposeFor} open={!!proposeFor} onClose={() => setProposeFor(null)} />
