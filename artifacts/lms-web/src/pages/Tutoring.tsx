@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocation } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
@@ -492,7 +493,8 @@ function RequestCard({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Tutoring() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
   const api = useApi();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -501,6 +503,12 @@ export default function Tutoring() {
   const [tab, setTab] = useState<'request' | 'requests'>(isTeacher ? 'requests' : 'request');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proposeFor, setProposeFor] = useState<any>(null);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation('/login');
+    }
+  }, [isAuthenticated, authLoading, setLocation]);
 
   const { data: requests = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/tutoring/requests'],
@@ -533,6 +541,12 @@ export default function Tutoring() {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
+
+  if (authLoading) {
+    return <PageContainer><div className="p-20 text-center text-muted-foreground">Loading...</div></PageContainer>;
+  }
+
+  if (!user) return null;
 
   return (
     <PageContainer>
