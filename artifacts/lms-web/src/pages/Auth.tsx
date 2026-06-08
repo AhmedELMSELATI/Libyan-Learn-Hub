@@ -438,10 +438,10 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Terms and Conditions Modal */}
+    <>
+      {/* Terms and Conditions Modal — rendered at root level, outside flex layout */}
       <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold font-display">Terms & Conditions</DialogTitle>
           </DialogHeader>
@@ -514,6 +514,7 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
         </DialogContent>
       </Dialog>
 
+      <div className="min-h-screen flex bg-background">
       {/* Form Side */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:flex-none lg:w-[620px] xl:w-[700px] bg-card z-10 relative shadow-2xl">
         <div className="absolute top-8 start-8">
@@ -660,12 +661,19 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
                       className="mt-1 w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer" 
                     />
                     <label htmlFor="agreedToTerms" className="text-sm text-foreground cursor-pointer select-none">
-                      I have read and agree to the <button type="button" onClick={() => setTermsOpen(true)} className="text-primary font-bold hover:underline">Terms & Conditions</button>.
+                      I have read and agree to the Terms & Conditions
                     </label>
                   </div>
                   {registerForm.formState.errors.agreedToTerms && (
                     <p className="text-sm text-destructive font-medium ms-8">{registerForm.formState.errors.agreedToTerms.message as string}</p>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setTermsOpen(true)}
+                    className="ms-8 text-xs text-primary font-semibold hover:underline"
+                  >
+                    📄 Read the full Terms & Conditions
+                  </button>
                 </div>
 
                 <Button type="submit" className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" disabled={isRegistering}>
@@ -696,6 +704,7 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
 
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
