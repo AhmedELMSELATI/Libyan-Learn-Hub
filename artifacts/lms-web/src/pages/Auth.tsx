@@ -12,6 +12,7 @@ import { ArrowLeft, ArrowRight, GraduationCap, Presentation, Phone, Mail, Lock }
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { useApi } from '@/hooks/useApi';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Blob } from '@/components/ui/Blob';
 
 const loginSchema = z.object({
@@ -27,6 +28,9 @@ const registerSchema = z.object({
   passkey: z.string().length(4, 'Passkey must be exactly 4 digits').regex(/^\d+$/, 'Passkey must contain only numbers'),
   role: z.enum(['student', 'teacher']),
   agreedToCommission: z.boolean().optional(),
+  agreedToTerms: z.boolean().refine(val => val === true, {
+    message: "You must agree to the Terms & Conditions",
+  }),
 }).refine((data) => {
   if (data.role === 'teacher') {
     return data.agreedToCommission === true;
@@ -65,6 +69,7 @@ export default function Auth() {
   const [verifying, setVerifying] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [commissionPercent, setCommissionPercent] = useState('20');
+  const [termsOpen, setTermsOpen] = useState(false);
   const otpInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -111,7 +116,7 @@ export default function Auth() {
 
   const registerForm = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', passkey: '', role: 'student' as 'student' | 'teacher', agreedToCommission: false }
+    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', passkey: '', role: 'student' as 'student' | 'teacher', agreedToCommission: false, agreedToTerms: false }
   });
 
   const { mutate: loginMutate, isPending: isLoggingIn } = useLogin({
@@ -434,6 +439,81 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex bg-background">
+      {/* Terms and Conditions Modal */}
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold font-display">Terms & Conditions</DialogTitle>
+          </DialogHeader>
+          <div className="prose prose-sm dark:prose-invert max-w-none space-y-4 text-muted-foreground pb-4">
+            <p><strong className="text-foreground">1. Introduction</strong><br/>
+Welcome to EduLibya (“we,” “our,” “us”). By accessing or using our platform, you (“user,” “student,” “teacher”) agree to these Terms & Conditions. Please read them carefully before using our services.</p>
+
+<p><strong className="text-foreground">2. Eligibility</strong><br/>
+Teachers must be qualified professionals capable of delivering valuable course material.<br/>
+Students must be at least 13 years old (or 18 depending on jurisdiction).<br/>
+Users under 18 may require parental or school consent.<br/>
+Each user must maintain only one account and provide accurate information.</p>
+
+<p><strong className="text-foreground">3. Services Provided</strong><br/>
+We provide an online platform where teachers, doctors, and experts can publish courses.<br/>
+Students can enroll in courses by purchasing redeem cards.<br/>
+Certificates (if offered) are informal unless explicitly stated as accredited.</p>
+
+<p><strong className="text-foreground">4. Payments</strong><br/>
+Students pay for courses using redeem cards issued by the platform.<br/>
+Redeem cards are non-transferable, non-refundable, and must be used before their expiration date.<br/>
+If a course is canceled by the platform or teacher, students may receive equivalent redeem card credit.<br/>
+Teachers may request withdrawals of their earnings through their profile page, subject to administrative approval.</p>
+
+<p><strong className="text-foreground">5. Commission & Fees</strong><br/>
+A percentage of each teacher’s earnings may be retained by the platform as commission.<br/>
+The commission rate is configurable by the platform administrator and disclosed during registration.</p>
+
+<p><strong className="text-foreground">6. User Responsibilities</strong><br/>
+Teachers must ensure their content is accurate, lawful, and does not infringe intellectual property rights.<br/>
+Students must use the platform for educational purposes only and not engage in fraudulent activity.<br/>
+Users must maintain the confidentiality of their login credentials and are responsible for all activities under their account.<br/>
+Account sharing, hacking, scraping, or misuse is strictly prohibited.</p>
+
+<p><strong className="text-foreground">7. Content Moderation</strong><br/>
+We reserve the right to remove or block content that violates laws, infringes intellectual property, or breaches community standards.<br/>
+Teachers who breach content guidelines may lose access to earnings.</p>
+
+<p><strong className="text-foreground">8. Intellectual Property</strong><br/>
+All course content remains the property of the teacher/creator.<br/>
+The platform retains rights to its design, branding, and system features.<br/>
+By uploading content, teachers grant the platform a license to host and distribute their material for educational purposes.</p>
+
+<p><strong className="text-foreground">9. Privacy & Data Use</strong><br/>
+We collect and store user information for account management and payment processing.<br/>
+Personal data will not be shared with third parties except as required by law.<br/>
+Users consent to receiving emails/SMS notifications related to their account, payments, or tutoring requests.</p>
+
+<p><strong className="text-foreground">10. Limitation of Liability</strong><br/>
+We are not responsible for the accuracy of course content or outcomes of learning.<br/>
+We are not liable for technical issues, interruptions, or unauthorized access beyond reasonable control.<br/>
+Force Majeure: We are not liable for delays or failures caused by events beyond our reasonable control (e.g., war, natural disasters, internet outages).</p>
+
+<p><strong className="text-foreground">11. Indemnification</strong><br/>
+Users agree to indemnify and hold harmless EduLibya from any claims, damages, or liabilities arising from their misuse of the platform or uploaded content.</p>
+
+<p><strong className="text-foreground">12. Account Termination & Service Changes</strong><br/>
+Accounts may be suspended or terminated if users violate these Terms.<br/>
+Teachers who breach content guidelines may lose access to earnings.<br/>
+We reserve the right to modify, suspend, or discontinue services at any time.</p>
+
+<p><strong className="text-foreground">13. Dispute Resolution</strong><br/>
+Any disputes shall be resolved through binding arbitration in Tripoli, Libya.<br/>
+Users waive the right to participate in class actions or jury trials.</p>
+
+<p><strong className="text-foreground">14. Governing Law</strong><br/>
+These Terms are governed by the laws of Libya.<br/>
+Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitration applies.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Form Side */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:flex-none lg:w-[620px] xl:w-[700px] bg-card z-10 relative shadow-2xl">
         <div className="absolute top-8 start-8">
@@ -569,6 +649,23 @@ export default function Auth() {
                   <label className="text-sm font-medium mb-1.5 block">Session Passkey (4 Digits)</label>
                   <Input {...registerForm.register('passkey')} type="password" placeholder="e.g., 1234 (used to quickly unlock your session)" maxLength={4} className="h-12 bg-muted/50 border-transparent focus:bg-background" />
                   {registerForm.formState.errors.passkey && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.passkey.message}</p>}
+                </div>
+
+                <div className="flex flex-col gap-1 mt-4">
+                  <div className="flex items-start gap-3">
+                    <input 
+                      type="checkbox" 
+                      {...registerForm.register('agreedToTerms')} 
+                      id="agreedToTerms" 
+                      className="mt-1 w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer" 
+                    />
+                    <label htmlFor="agreedToTerms" className="text-sm text-foreground cursor-pointer select-none">
+                      I have read and agree to the <button type="button" onClick={() => setTermsOpen(true)} className="text-primary font-bold hover:underline">Terms & Conditions</button>.
+                    </label>
+                  </div>
+                  {registerForm.formState.errors.agreedToTerms && (
+                    <p className="text-sm text-destructive font-medium ms-8">{registerForm.formState.errors.agreedToTerms.message as string}</p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" disabled={isRegistering}>
