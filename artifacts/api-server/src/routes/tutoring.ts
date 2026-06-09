@@ -78,10 +78,20 @@ router.put("/settings", requireAuth, async (req, res) => {
       return;
     }
     const { isTutoringEnabled, tutoringHourlyRate, tutoringSubjects } = req.body;
+
+    // Validate hourly rate
+    if (tutoringHourlyRate != null) {
+      const rate = parseFloat(tutoringHourlyRate);
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        res.status(400).json({ error: "Hourly rate must be between 0 and 100 dinars" });
+        return;
+      }
+    }
+
     const [updated] = await db.update(usersTable)
       .set({
         isTutoringEnabled: !!isTutoringEnabled,
-        tutoringHourlyRate: tutoringHourlyRate != null ? tutoringHourlyRate.toString() : "0",
+        tutoringHourlyRate: tutoringHourlyRate != null ? parseFloat(tutoringHourlyRate).toFixed(2) : "0.00",
         tutoringSubjects: tutoringSubjects || null,
         updatedAt: new Date()
       })

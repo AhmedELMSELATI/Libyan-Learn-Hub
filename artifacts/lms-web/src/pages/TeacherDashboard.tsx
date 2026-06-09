@@ -10,7 +10,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
   PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle, HardDrive, Trophy, Zap, Wallet, Banknote,
-  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio, AlertTriangle
+  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio, AlertTriangle, UserCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -268,6 +268,7 @@ export default function TeacherDashboard() {
             <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> {t('teacher_dashboard.live_sessions')}</TabsTrigger>
             <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> {t('teacher_dashboard.students')}</TabsTrigger>
             <TabsTrigger value="earnings" className="gap-2"><Wallet className="w-4 h-4" /> Earnings & Payouts</TabsTrigger>
+            <TabsTrigger value="tutoring" className="gap-2"><UserCheck className="w-4 h-4" /> 1-to-1 Tutoring</TabsTrigger>
             <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> {t('teacher_dashboard.promote')}</TabsTrigger>
           </TabsList>
 
@@ -476,6 +477,73 @@ export default function TeacherDashboard() {
           {/* EARNINGS TAB */}
           <TabsContent value="earnings">
             <TeacherEarningsTab api={api} user={user} totalRevenue={totalRevenue} />
+          </TabsContent>
+
+          {/* TUTORING TAB */}
+          <TabsContent value="tutoring">
+            <div className="max-w-2xl space-y-6">
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold mb-1">1-to-1 Private Tutoring</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Register to offer private tutoring sessions directly to students. You set your own hourly rate (up to 100 LYD) and the platform retains a 10% commission.
+                    </p>
+                  </div>
+                  <div className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    (user as any)?.isTutoringEnabled
+                      ? 'bg-green-100 text-green-700 border border-green-200'
+                      : 'bg-muted text-muted-foreground border border-border'
+                  }`}>
+                    {(user as any)?.isTutoringEnabled ? '✓ Active' : 'Not Registered'}
+                  </div>
+                </div>
+
+                {(user as any)?.isTutoringEnabled && (
+                  <div className="mt-4 grid grid-cols-2 gap-4">
+                    <div className="bg-muted/50 rounded-xl p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Hourly Rate</p>
+                      <p className="text-2xl font-bold text-primary">{parseFloat((user as any).tutoringHourlyRate ?? 0).toFixed(2)} <span className="text-sm font-normal">LYD/hr</span></p>
+                    </div>
+                    <div className="bg-muted/50 rounded-xl p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Subjects</p>
+                      <p className="text-sm font-medium line-clamp-2">{(user as any).tutoringSubjects || '—'}</p>
+                    </div>
+                  </div>
+                )}
+
+                {(user as any)?.tutoringSuspendedUntil && new Date((user as any).tutoringSuspendedUntil) > new Date() && (
+                  <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800">
+                    ⚠️ Your tutoring is suspended until <strong>{new Date((user as any).tutoringSuspendedUntil).toLocaleDateString()}</strong> due to a no-show report.
+                  </div>
+                )}
+
+                <div className="mt-6 flex gap-3">
+                  <Link href="/teacher/tutoring-registration" className="flex-1">
+                    <Button className="w-full gap-2">
+                      <UserCheck className="w-4 h-4" />
+                      {(user as any)?.isTutoringEnabled ? 'Update Tutoring Profile' : 'Register as Tutor'}
+                    </Button>
+                  </Link>
+                  <Link href="/tutoring">
+                    <Button variant="outline" className="gap-2">
+                      <Eye className="w-4 h-4" /> View Requests
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="bg-muted/40 border border-border rounded-2xl p-5 text-sm space-y-3">
+                <h3 className="font-semibold">How it works</h3>
+                <ul className="space-y-2 text-muted-foreground list-disc list-inside">
+                  <li>Register with your subjects and hourly rate (max 100 LYD).</li>
+                  <li>Students can browse and request a private session with you.</li>
+                  <li>Accept or propose a new time — a Jitsi meeting link is auto-generated.</li>
+                  <li>After the session, the student marks it complete and 90% of the fee is credited to your wallet.</li>
+                  <li>If you accept a request but don't attend, you will be suspended for 1 week.</li>
+                </ul>
+              </div>
+            </div>
           </TabsContent>
 
           {/* PROMOTE TAB */}

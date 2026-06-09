@@ -3,9 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/hooks/useApi";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -18,8 +18,9 @@ export default function TutoringRegistration() {
   const api = useApi();
   const queryClient = useQueryClient();
 
-  const [subjects, setSubjects] = useState(user?.tutoringSubjects || "");
-  const [hourlyRate, setHourlyRate] = useState(user?.tutoringHourlyRate || "");
+  const userAny = user as any;
+  const [subjects, setSubjects] = useState(userAny?.tutoringSubjects || "");
+  const [hourlyRate, setHourlyRate] = useState(userAny?.tutoringHourlyRate || "");
   const [commissionAgreed, setCommissionAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -80,7 +81,7 @@ export default function TutoringRegistration() {
     }
   };
 
-  if (!user || user.role !== "teacher") {
+  if (!user || (user.role !== "teacher" && user.role !== "admin")) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-muted-foreground">Only teachers can access this page.</p>
@@ -194,7 +195,7 @@ export default function TutoringRegistration() {
               className="w-full text-md py-6 transition-all shadow-md hover:shadow-lg" 
               disabled={isLoading || !commissionAgreed}
             >
-              {isLoading ? "Registering..." : (user.isTutoringEnabled ? "Update Tutoring Profile" : "Register as Tutor")}
+              {isLoading ? "Registering..." : (userAny?.isTutoringEnabled ? "Update Tutoring Profile" : "Register as Tutor")}
             </Button>
           </CardFooter>
         </form>

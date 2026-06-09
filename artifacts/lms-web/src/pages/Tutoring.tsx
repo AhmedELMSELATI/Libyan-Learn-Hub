@@ -29,6 +29,7 @@ const STATUS_COLORS: Record<string, string> = {
   declined:                'bg-red-100 text-red-800 border-red-200',
   cancelled:               'bg-gray-100 text-gray-700 border-gray-200',
   completed:               'bg-purple-100 text-purple-800 border-purple-200',
+  cancelled_no_show:       'bg-orange-100 text-orange-800 border-orange-200',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -38,6 +39,7 @@ const STATUS_LABELS: Record<string, string> = {
   declined:               'Declined / مرفوض',
   cancelled:              'Cancelled / ملغي',
   completed:              'Completed / مكتمل',
+  cancelled_no_show:      'No-Show / لم يحضر المعلم',
 };
 
 // ─── Settings Modal (Teacher) ─────────────────────────────────────────────────
@@ -46,13 +48,24 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   const { toast } = useToast();
   const { user, refetchUser } = useAuth();
 
-  const { control, register, handleSubmit, formState: { isSubmitting } } = useForm({
+  const { control, register, handleSubmit, reset, formState: { isSubmitting } } = useForm({
     defaultValues: {
       isTutoringEnabled: !!(user as any)?.isTutoringEnabled,
       tutoringHourlyRate: (user as any)?.tutoringHourlyRate?.toString() || '0',
       tutoringSubjects: (user as any)?.tutoringSubjects || '',
     }
   });
+
+  // Re-populate form when user data arrives (async) or modal re-opens
+  React.useEffect(() => {
+    if (user) {
+      reset({
+        isTutoringEnabled: !!(user as any).isTutoringEnabled,
+        tutoringHourlyRate: (user as any).tutoringHourlyRate?.toString() || '0',
+        tutoringSubjects: (user as any).tutoringSubjects || '',
+      });
+    }
+  }, [user, open, reset]);
 
   const onSubmit = async (data: any) => {
     try {
@@ -98,11 +111,12 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
           />
 
           <div>
-            <label className="text-sm font-medium block mb-1">Hourly Rate (LYD)</label>
+            <label className="text-sm font-medium block mb-1">Hourly Rate (LYD) <span className="text-muted-foreground text-xs">(max 100)</span></label>
             <Input
               {...register('tutoringHourlyRate')}
               type="number"
               min="0"
+              max="100"
               step="0.01"
               placeholder="e.g. 80"
             />
@@ -219,6 +233,17 @@ function RequestSessionForm() {
   });
 
   const isUrgent = watch('isUrgent');
+  const selectedTeacherId = watch('teacherId');
+  const selectedDuration = watch('durationMinutes');
+
+  // Compute live cost estimate
+  const selectedTeacher = tutors.find((t: any) => String(t.id) === String(selectedTeacherId));
+  const estimatedCost = React.useMemo(() => {
+    if (isUrgent || !selectedTeacherId || !selectedTeacher) return 100; // flat 100 for urgent/any
+    const rate = parseFloat(selectedTeacher.tutoringHourlyRate ?? 0);
+    const mins = parseInt(selectedDuration) || 60;
+    return parseFloat(((rate * mins) / 60).toFixed(2));
+  }, [isUrgent, selectedTeacherId, selectedTeacher, selectedDuration]);
 
   // Build min datetime string (1 hour from now)
   const minDT = new Date();
@@ -233,7 +258,7 @@ function RequestSessionForm() {
         teacherId: data.isUrgent ? null : (data.teacherId ? parseInt(data.teacherId) : null),
         durationMinutes: parseInt(data.durationMinutes),
       });
-      toast({ title: '✅ Request submitted! 100 LYD has been held from your balance.' });
+      toast({ title: `✅ Request submitted! ${estimatedCost} LYD has been held from your balance.` });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
       reset();
     } catch (err: any) {
@@ -249,7 +274,7 @@ function RequestSessionForm() {
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
       <h2 className="text-xl font-bold mb-1">Request a 1-to-1 Session</h2>
       <p className="text-sm text-muted-foreground mb-6">
-        A reservation of <strong>100 LYD</strong> will be held from your wallet. It's refunded instantly if the request is cancelled or declined.
+        A reservation of <strong>{estimatedCost} LYD</strong> will be held from your wallet based on the selected teacher & duration. It's refunded instantly if the request is cancelled or declined.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -353,7 +378,7 @@ function RequestSessionForm() {
 
         <Button type="submit" className="w-full gap-2 h-11" disabled={isSubmitting}>
           <Send className="w-4 h-4" />
-          {isSubmitting ? 'Submitting…' : 'Submit Request (100 LYD reserved)'}
+          {isSubmitting ? 'Submitting…' : `Submit Request (${estimatedCost} LYD reserved)`}
         </Button>
       </form>
     </div>
@@ -371,7 +396,7 @@ function RequestCard({
   r: any;
   isTeacher: boolean;
   onTeacherAction: (id: number, action: 'accept' | 'decline') => void;
-  onStudentAction: (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete') => void;
+  onStudentAction: (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete' | 'no-show') => void;
   onProposeTime: (r: any) => void;
 }) {
   return (
@@ -479,11 +504,16 @@ function RequestCard({
             </Button>
           )}
 
-          {/* Student: mark accepted session as complete */}
+          {/* Student: mark accepted session as complete or report no-show */}
           {!isTeacher && r.status === 'accepted' && (
-            <Button size="sm" variant="outline" className="w-full border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onStudentAction(r.id, 'complete')}>
-              ✓ Mark as Complete
-            </Button>
+            <div className="flex flex-col gap-2 w-full">
+              <Button size="sm" variant="outline" className="w-full border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onStudentAction(r.id, 'complete')}>
+                ✓ Mark as Complete
+              </Button>
+              <Button size="sm" variant="ghost" className="w-full text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => onStudentAction(r.id, 'no-show')}>
+                🚨 Teacher Didn't Show Up
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -521,13 +551,14 @@ export default function Tutoring() {
     }
   };
 
-  const handleStudentAction = async (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete') => {
+  const handleStudentAction = async (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete' | 'no-show') => {
     try {
       await api.post(`/tutoring/requests/${id}/${action}`, {});
       const messages: Record<string, string> = {
         'accept-proposed-time': '✅ New time accepted! Meeting link is ready.',
-        'cancel': '✅ Request cancelled. Your 100 LYD has been refunded.',
+        'cancel': '✅ Request cancelled. Your balance has been refunded.',
         'complete': '✅ Session marked as complete. Thank you!',
+        'no-show': '🚨 No-show reported. You have been refunded and the teacher has been suspended for 1 week.',
       };
       toast({ title: messages[action] });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });

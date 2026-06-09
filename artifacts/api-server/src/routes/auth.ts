@@ -317,6 +317,11 @@ router.get("/me", requireAuth, async (req, res) => {
     balance: user.balance ?? "0",
     hasPasskey: !!user.passkeyHash,
     biometricsVerified: user.biometricsVerified,
+    isTutoringEnabled: user.isTutoringEnabled,
+    tutoringHourlyRate: user.tutoringHourlyRate ?? "0",
+    tutoringSubjects: user.tutoringSubjects ?? null,
+    commissionAgreed: user.commissionAgreed,
+    tutoringSuspendedUntil: user.tutoringSuspendedUntil ?? null,
     createdAt: user.createdAt,
   });
 });
