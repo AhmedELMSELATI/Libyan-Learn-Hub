@@ -11,6 +11,7 @@ export const teacherEarningsTable = pgTable("teacher_earnings", {
   paymentId: integer("payment_id").notNull(),
   courseId: integer("course_id"),
   sessionId: integer("session_id"),
+  tutoringRequestId: integer("tutoring_request_id"),
   grossAmount: numeric("gross_amount", { precision: 10, scale: 2 }).notNull(),
   platformFeePercent: numeric("platform_fee_percent", { precision: 5, scale: 2 }).notNull().default("20"),
   platformFee: numeric("platform_fee", { precision: 10, scale: 2 }).notNull(),

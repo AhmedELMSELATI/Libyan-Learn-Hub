@@ -10,6 +10,7 @@ import {
   platformSettingsTable,
   redeemCardsTable,
   withdrawalRequestsTable,
+  tutoringRequestsTable,
 } from "@workspace/db";
 import { eq, and, sum, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -486,12 +487,16 @@ router.get("/earnings", requireAuth, async (req, res) => {
         itemName = course?.title || `Course #${e.courseId}`;
       } else if (e.sessionId) {
         const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, e.sessionId)).limit(1);
-        itemName = session?.title || `Session #${e.sessionId}`;
+        itemName = session?.title || `Live Session #${e.sessionId}`;
+      } else if (e.tutoringRequestId) {
+        const [tutoring] = await db.select().from(tutoringRequestsTable).where(eq(tutoringRequestsTable.id, e.tutoringRequestId)).limit(1);
+        itemName = tutoring?.subject || `1-to-1 Tutoring #${e.tutoringRequestId}`;
       }
       return {
         id: e.id,
         courseId: e.courseId,
         sessionId: e.sessionId,
+        tutoringRequestId: e.tutoringRequestId,
         itemName,
         gross: parseFloat(e.grossAmount),
         platformFee: parseFloat(e.platformFee),

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { tutoringRequestsTable, usersTable, paymentsTable } from "@workspace/db";
+import { tutoringRequestsTable, usersTable, paymentsTable, teacherEarningsTable } from "@workspace/db";
 import { eq, and, desc, isNull, or, sql, lt } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
@@ -557,8 +557,22 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
 
       // Pay teacher
       if (request.teacherId) {
-        const platformFee = parseFloat(request.totalAmount) * 0.10; // 10% platform fee
+        const platformFeePercent = 10;
+        const platformFee = parseFloat(request.totalAmount) * (platformFeePercent / 100);
         const teacherPayout = parseFloat(request.totalAmount) - platformFee;
+        
+        await tx.insert(teacherEarningsTable).values({
+          teacherId: request.teacherId,
+          paymentId: 0, // No specific payment ID for wallet transfer, or we can look up the payment
+          tutoringRequestId: request.id,
+          grossAmount: parseFloat(request.totalAmount).toFixed(2),
+          platformFeePercent: platformFeePercent.toFixed(2),
+          platformFee: platformFee.toFixed(2),
+          netAmount: teacherPayout.toFixed(2),
+          currency: "LYD",
+          status: "paid", // Instantly paid to wallet
+        });
+
         await tx.update(usersTable)
           .set({ balance: sql`${usersTable.balance} + ${teacherPayout}` })
           .where(eq(usersTable.id, request.teacherId));
