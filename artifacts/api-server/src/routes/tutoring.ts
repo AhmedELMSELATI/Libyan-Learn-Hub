@@ -570,7 +570,7 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
           platformFee: platformFee.toFixed(2),
           netAmount: teacherPayout.toFixed(2),
           currency: "LYD",
-          status: "paid", // Instantly paid to wallet
+          status: "available", // Matches course sales logic
         });
 
         await tx.update(usersTable)
