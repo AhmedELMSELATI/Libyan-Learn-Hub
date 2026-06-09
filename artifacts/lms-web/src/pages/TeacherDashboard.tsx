@@ -762,6 +762,13 @@ function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; 
           <p className="text-muted-foreground text-sm max-w-sm">
             Total All-Time Revenue: <span className="font-bold">{totalRevenue.toFixed(2)} LYD</span>
           </p>
+          <div className="mt-6">
+            <Link href="/wallet">
+              <Button variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
+                <Wallet className="w-4 h-4" /> Manage Wallet & Top-up
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Request Form */}

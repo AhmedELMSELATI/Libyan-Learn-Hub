@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth } from "../lib/auth.js";
 import { db, walletTransactionsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 

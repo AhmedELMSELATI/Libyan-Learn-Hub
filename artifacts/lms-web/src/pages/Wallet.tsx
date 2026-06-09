@@ -32,7 +32,7 @@ export default function Wallet() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.response?.data?.error || "Failed to redeem card",
+        description: error.message || "Failed to redeem card",
         variant: "destructive",
       });
     },
