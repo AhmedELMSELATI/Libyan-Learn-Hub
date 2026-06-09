@@ -50,6 +50,13 @@ export default function TeacherDashboard() {
     query: { queryKey: ['/api/live-sessions', { teacherId: user?.id }], enabled: !!user && user.role === 'teacher' }
   });
 
+  const [earningsData, setEarningsData] = React.useState<any>(null);
+  React.useEffect(() => {
+    if (user?.role === 'teacher') {
+      api.get('/payments/earnings').then(setEarningsData).catch(() => {});
+    }
+  }, [user]);
+
   const mySessions = liveSessions?.filter((s: any) => s.teacherId === user?.id) || [];
 
 
@@ -113,8 +120,11 @@ export default function TeacherDashboard() {
   if (!user || user.role !== 'teacher') return null;
 
   const totalStudents = courses?.reduce((sum: number, c: any) => sum + (c.enrollmentCount || 0), 0) || 0;
-  const totalRevenue = courses?.reduce((sum: number, c: any) => sum + (c.totalRevenue || 0), 0) || 0;
   const publishedCount = courses?.filter((c: any) => c.isPublished).length || 0;
+  
+  // Use earningsData if available, otherwise fallback to course revenue
+  const totalCourseRevenue = courses?.reduce((sum: number, c: any) => sum + (c.totalRevenue || 0), 0) || 0;
+  const totalRevenue = earningsData?.total ?? totalCourseRevenue;
 
 
   return (
@@ -476,7 +486,7 @@ export default function TeacherDashboard() {
 
           {/* EARNINGS TAB */}
           <TabsContent value="earnings">
-            <TeacherEarningsTab api={api} user={user} totalRevenue={totalRevenue} />
+            <TeacherEarningsTab api={api} user={user} totalRevenue={totalRevenue} initialEarningsData={earningsData} />
           </TabsContent>
 
           {/* TUTORING TAB */}
@@ -671,11 +681,11 @@ function TeacherStudentsList({ api }: { api: any }) {
     </div>
   );
 }
-function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; totalRevenue: number }) {
+function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { api: any; user: any; totalRevenue: number; initialEarningsData: any }) {
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
-  const [earningsData, setEarningsData] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [earningsData, setEarningsData] = React.useState<any>(initialEarningsData);
+  const [loading, setLoading] = React.useState(!initialEarningsData);
   const [amount, setAmount] = React.useState('');
   const [method, setMethod] = React.useState('bank_transfer');
   const [details, setDetails] = React.useState('');
@@ -688,7 +698,7 @@ function TeacherEarningsTab({ api, user, totalRevenue }: { api: any; user: any; 
         api.get('/payments/earnings').catch(() => null)
       ]);
       setWithdrawals(wd || []);
-      setEarningsData(ed);
+      if (ed) setEarningsData(ed);
     } catch (e) {
     } finally {
       setLoading(false);
