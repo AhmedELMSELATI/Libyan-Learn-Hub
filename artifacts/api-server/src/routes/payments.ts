@@ -410,18 +410,13 @@ router.post("/withdrawals", requireAuth, async (req, res) => {
       return;
     }
 
-    // Check available earnings balance
-    const earnings = await db.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.teacherId, userId));
-    const availableEarnings = earnings
-      .filter(e => e.status === "available")
-      .reduce((s, e) => s + parseFloat(e.netAmount), 0);
-
     // Subtract any existing pending withdrawal requests
     const pendingRequests = await db.select().from(withdrawalRequestsTable)
       .where(and(eq(withdrawalRequestsTable.teacherId, userId), eq(withdrawalRequestsTable.status, "pending")));
     const pendingWithdrawalsAmount = pendingRequests.reduce((s, r) => s + parseFloat(r.amount as string), 0);
 
-    const netAvailable = availableEarnings - pendingWithdrawalsAmount;
+    // Available to withdraw is the wallet balance minus any pending withdrawal requests
+    const netAvailable = parseFloat(teacher.balance as string || "0") - pendingWithdrawalsAmount;
 
     if (parseFloat(amount) > netAvailable) {
       res.status(400).json({ error: `Insufficient available balance. Available: ${netAvailable.toFixed(2)} LYD` });
@@ -474,11 +469,25 @@ router.get("/", requireAuth, async (req, res) => {
 router.get("/earnings", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
+    
+    // Get teacher's wallet balance
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const balance = parseFloat(teacher.balance as string || "0");
+
+    // Get pending withdrawals
+    const pendingRequests = await db.select().from(withdrawalRequestsTable)
+      .where(and(eq(withdrawalRequestsTable.teacherId, userId), eq(withdrawalRequestsTable.status, "pending")));
+    const pendingWithdrawalsAmount = pendingRequests.reduce((s, r) => s + parseFloat(r.amount as string), 0);
+
     const earnings = await db.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.teacherId, userId));
-    const available = earnings.filter(e => e.status === "available").reduce((s, e) => s + parseFloat(e.netAmount), 0);
+    
+    // Total earned is the sum of all earnings
+    const totalEarnings = earnings.reduce((s, e) => s + parseFloat(e.netAmount), 0);
+    // Available to withdraw is the actual wallet balance minus pending withdrawals
+    const available = balance - pendingWithdrawalsAmount;
+    
     const pending = earnings.filter(e => e.status === "pending").reduce((s, e) => s + parseFloat(e.netAmount), 0);
     const paid = earnings.filter(e => e.status === "paid").reduce((s, e) => s + parseFloat(e.netAmount), 0);
-    const total = available + pending + paid;
     
     const entries = await Promise.all(earnings.map(async (e) => {
       let itemName = "–";
@@ -508,7 +517,7 @@ router.get("/earnings", requireAuth, async (req, res) => {
     }));
 
     res.json({
-      total: parseFloat(total.toFixed(2)),
+      total: parseFloat(totalEarnings.toFixed(2)),
       available: parseFloat(available.toFixed(2)),
       pending: parseFloat(pending.toFixed(2)),
       paid: parseFloat(paid.toFixed(2)),
