@@ -111,6 +111,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [isAuthenticated, checkTokenExpiry]);
 
+  // Sleep detection: forcefully logout if the device goes to sleep
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    let lastTime = Date.now();
+    const sleepInterval = setInterval(() => {
+      const now = Date.now();
+      // If interval delta > 3 minutes (180,000 ms), the device was suspended (went to sleep)
+      if (now - lastTime > 180000) {
+        logout('/login?reason=session_expired');
+      }
+      lastTime = now;
+    }, 5000); // Check every 5 seconds
+    
+    return () => clearInterval(sleepInterval);
+  }, [isAuthenticated, logout]);
+
   const lock = useCallback(() => {
     sessionStorage.setItem(LOCK_STATE_KEY, 'true');
     setIsLocked(true);
