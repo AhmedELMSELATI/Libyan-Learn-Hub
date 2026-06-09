@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tutoringRequestsTable, usersTable, paymentsTable } from "@workspace/db";
-import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql, lt } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
@@ -12,7 +12,11 @@ const router = Router();
 router.get("/tutors", async (_req, res) => {
   try {
     const tutors = await db.select().from(usersTable)
-      .where(and(eq(usersTable.role, "teacher"), eq(usersTable.isTutoringEnabled, true)));
+      .where(and(
+        eq(usersTable.role, "teacher"), 
+        eq(usersTable.isTutoringEnabled, true),
+        or(isNull(usersTable.tutoringSuspendedUntil), lt(usersTable.tutoringSuspendedUntil, new Date()))
+      ));
     res.json(tutors.map(t => ({
       id: t.id,
       fullName: t.fullName,
@@ -23,6 +27,43 @@ router.get("/tutors", async (_req, res) => {
       tutoringSubjects: t.tutoringSubjects,
       isVerified: t.isVerified,
     })));
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── Register teacher for tutoring ───────────────────────────────────────────
+router.post("/register", requireAuth, async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    if (role !== "teacher" && role !== "admin") {
+      res.status(403).json({ error: "Only teachers can register for tutoring" });
+      return;
+    }
+    const { tutoringHourlyRate, tutoringSubjects, commissionAgreed } = req.body;
+    
+    if (!commissionAgreed) {
+      res.status(400).json({ error: "You must agree to the 10% commission" });
+      return;
+    }
+    
+    const rate = parseFloat(tutoringHourlyRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      res.status(400).json({ error: "Hourly rate must be between 0 and 100 dinars" });
+      return;
+    }
+
+    const [updated] = await db.update(usersTable)
+      .set({
+        isTutoringEnabled: true,
+        tutoringHourlyRate: rate.toFixed(2),
+        tutoringSubjects: tutoringSubjects || null,
+        commissionAgreed: true,
+        updatedAt: new Date()
+      })
+      .where(eq(usersTable.id, userId))
+      .returning();
+    res.json({ success: true, isTutoringEnabled: updated.isTutoringEnabled });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -137,26 +178,33 @@ router.post("/requests", requireAuth, async (req, res) => {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-    const cost = 100;
-    if (parseFloat(user.balance) < cost) {
-      res.status(400).json({ error: "Insufficient balance. Minimum 100 dinars required to reserve a session." });
-      return;
-    }
-
     const result = await db.transaction(async (tx) => {
-      // Deduct balance
-      await tx.update(usersTable)
-        .set({ balance: sql`${usersTable.balance} - ${cost}` })
-        .where(eq(usersTable.id, userId));
-
       // Determine hourly rate
       let hourlyRate = "0.00";
       const resolvedTeacherId = isUrgent ? null : (teacherId ? parseInt(teacherId) : null);
 
       if (resolvedTeacherId) {
         const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, resolvedTeacherId)).limit(1);
-        if (teacher) hourlyRate = teacher.tutoringHourlyRate || "0.00";
+        if (!teacher) {
+           throw new Error("Selected teacher not found");
+        }
+        if (teacher.tutoringSuspendedUntil && new Date(teacher.tutoringSuspendedUntil) > new Date()) {
+           throw new Error("Selected teacher is currently suspended and cannot accept requests");
+        }
+        hourlyRate = teacher.tutoringHourlyRate || "0.00";
       }
+
+      const duration = parseInt(durationMinutes) || 60;
+      const cost = resolvedTeacherId ? (parseFloat(hourlyRate) * duration) / 60 : 100;
+
+      if (parseFloat(user.balance) < cost) {
+        throw new Error(`Insufficient balance. ${cost.toFixed(2)} dinars required to reserve this session.`);
+      }
+
+      // Deduct balance
+      await tx.update(usersTable)
+        .set({ balance: sql`${usersTable.balance} - ${cost}` })
+        .where(eq(usersTable.id, userId));
 
       // Create tutoring request
       const [request] = await tx.insert(tutoringRequestsTable).values({
@@ -192,7 +240,11 @@ router.post("/requests", requireAuth, async (req, res) => {
 
     res.status(201).json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    if (err.message.includes("Insufficient balance") || err.message.includes("suspended") || err.message.includes("not found")) {
+      res.status(400).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: "Server error", message: err.message });
+    }
   }
 });
 
@@ -495,7 +547,7 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
 
       // Pay teacher
       if (request.teacherId) {
-        const platformFee = parseFloat(request.totalAmount) * 0.15; // 15% platform fee
+        const platformFee = parseFloat(request.totalAmount) * 0.10; // 10% platform fee
         const teacherPayout = parseFloat(request.totalAmount) - platformFee;
         await tx.update(usersTable)
           .set({ balance: sql`${usersTable.balance} + ${teacherPayout}` })
@@ -504,6 +556,57 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
     });
 
     res.json({ success: true, status: "completed" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── Mark session as no-show (Teacher didn't attend) ──────────────────────────
+router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    
+    if (request.studentId !== userId && (req as any).user.role !== "admin") {
+      res.status(403).json({ error: "Not authorized to report a no-show for this request" }); return;
+    }
+
+    if (request.status !== "accepted") {
+      res.status(400).json({ error: "Only accepted sessions can be marked as no-show" }); return;
+    }
+
+    if (!request.teacherId) {
+      res.status(400).json({ error: "Cannot mark no-show for an unassigned request" }); return;
+    }
+
+    await db.transaction(async (tx) => {
+      // Mark as cancelled no show
+      await tx.update(tutoringRequestsTable)
+        .set({ status: "cancelled_no_show", updatedAt: new Date() })
+        .where(eq(tutoringRequestsTable.id, requestId));
+
+      await tx.update(paymentsTable)
+        .set({ status: "refunded", updatedAt: new Date() })
+        .where(eq(paymentsTable.tutoringRequestId, requestId));
+
+      // Refund student in full
+      await tx.update(usersTable)
+        .set({ balance: sql`${usersTable.balance} + ${parseFloat(request.totalAmount)}` })
+        .where(eq(usersTable.id, request.studentId));
+
+      // Suspend teacher for 1 week
+      const suspendUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await tx.update(usersTable)
+        .set({ tutoringSuspendedUntil: suspendUntil, updatedAt: new Date() })
+        .where(eq(usersTable.id, request.teacherId));
+    });
+
+    res.json({ success: true, status: "cancelled_no_show" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
