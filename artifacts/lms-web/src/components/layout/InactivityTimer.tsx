@@ -17,8 +17,9 @@ import { ShieldAlert, LogOut, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Configure timeouts (in milliseconds)
-const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes of inactivity
-const GRACE_PERIOD = 30 * 1000;          // 30 seconds countdown warning
+const INACTIVITY_LOCK_LIMIT = 5 * 60 * 1000;   // 5 minutes of inactivity
+const INACTIVITY_LOGOUT_LIMIT = 60 * 60 * 1000; // 1 hour hard logout
+const GRACE_PERIOD = 30 * 1000;                 // 30 seconds countdown warning
 const STORAGE_KEY = 'lms_last_activity';
 
 export function InactivityTimer({ suppressWhenActive = false }: { suppressWhenActive?: boolean }) {
@@ -109,11 +110,18 @@ export function InactivityTimer({ suppressWhenActive = false }: { suppressWhenAc
       const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
       const timeSinceLastActivity = Date.now() - lastActivity;
 
-      if (timeSinceLastActivity >= INACTIVITY_LIMIT) {
+      // Hard logout after 1 hour
+      if (timeSinceLastActivity >= INACTIVITY_LOGOUT_LIMIT) {
+        logout('/login?reason=inactivity');
+        return;
+      }
+
+      // Lock warning after 5 minutes
+      if (timeSinceLastActivity >= INACTIVITY_LOCK_LIMIT) {
         setShowWarning(true);
       } else {
         // If another tab updated activity, dismiss the warning here
-        if (showWarning && timeSinceLastActivity < INACTIVITY_LIMIT) {
+        if (showWarning && timeSinceLastActivity < INACTIVITY_LOCK_LIMIT) {
           setShowWarning(false);
         }
       }
@@ -130,7 +138,7 @@ export function InactivityTimer({ suppressWhenActive = false }: { suppressWhenAc
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY && showWarning) {
         const newTime = parseInt(e.newValue || '0', 10);
-        if (Date.now() - newTime < INACTIVITY_LIMIT) {
+        if (Date.now() - newTime < INACTIVITY_LOCK_LIMIT) {
           setShowWarning(false);
         }
       }
@@ -148,7 +156,7 @@ export function InactivityTimer({ suppressWhenActive = false }: { suppressWhenAc
         // Re-check activity in case it was updated in another tab but the interval hasn't fired
         const lastActivityStr = localStorage.getItem(STORAGE_KEY);
         const lastActivity = lastActivityStr ? parseInt(lastActivityStr, 10) : Date.now();
-        if (Date.now() - lastActivity < INACTIVITY_LIMIT) {
+        if (Date.now() - lastActivity < INACTIVITY_LOCK_LIMIT) {
           setShowWarning(false);
           return;
         }

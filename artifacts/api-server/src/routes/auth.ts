@@ -435,7 +435,8 @@ router.post("/verify-passkey", requireAuth, async (req, res) => {
       return;
     }
 
-    res.json({ success: true });
+    const token = signToken({ userId: user.id, role: user.role });
+    res.json({ success: true, token });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

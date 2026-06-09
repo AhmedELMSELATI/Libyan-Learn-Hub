@@ -12,7 +12,7 @@ interface PasscodeLockProps {
 }
 
 export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
   const { language } = useLanguage();
   const api = useApi();
   const isRtl = language === 'ar';
@@ -34,7 +34,10 @@ export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
     setIsVerifying(true);
     setError('');
     try {
-      await api.post('/auth/verify-passkey', { passkey: code });
+      const res = await api.post('/auth/verify-passkey', { passkey: code });
+      if (res.token) {
+        login(res.token);
+      }
       onUnlocked();
     } catch (err: any) {
       const newAttempts = attempts + 1;
@@ -52,7 +55,7 @@ export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
     } finally {
       setIsVerifying(false);
     }
-  }, [api, attempts, isRtl, isVerifying, onUnlocked]);
+  }, [api, attempts, isRtl, isVerifying, onUnlocked, login]);
 
   const addDigit = useCallback((d: string) => {
     if (isVerifying || attempts >= 5) return;

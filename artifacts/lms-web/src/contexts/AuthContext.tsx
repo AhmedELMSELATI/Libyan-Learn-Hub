@@ -16,16 +16,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_UNLOCK_KEY = 'lms_session_unlocked';
+const LOCK_STATE_KEY = 'lms_is_locked';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(localStorage.getItem('lms_token'));
-  // Session is locked by default on every new tab/browser open
-  // It only becomes unlocked after the user enters their passkey (or if they have no passkey)
+  
+  // Session is unlocked by default, unless previously locked in this session
   const [isLocked, setIsLocked] = useState<boolean>(() => {
-    const alreadyUnlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === 'true';
-    return !alreadyUnlocked;
+    return sessionStorage.getItem(LOCK_STATE_KEY) === 'true';
   });
 
   // We removed the fetch monkey-patch because it causes a race condition on mobile where React Query 
@@ -50,37 +49,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [error]);
 
-  // Once we know whether the user has a passkey, decide whether to lock or auto-unlock
+  // Periodically check token expiry
+  const checkTokenExpiry = useCallback(() => {
+    if (!token) return;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000;
+      const timeRemaining = exp - Date.now();
+      
+      // If token is already expired, logout immediately
+      if (timeRemaining <= 0) {
+        logout('/login?reason=expired');
+      } 
+      // If nearing timeout (less than 2 hours left) and user has a passkey
+      else if (timeRemaining < 2 * 60 * 60 * 1000) {
+        const hasPasskey = !!(user as any)?.hasPasskey;
+        if (hasPasskey && !isLocked && !sessionStorage.getItem(LOCK_STATE_KEY)) {
+          sessionStorage.setItem(LOCK_STATE_KEY, 'true');
+          setIsLocked(true);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse token expiry', e);
+    }
+  }, [token, logout, isLocked, user]);
+
   useEffect(() => {
-    if (!user) return;
-    const alreadyUnlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === 'true';
-    if (alreadyUnlocked) {
-      setIsLocked(false);
-      return;
-    }
-    // If user has no passkey, unlock automatically
-    if (!(user as any).hasPasskey) {
-      setIsLocked(false);
-      sessionStorage.setItem(SESSION_UNLOCK_KEY, 'true');
-    }
-    // If they do have a passkey and session is not unlocked, keep locked (show lock screen)
-  }, [user]);
+    if (!isAuthenticated) return;
+    checkTokenExpiry();
+    const interval = setInterval(checkTokenExpiry, 60 * 1000); // Check every minute
+    return () => clearInterval(interval);
+  }, [isAuthenticated, checkTokenExpiry]);
 
   const login = (newToken: string) => {
     localStorage.setItem('lms_token', newToken);
     setToken(newToken);
     queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-    // Mark session as unlocked on fresh login — they just proved their identity
-    sessionStorage.setItem(SESSION_UNLOCK_KEY, 'true');
+    // Clear lock state on fresh login
+    sessionStorage.removeItem(LOCK_STATE_KEY);
     setIsLocked(false);
   };
 
   const logout = useCallback((redirectUrl?: string | unknown) => {
     const finalUrl = typeof redirectUrl === 'string' ? redirectUrl : '/';
     localStorage.removeItem('lms_token');
-    sessionStorage.removeItem(SESSION_UNLOCK_KEY);
+    sessionStorage.removeItem(LOCK_STATE_KEY);
     setToken(null);
-    setIsLocked(true);
+    setIsLocked(false);
     queryClient.setQueryData(['/api/auth/me'], null);
     queryClient.clear();
     // Force a hard reload to the home page or specified url.
@@ -89,12 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const lock = useCallback(() => {
-    sessionStorage.removeItem(SESSION_UNLOCK_KEY);
+    sessionStorage.setItem(LOCK_STATE_KEY, 'true');
     setIsLocked(true);
   }, []);
 
   const unlock = useCallback(() => {
-    sessionStorage.setItem(SESSION_UNLOCK_KEY, 'true');
+    sessionStorage.removeItem(LOCK_STATE_KEY);
     setIsLocked(false);
   }, []);
 
