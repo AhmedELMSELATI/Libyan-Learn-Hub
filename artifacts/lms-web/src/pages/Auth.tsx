@@ -121,7 +121,20 @@ export default function Auth() {
 
   const { mutate: loginMutate, isPending: isLoggingIn } = useLogin({
     mutation: {
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
+        if (data.requireVerification) {
+          setPendingToken(data.token);
+          setPendingRole(data.user.role);
+          setPendingEmail(data.user.email);
+          setStep('otp');
+          toast({
+            title: 'Verification required',
+            description: 'A new verification code has been sent to your email.',
+            variant: 'default',
+          });
+          return;
+        }
+        
         setAuthContext(data.token);
         const searchParams = new URLSearchParams(window.location.search);
         const returnTo = searchParams.get('returnTo');
@@ -248,11 +261,7 @@ export default function Auth() {
   };
 
   const handleSkipVerification = () => {
-    setAuthContext(pendingToken);
-    // Allow auth state to settle before navigating
-    setTimeout(() => {
-      setLocation(pendingRole === 'teacher' ? '/teacher/biometrics-setup' : '/dashboard');
-    }, 100);
+    // Verification is mandatory.
   };
 
 
@@ -424,13 +433,7 @@ export default function Auth() {
                 {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
               </button>
             </div>
-            <Button
-              variant="ghost"
-              className="w-full text-muted-foreground hover:text-foreground"
-              onClick={handleSkipVerification}
-            >
-              Skip for now →
-            </Button>
+
           </div>
         </motion.div>
       </div>

@@ -222,6 +222,34 @@ router.post("/login", authLimiter, async (req, res) => {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
+
+    if (!user.emailVerified && !user.phoneVerified) {
+      const otpCode = generateOtp();
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      await db.update(usersTable).set({ otpCode, otpExpiry }).where(eq(usersTable.id, user.id));
+      
+      if (user.email) {
+        try {
+          await sendEmail({
+            to: user.email,
+            subject: "Libyan Learn Hub - Verification Code",
+            text: `Hello ${user.fullName || "User"},\n\nYour account verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+            html: `<div dir="ltr"><p>Hello ${user.fullName || "User"},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
+          });
+        } catch (err) {
+          console.error("Failed to send OTP email:", err);
+        }
+      }
+      const token = signToken({ userId: user.id, role: user.role });
+      
+      res.status(200).json({
+        requireVerification: true,
+        token,
+        user: { email: user.email, role: user.role, phoneNumber: user.phoneNumber },
+      });
+      return;
+    }
+
     const token = signToken({ userId: user.id, role: user.role });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
     res.json({
