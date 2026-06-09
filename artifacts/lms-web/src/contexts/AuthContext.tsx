@@ -38,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
+  const isAuthenticated = !!user;
+
   // Clear token if me endpoint explicitly rejects it (invalid token)
   // We check for 401/403 to prevent wiping the token during transient network drops (like switching apps on mobile)
   useEffect(() => {
@@ -49,11 +51,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [error]);
 
-  // Periodically check token expiry
+
+
+  const login = (newToken: string) => {
+    localStorage.setItem('lms_token', newToken);
+    setToken(newToken);
+    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+    // Clear lock state on fresh login
+    sessionStorage.removeItem(LOCK_STATE_KEY);
+    setIsLocked(false);
+  };
+
+  const logout = useCallback((redirectUrl?: string | unknown) => {
+    const finalUrl = typeof redirectUrl === 'string' ? redirectUrl : '/';
+    localStorage.removeItem('lms_token');
+    sessionStorage.removeItem(LOCK_STATE_KEY);
+    setToken(null);
+    setIsLocked(false);
+    queryClient.setQueryData(['/api/auth/me'], null);
+    queryClient.clear();
+    // Force a hard reload to the home page or specified url.
+    // This solves the issue of white screens from stale lazy-loaded chunks (Vercel chunk loading errors)
+    window.location.href = finalUrl;
+  }, [queryClient]);
+
   const checkTokenExpiry = useCallback(() => {
     if (!token) return;
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload);
       const exp = payload.exp * 1000;
       const timeRemaining = exp - Date.now();
       
@@ -81,28 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [isAuthenticated, checkTokenExpiry]);
 
-  const login = (newToken: string) => {
-    localStorage.setItem('lms_token', newToken);
-    setToken(newToken);
-    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-    // Clear lock state on fresh login
-    sessionStorage.removeItem(LOCK_STATE_KEY);
-    setIsLocked(false);
-  };
-
-  const logout = useCallback((redirectUrl?: string | unknown) => {
-    const finalUrl = typeof redirectUrl === 'string' ? redirectUrl : '/';
-    localStorage.removeItem('lms_token');
-    sessionStorage.removeItem(LOCK_STATE_KEY);
-    setToken(null);
-    setIsLocked(false);
-    queryClient.setQueryData(['/api/auth/me'], null);
-    queryClient.clear();
-    // Force a hard reload to the home page or specified url.
-    // This solves the issue of white screens from stale lazy-loaded chunks (Vercel chunk loading errors)
-    window.location.href = finalUrl;
-  }, [queryClient]);
-
   const lock = useCallback(() => {
     sessionStorage.setItem(LOCK_STATE_KEY, 'true');
     setIsLocked(true);
@@ -124,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
       refetchUser,
-      isAuthenticated: !!user,
+      isAuthenticated,
       isLocked,
       lock,
       unlock,
