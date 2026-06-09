@@ -6,14 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useApi } from "@/hooks/useApi";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function TutoringRegistration() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const api = useApi();
+  const queryClient = useQueryClient();
 
   const [subjects, setSubjects] = useState(user?.tutoringSubjects || "");
   const [hourlyRate, setHourlyRate] = useState(user?.tutoringHourlyRate || "");
@@ -52,7 +55,7 @@ export default function TutoringRegistration() {
 
     try {
       setIsLoading(true);
-      await apiRequest("POST", "/api/tutoring/register", {
+      await api.post("/tutoring/register", {
         tutoringHourlyRate: rate,
         tutoringSubjects: subjects,
         commissionAgreed: true
@@ -64,6 +67,7 @@ export default function TutoringRegistration() {
       });
       
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tutoring/tutors"] });
       setLocation("/teacher/dashboard");
     } catch (err: any) {
       toast({

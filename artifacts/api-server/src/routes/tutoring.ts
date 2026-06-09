@@ -13,7 +13,7 @@ router.get("/tutors", async (_req, res) => {
   try {
     const tutors = await db.select().from(usersTable)
       .where(and(
-        eq(usersTable.role, "teacher"), 
+        or(eq(usersTable.role, "teacher"), eq(usersTable.role, "admin")), 
         eq(usersTable.isTutoringEnabled, true),
         or(isNull(usersTable.tutoringSuspendedUntil), lt(usersTable.tutoringSuspendedUntil, new Date()))
       ));
