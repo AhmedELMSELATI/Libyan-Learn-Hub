@@ -9,18 +9,19 @@ const router = Router();
 router.get("/balance", requireAuth, async (req, res) => {
   try {
     const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, req.user!.userId),
+      where: eq(usersTable.id, (req as any).user!.userId),
       columns: {
         balance: true,
       },
     });
 
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      res.status(404).json({ error: "User not found" });
+      return;
     }
 
     const transactions = await db.query.walletTransactionsTable.findMany({
-      where: eq(walletTransactionsTable.userId, req.user!.userId),
+      where: eq(walletTransactionsTable.userId, (req as any).user!.userId),
       orderBy: [desc(walletTransactionsTable.createdAt)],
       limit: 50,
     });

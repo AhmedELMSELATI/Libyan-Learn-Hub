@@ -613,7 +613,7 @@ router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
       const suspendUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await tx.update(usersTable)
         .set({ tutoringSuspendedUntil: suspendUntil, updatedAt: new Date() })
-        .where(eq(usersTable.id, request.teacherId));
+        .where(eq(usersTable.id, request.teacherId as number));
     });
 
     res.json({ success: true, status: "cancelled_no_show" });

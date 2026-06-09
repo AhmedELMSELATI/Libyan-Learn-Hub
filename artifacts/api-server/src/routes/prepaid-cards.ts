@@ -11,13 +11,18 @@ router.post("/redeem", requireAuth, async (req, res) => {
     const { code } = req.body;
 
     if (!code) {
-      return res.status(400).json({ error: "Code is required" });
+      res.status(400).json({ error: "Code is required" });
+      return;
     }
 
     // Wrap in a transaction to ensure atomicity
     await db.transaction(async (tx) => {
       // 1. Find and lock the card (FOR UPDATE equivalent if using raw SQL, but here we check status)
       // We assume Drizzle handles basic concurency if we update carefully.
+      const user = await tx.query.usersTable.findFirst({
+        where: eq(usersTable.id, (req as any).user!.userId),
+      });
+
       const card = await tx.query.prepaidCardsTable.findFirst({
         where: eq(prepaidCardsTable.code, code),
       });
@@ -34,7 +39,7 @@ router.post("/redeem", requireAuth, async (req, res) => {
       await tx.update(prepaidCardsTable)
         .set({
           status: "used",
-          usedBy: req.user!.userId,
+          usedBy: (req as any).user!.userId,
           usedAt: new Date(),
         })
         .where(eq(prepaidCardsTable.id, card.id));
@@ -44,11 +49,11 @@ router.post("/redeem", requireAuth, async (req, res) => {
         .set({
           balance: sql`${usersTable.balance} + ${card.value}`,
         })
-        .where(eq(usersTable.id, req.user!.userId));
+        .where(eq(usersTable.id, (req as any).user!.userId));
 
       // 4. Log transaction
       await tx.insert(walletTransactionsTable).values({
-        userId: req.user!.userId,
+        userId: (req as any).user!.userId,
         amount: card.value,
         type: "credit",
         referenceType: "prepaid_card",
@@ -60,7 +65,8 @@ router.post("/redeem", requireAuth, async (req, res) => {
     res.json({ success: true, message: "Card redeemed successfully" });
   } catch (error: any) {
     if (error.message === "Invalid card code" || error.message.includes("Card is already")) {
-      return res.status(400).json({ error: error.message });
+      res.status(400).json({ error: error.message });
+      return;
     }
     console.error("Failed to redeem prepaid card:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -73,7 +79,8 @@ router.post("/generate", requireAuth, requireRole("admin"), async (req, res) => 
     const { count, value } = req.body;
 
     if (!count || !value || count < 1 || value < 1) {
-      return res.status(400).json({ error: "Invalid count or value" });
+      res.status(400).json({ error: "Amount or count is invalid" });
+      return;
     }
 
     // Generate N unique codes
