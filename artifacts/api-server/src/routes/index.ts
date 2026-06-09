@@ -30,6 +30,8 @@ import verificationRouter from "./verification.js";
 import academyRouter from "./academy.js";
 import notificationsRouter from "./notifications.js";
 import biometricsRouter from "./biometrics.js";
+import walletRouter from "./wallet.js";
+import prepaidCardsRouter from "./prepaid-cards.js";
 
 const router: IRouter = Router();
 
@@ -66,5 +68,8 @@ router.use("/notifications", notificationsRouter);
 router.use("/biometrics", biometricsRouter);
 // Academy router
 router.use("/academy", academyRouter);
+// Wallet & Prepaid Cards
+router.use("/wallet", walletRouter);
+router.use("/prepaid-cards", prepaidCardsRouter);
 
 export default router;

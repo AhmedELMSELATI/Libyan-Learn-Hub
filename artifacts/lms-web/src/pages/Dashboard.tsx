@@ -159,6 +159,15 @@ export default function Dashboard() {
               NEW
             </span>
           </button>
+          
+          <Link href="/wallet">
+            <button
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-muted-foreground hover:text-foreground`}
+            >
+              <DollarSign className="w-4 h-4" />
+              Wallet & Prepaid Cards
+            </button>
+          </Link>
         </div>
       </div>
 

@@ -38,6 +38,7 @@ const AcademyDashboard = React.lazy(() => import("@/pages/AcademyDashboard"));
 const AcademyApply = React.lazy(() => import("@/pages/AcademyApply"));
 const BiometricsSetup = React.lazy(() => import("@/pages/teacher/BiometricsSetup"));
 const TutoringRegistration = React.lazy(() => import("@/pages/teacher/TutoringRegistration"));
+const Wallet = React.lazy(() => import("@/pages/Wallet"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -139,6 +140,7 @@ function Router() {
         <Route path="/teacher/sessions/new" component={CreateSession} />
         <Route path="/teacher/tutoring-registration" component={TutoringRegistration} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
+        <Route path="/wallet" component={Wallet} />
         <Route component={NotFound} />
       </Switch>
         </Suspense>

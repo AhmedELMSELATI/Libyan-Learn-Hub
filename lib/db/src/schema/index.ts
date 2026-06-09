@@ -35,3 +35,7 @@ export * from "./redeem-cards.ts";
 // Notification System
 export * from "./notifications.ts";
 export * from "./user-push-tokens.ts";
+
+// Wallet & Prepaid Cards
+export * from "./wallet.ts";
+export * from "./prepaid-cards.ts";
