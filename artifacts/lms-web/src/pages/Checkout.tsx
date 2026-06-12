@@ -43,6 +43,20 @@ export default function Checkout() {
     enabled: !!id,
   });
 
+  // Fetch live wallet balance so the display is never stale after a purchase
+  const { data: walletData } = useQuery({
+    queryKey: ['wallet-balance'],
+    queryFn: async () => {
+      const token = localStorage.getItem('lms_token');
+      const res = await fetch(`${API_BASE}/wallet/balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return { balance: '0' };
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
   const initiateMutation = useMutation({
     mutationFn: async () => {
       const token = localStorage.getItem('lms_token');
@@ -51,7 +65,9 @@ export default function Checkout() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ type, itemId: id, method }),
       });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Payment request failed');
+      return data;
     },
     onSuccess: (data) => {
       if (data.url) {
@@ -63,12 +79,18 @@ export default function Checkout() {
         }
       }
     },
+    onError: (err: any) => {
+      // Error is now shown via the isPending/isError state in the button
+      console.error('Payment initiation failed:', err.message);
+    },
   });
 
 // Replaced confirmMutation and handleCopy
   const price = item?.price ?? 0;
   const title = isAr ? item?.titleAr : item?.title;
   const isFree = price === 0;
+  // Use live balance fetched from server (not stale auth context)
+  const liveBalance = parseFloat(walletData?.balance || user?.balance || "0");
 
   if (!item) {
     return <PageContainer><div className="py-40 text-center text-muted-foreground">جاري التحميل...</div></PageContainer>;
@@ -141,7 +163,7 @@ export default function Checkout() {
                     {PAYMENT_METHODS.map(pm => {
                       const Icon = pm.icon;
                       const isWallet = pm.id === 'wallet';
-                      const balance = parseFloat(user?.balance || "0");
+                      const balance = liveBalance;
                       const insufficient = isWallet && balance < price;
 
                       return (
@@ -192,6 +214,11 @@ export default function Checkout() {
                 >
                   {initiateMutation.isPending ? 'جاري المعالجة...' : isFree ? 'سجّل الآن مجاناً' : 'متابعة الدفع'}
                 </Button>
+                {initiateMutation.isError && (
+                  <p className="text-sm text-destructive text-center mt-2">
+                    {(initiateMutation.error as any)?.message || 'حدث خطأ. يرجى المحاولة مرة أخرى.'}
+                  </p>
+                )}
               </motion.div>
             )}
 

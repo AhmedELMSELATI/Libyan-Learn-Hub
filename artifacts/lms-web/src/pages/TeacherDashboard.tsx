@@ -734,6 +734,8 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
   };
 
   const balance = parseFloat(user?.balance || "0");
+  // Available to withdraw is the server-computed value (balance minus pending requests)
+  const availableToWithdraw = earningsData?.available ?? balance;
 
   return (
     <div className="space-y-8">
@@ -800,6 +802,9 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
                 placeholder="e.g. 100.00"
                 required
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Available: <span className="font-bold text-green-600">{availableToWithdraw.toFixed(2)} LYD</span>
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Payout Method</label>
@@ -826,7 +831,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isSubmitting || balance <= 0 || parseFloat(amount || "0") > balance}
+              disabled={isSubmitting || availableToWithdraw <= 0 || parseFloat(amount || "0") > availableToWithdraw || parseFloat(amount || "0") <= 0}
             >
               {isSubmitting ? 'Submitting...' : 'Submit Request'}
             </Button>

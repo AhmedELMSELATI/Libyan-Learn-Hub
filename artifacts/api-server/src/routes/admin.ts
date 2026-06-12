@@ -597,17 +597,27 @@ router.put("/withdrawals/:id/status", async (req, res) => {
       return;
     }
 
-    const [updated] = await db.update(withdrawalRequestsTable)
-      .set({
-        status,
-        adminNotes: adminNotes || null,
-        updatedAt: new Date(),
-      })
-      .where(eq(withdrawalRequestsTable.id, id))
-      .returning();
+    // Perform the status update + balance deduction atomically to prevent race conditions
+    let updated: any;
+    await db.transaction(async (tx) => {
+      // Re-read inside transaction to prevent double-processing
+      const [fresh] = await tx.select().from(withdrawalRequestsTable).where(eq(withdrawalRequestsTable.id, id)).limit(1);
+      if (!fresh) throw new Error("Withdrawal request not found");
 
-    if ((status === "approved" || status === "paid") && request.status === "pending") {
-      await db.transaction(async (tx) => {
+      // Only deduct balance once, when transitioning from 'pending'
+      const wasAlreadyProcessed = fresh.status !== "pending";
+
+      const [upd] = await tx.update(withdrawalRequestsTable)
+        .set({
+          status,
+          adminNotes: adminNotes || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(withdrawalRequestsTable.id, id))
+        .returning();
+      updated = upd;
+
+      if ((status === "approved" || status === "paid") && !wasAlreadyProcessed) {
         let amountToCover = parseFloat(updated.amount as string);
         
         // Deduct from teacher's overall balance
@@ -654,8 +664,8 @@ router.put("/withdrawals/:id/status", async (req, res) => {
              break;
           }
         }
-      });
-    }
+      }
+    });
 
     res.json({ success: true, withdrawal: updated });
   } catch (err: any) {

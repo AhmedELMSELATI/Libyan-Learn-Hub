@@ -241,7 +241,7 @@ router.post("/upgrade-plan", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/mock-gateway", (req, res) => {
+router.get("/mock-gateway", requireAuth, (req, res) => {
   const paymentId = req.query.paymentId;
   // This serves a small HTML page to simulate an external provider like Sadad or Stripe.
   res.send(`
@@ -277,8 +277,9 @@ router.get("/mock-gateway", (req, res) => {
   `);
 });
 
-router.get("/callback", async (req, res) => {
+router.get("/callback", requireAuth, async (req, res) => {
   try {
+    const { userId } = (req as any).user;
     const paymentId = parseInt(req.query.paymentId as string);
     const status = req.query.status as string; // 'success' or 'cancel'
 
@@ -286,6 +287,8 @@ router.get("/callback", async (req, res) => {
 
     const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
     if (!payment) { res.status(404).send("Payment not found"); return; }
+    // Security: ensure the callback is for this user's own payment
+    if (payment.userId !== userId) { res.status(403).send("Forbidden"); return; }
     if (payment.status === "completed") { res.redirect('/dashboard?success=true'); return; }
 
     if (status === "cancel") {
