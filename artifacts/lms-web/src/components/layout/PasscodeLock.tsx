@@ -4,6 +4,7 @@ import { Lock, LogOut, ShieldCheck, Delete } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/hooks/useApi';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Logo } from '@/components/ui/Logo';
 
 const MAX_DIGITS = 4;
 
@@ -107,6 +108,11 @@ export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
         transition={{ duration: 0.5 }}
         className="bg-card border border-border shadow-2xl rounded-3xl p-8 w-full max-w-sm flex flex-col items-center gap-6"
       >
+        {/* Brand Logo */}
+        <div className="mb-2">
+          <Logo size={52} linked={false} />
+        </div>
+
         {/* Icon */}
         <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isTeacher ? 'bg-secondary/15 text-secondary' : 'bg-primary/15 text-primary'}`}>
           <Lock className="w-8 h-8" />

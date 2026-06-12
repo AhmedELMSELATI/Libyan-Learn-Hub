@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { useApi } from '@/hooks/useApi';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Logo } from '@/components/ui/Logo';
 import { Blob } from '@/components/ui/Blob';
 
 const loginSchema = z.object({
@@ -530,8 +531,8 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
 
         <div className="mx-auto w-full max-w-md pt-20 sm:pt-0">
           <div className="mb-8 text-center lg:text-start">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-teal-400 flex items-center justify-center text-white shadow-lg mx-auto lg:mx-0 mb-5">
-              <span className="font-display font-bold text-2xl">L</span>
+            <div className="flex justify-center lg:justify-start mb-5">
+              <Logo size={60} linked={false} />
             </div>
             <h2 className="text-3xl font-display font-bold tracking-tight text-foreground">
               {isLogin ? 'Welcome back' : 'Create your account'}

@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { BookOpen, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
+import { Logo } from '@/components/ui/Logo';
 
 export function Footer() {
   const { t, dir } = useLanguage();
@@ -12,14 +13,7 @@ export function Footer() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-                <span className="font-display font-bold">L</span>
-              </div>
-              <span className="font-display font-bold text-xl text-foreground">
-                Edu<span className="text-primary">Libya</span>
-              </span>
-            </div>
+            <Logo size={56} />
             <p className={`text-muted-foreground text-sm leading-relaxed max-w-xs ${dir === 'rtl' ? 'text-start' : 'text-start'}`}>
               {t('footer.description')}
             </p>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut, GraduationCap, LayoutDashboard, ChevronDown, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationDropdown } from './NotificationDropdown';
+import { Logo } from '@/components/ui/Logo';
 
 export function Navbar() {
   const { t, language, setLanguage } = useLanguage();
@@ -55,14 +56,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-20">
           
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white shadow-lg shadow-primary/30 group-hover:scale-105 transition-transform duration-300">
-              <span className="font-display font-bold text-lg">L</span>
-            </div>
-            <span className="font-display font-bold text-xl tracking-tight">
-              Edu<span className="text-primary">Libya</span>
-            </span>
-          </Link>
+          <Logo size={52} />
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">

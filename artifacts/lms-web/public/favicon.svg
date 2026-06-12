@@ -1,3 +1,9 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <!-- Libyan flag colors: Black top, Green middle, Red bottom -->
+  <rect width="180" height="60" fill="#000000"/>
+  <rect y="60" width="180" height="60" fill="#239E46"/>
+  <rect y="120" width="180" height="60" fill="#E8112D"/>
+  <!-- White crescent roughly centered -->
+  <circle cx="90" cy="90" r="38" fill="white"/>
+  <circle cx="103" cy="90" r="31" fill="#239E46"/>
 </svg>
