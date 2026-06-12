@@ -18,10 +18,8 @@ export function Logo({ size = 48, linked = true, className = '' }: LogoProps) {
     <img
       src="/images/logo.png"
       alt="EduLibya – Empowering Minds, Advancing Nations"
-      height={size}
-      width={size}
-      className={`object-contain select-none ${className}`}
-      style={{ height: size, width: 'auto' }}
+      className={`object-contain select-none block ${className}`}
+      style={{ height: size, width: 'auto', maxHeight: size, flexShrink: 0 }}
       draggable={false}
     />
   );

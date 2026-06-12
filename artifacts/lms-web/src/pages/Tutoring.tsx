@@ -576,15 +576,12 @@ export default function Tutoring() {
   return (
     <PageContainer>
       {showLoginModal && (
-        <Dialog open={true}>
-          <DialogContent
-            onInteractOutside={(e) => e.preventDefault()}
-            onEscapeKeyDown={(e) => e.preventDefault()}
-            className="sm:max-w-[400px]"
-            style={{ '--close-btn-display': 'none' } as React.CSSProperties}
-          >
-            {/* Hide the built-in close button via a style override on its parent */}
-            <style>{`.tutoring-login-modal [data-radix-dialog-close] { display: none; }`}</style>
+        <Dialog open={showLoginModal} onOpenChange={(open) => {
+          if (!open) {
+            setLocation('/');
+          }
+        }}>
+          <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle className="text-center text-xl">Login Required / تسجيل الدخول مطلوب</DialogTitle>
             </DialogHeader>
@@ -597,9 +594,19 @@ export default function Tutoring() {
                 <br /><br />
                 يرجى تسجيل الدخول لطلب جلسة خاصة أو إدارة جدول التدريس الخاص بك.
               </p>
-              <div className="flex gap-3 justify-center">
-                <Button className="w-full" onClick={() => setLocation('/login')}>
+              <div className="flex flex-col gap-3">
+                <Button
+                  className="w-full"
+                  onClick={() => setLocation('/login?returnTo=%2Ftutoring')}
+                >
                   Log In / Sign Up
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setLocation('/')}
+                >
+                  Back to Home / العودة للرئيسية
                 </Button>
               </div>
             </div>
