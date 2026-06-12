@@ -181,7 +181,7 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
     
     // Enforce biometrics setup
     const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.id, reqUser.id)
+      where: eq(usersTable.id, reqUser.userId)
     });
     
     if (reqUser?.role === 'teacher' && !user?.biometricsVerified) {
@@ -204,7 +204,7 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
     if (reqUser?.role === 'teacher' && type === 'video' && (videoUrl || videoFilePath)) {
       // Simulate verification job
       await db.insert(contentVerificationJobsTable).values({
-        teacherId: reqUser.id,
+        teacherId: reqUser.userId,
         lessonId: lesson.id,
         jobType: "face",
         status: "processing"

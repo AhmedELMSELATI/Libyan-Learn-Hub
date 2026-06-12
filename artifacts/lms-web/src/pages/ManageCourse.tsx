@@ -684,7 +684,7 @@ export default function ManageCourse() {
 
       {/* Add Section Modal */}
       <Dialog open={isAddSectionOpen} onOpenChange={setIsAddSectionOpen}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[520px]" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Add New Section</DialogTitle>
           </DialogHeader>
@@ -694,7 +694,7 @@ export default function ManageCourse() {
 
       {/* Edit Section Modal */}
       <Dialog open={!!editingSection} onOpenChange={(o) => !o && setEditingSection(null)}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[520px]" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Edit Section</DialogTitle>
           </DialogHeader>
@@ -704,7 +704,7 @@ export default function ManageCourse() {
 
       {/* Add Lesson Modal */}
       <Dialog open={!!isAddLessonOpen} onOpenChange={(o) => !o && setIsAddLessonOpen(null)}>
-        <DialogContent className="sm:max-w-[580px]">
+        <DialogContent className="sm:max-w-[580px]" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Add New Lesson</DialogTitle>
           </DialogHeader>
@@ -714,7 +714,7 @@ export default function ManageCourse() {
 
       {/* Edit Lesson Modal */}
       <Dialog open={!!editingLesson} onOpenChange={(o) => !o && setEditingLesson(null)}>
-        <DialogContent className="sm:max-w-[580px]">
+        <DialogContent className="sm:max-w-[580px]" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Edit Lesson</DialogTitle>
           </DialogHeader>
@@ -724,7 +724,7 @@ export default function ManageCourse() {
 
       {/* Delete Section Confirmation */}
       <Dialog open={!!deletingSection} onOpenChange={(o) => !o && setDeletingSection(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px]" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Delete Section?</DialogTitle>
           </DialogHeader>
@@ -742,7 +742,7 @@ export default function ManageCourse() {
 
       {/* Delete Lesson Confirmation */}
       <Dialog open={!!deletingLesson} onOpenChange={(o) => !o && setDeletingLesson(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px]" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Delete Lesson?</DialogTitle>
           </DialogHeader>
