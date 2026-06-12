@@ -248,6 +248,53 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
   }
 });
 
+router.put("/:courseId/submit", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId);
+    const { userId, role } = (req as any).user;
+    
+    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
+    if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+    if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+    
+    if (course.status !== "draft" && course.status !== "rejected") {
+      res.status(400).json({ error: "Course is already submitted or published" });
+      return;
+    }
+
+    const [updated] = await db.update(coursesTable)
+      .set({ 
+        status: "pending_review", 
+        submittedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(coursesTable.id, courseId))
+      .returning();
+
+    // Notify all admins
+    const admins = await db.select().from(usersTable).where(eq(usersTable.role, "admin"));
+    const teacher = await db.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
+    
+    if (admins.length > 0) {
+      const notifications = admins.map(admin => ({
+        userId: admin.id,
+        type: "course_submitted" as any,
+        title: "New Course Review",
+        titleAr: "مراجعة دورة جديدة",
+        message: `A new course "${updated.title}" by ${teacher[0]?.fullName} is waiting for review.`,
+        messageAr: `هناك دورة جديدة "${updated.titleAr}" بواسطة ${teacher[0]?.fullName} في انتظار المراجعة.`,
+        referenceId: updated.id,
+      }));
+      await db.insert(notificationsTable).values(notifications);
+    }
+
+    res.json({ success: true, status: updated.status });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+
 router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);

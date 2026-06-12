@@ -5,6 +5,7 @@ import { usersTable } from "./users";
 import { categoriesTable } from "./categories";
 
 export const levelEnum = pgEnum("level", ["beginner", "intermediate", "advanced"]);
+export const courseStatusEnum = pgEnum("course_status", ["draft", "pending_review", "published", "rejected"]);
 
 export const coursesTable = pgTable("courses", {
   id: serial("id").primaryKey(),
@@ -19,7 +20,12 @@ export const coursesTable = pgTable("courses", {
   language: varchar("language", { length: 5 }).notNull().default("ar"),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),
   teacherId: integer("teacher_id").notNull().references(() => usersTable.id),
-  isPublished: boolean("is_published").notNull().default(false),
+  isPublished: boolean("is_published").notNull().default(false), // Kept for backwards compatibility
+  status: courseStatusEnum("status").notNull().default("draft"),
+  rejectionReason: text("rejection_reason"),
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: integer("reviewed_by").references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

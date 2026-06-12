@@ -201,9 +201,17 @@ router.post("/users/create", async (req, res) => {
 
 // ─── COURSES ─────────────────────────────────────────────────────────────────
 
-router.get("/courses", async (_req, res) => {
+router.get("/courses", async (req, res) => {
   try {
-    const courses = await db.select().from(coursesTable).orderBy(desc(coursesTable.createdAt));
+    const { status } = req.query as any;
+    let query = db.select().from(coursesTable).orderBy(desc(coursesTable.createdAt));
+    
+    // Convert old frontend filters mapping to the new status filter if needed
+    if (status === "pending_review") {
+      query = db.select().from(coursesTable).where(eq(coursesTable.status, "pending_review")).orderBy(desc(coursesTable.createdAt));
+    }
+    
+    const courses = await query;
     const result = await Promise.all(courses.map(async (c) => {
       const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, c.teacherId)).limit(1);
       const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, c.categoryId)).limit(1);
@@ -225,6 +233,9 @@ router.get("/courses", async (_req, res) => {
         enrollmentCount: Number(enroll.total),
         lessonCount: Number(lessons.total),
         revenue: parseFloat(c.price) * Number(enroll.total),
+        status: c.status,
+        rejectionReason: c.rejectionReason,
+        submittedAt: c.submittedAt,
         createdAt: c.createdAt,
       };
     }));
@@ -237,13 +248,76 @@ router.get("/courses", async (_req, res) => {
 router.put("/courses/:courseId/publish", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
-    const { isPublished } = req.body;
+    const { isPublished } = req.body; // kept for backward compatibility if true
+    const adminId = (req as any).user.userId;
+
     const [updated] = await db.update(coursesTable)
-      .set({ isPublished: !!isPublished, updatedAt: new Date() })
+      .set({ 
+        isPublished: true, 
+        status: "published",
+        reviewedAt: new Date(),
+        reviewedBy: adminId,
+        updatedAt: new Date() 
+      })
       .where(eq(coursesTable.id, courseId))
       .returning();
+      
     if (!updated) { res.status(404).json({ error: "Course not found" }); return; }
-    res.json({ success: true, isPublished: updated.isPublished });
+
+    // Notify teacher
+    await db.insert(notificationsTable).values({
+      userId: updated.teacherId,
+      type: "course_approved" as any,
+      title: "Course Approved",
+      titleAr: "تم الموافقة على الدورة",
+      message: `Your course "${updated.title}" was approved and is now live.`,
+      messageAr: `تم الموافقة على دورتك "${updated.titleAr}" وهي الآن متاحة للطلاب.`,
+      referenceId: updated.id,
+    });
+
+    res.json({ success: true, isPublished: updated.isPublished, status: updated.status });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.put("/courses/:courseId/reject", async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId);
+    const { rejectionReason } = req.body;
+    const adminId = (req as any).user.userId;
+
+    if (!rejectionReason || rejectionReason.length < 20) {
+      res.status(400).json({ error: "A rejection reason of at least 20 characters is required" });
+      return;
+    }
+
+    const [updated] = await db.update(coursesTable)
+      .set({ 
+        isPublished: false, 
+        status: "rejected",
+        rejectionReason,
+        reviewedAt: new Date(),
+        reviewedBy: adminId,
+        updatedAt: new Date() 
+      })
+      .where(eq(coursesTable.id, courseId))
+      .returning();
+      
+    if (!updated) { res.status(404).json({ error: "Course not found" }); return; }
+
+    // Notify teacher
+    await db.insert(notificationsTable).values({
+      userId: updated.teacherId,
+      type: "course_rejected" as any,
+      title: "Course Update",
+      titleAr: "تحديث حول دورتك",
+      message: `Your course "${updated.title}" requires revisions before publishing.`,
+      messageAr: `تتطلب دورتك "${updated.titleAr}" بعض التعديلات قبل النشر.`,
+      referenceId: updated.id,
+    });
+
+    res.json({ success: true, status: updated.status, rejectionReason: updated.rejectionReason });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

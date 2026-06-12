@@ -6,10 +6,12 @@ import {
   Users, BookOpen, CreditCard, CheckCircle, XCircle, Trash2,
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
-  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School, Settings, Banknote, Ticket
+  AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School, Settings, Banknote, Ticket,
+  Video, Search, PlayCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/useApi';
@@ -37,10 +39,20 @@ export default function AdminDashboard() {
     refetchInterval: 30000,
   });
 
+  const { data: pendingCourses } = useQuery({
+    queryKey: ['/api/admin/courses', 'pending_review'],
+    queryFn: () => api.get('/admin/courses?status=pending_review'),
+    enabled: !!user && user.role === 'admin',
+    refetchInterval: 60000,
+  });
+
   if (authLoading || statsLoading) {
     return <PageContainer><div className="p-20 text-center">Loading admin panel...</div></PageContainer>;
   }
   if (!user || user.role !== 'admin') return null;
+
+  const pendingCount = pendingCourses?.courses?.length || pendingCourses?.length || 0;
+
 
   return (
     <PageContainer>
@@ -99,6 +111,14 @@ export default function AdminDashboard() {
           <TabsList className="mb-8 bg-muted/60 flex-wrap h-auto gap-1">
             <TabsTrigger value="users" className="gap-2"><Users className="w-4 h-4" /> Users</TabsTrigger>
             <TabsTrigger value="teachers" className="gap-2"><Presentation className="w-4 h-4" /> Teachers</TabsTrigger>
+            <TabsTrigger value="approvals" className="gap-2 relative">
+              <CheckCircle className="w-4 h-4" /> Approvals
+              {pendingCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> Courses</TabsTrigger>
             <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
@@ -113,6 +133,7 @@ export default function AdminDashboard() {
 
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} user={user} /></TabsContent>
           <TabsContent value="teachers"><TeachersManagementTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="approvals"><PendingApprovalsTab api={api} queryClient={queryClient} toast={toast} initialPendingCourses={pendingCourses} /></TabsContent>
           <TabsContent value="courses"><CoursesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="categories"><CategoriesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="payments"><PaymentsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
@@ -2057,6 +2078,231 @@ function RedeemCardsTab({ api, queryClient, toast }: any) {
             </div>
             <Button type="submit" className="w-full">Generate</Button>
           </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── PENDING APPROVALS TAB ──────────────────────────────────────────────────────
+function PendingApprovalsTab({ api, queryClient, toast, initialPendingCourses }: any) {
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: courses, isLoading } = useQuery({
+    queryKey: ['/api/admin/courses', 'pending_review'],
+    queryFn: () => api.get('/admin/courses?status=pending_review'),
+    initialData: initialPendingCourses,
+  });
+
+  const { data: lessons, isLoading: lessonsLoading } = useQuery({
+    queryKey: ['/api/courses', selectedCourse?.id, 'lessons'],
+    queryFn: () => api.get(`/courses/${selectedCourse?.id}/lessons`),
+    enabled: !!selectedCourse,
+  });
+
+  const handleReviewClick = (course: any) => {
+    setSelectedCourse(course);
+    setRejectionReason('');
+    setIsReviewModalOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!window.confirm('Are you sure you want to approve and publish this course?')) return;
+    setIsSubmitting(true);
+    try {
+      await api.put(`/admin/courses/${selectedCourse.id}/publish`, { isPublished: true });
+      toast({ title: 'Course approved and published successfully' });
+      setIsReviewModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/courses'] });
+    } catch (err: any) {
+      toast({ title: 'Error approving course', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectionReason || rejectionReason.length < 20) {
+      toast({ title: 'Validation Error', description: 'Please provide a clear rejection reason (at least 20 chars) for the teacher.', variant: 'destructive' });
+      return;
+    }
+    if (!window.confirm('Are you sure you want to reject this course?')) return;
+    setIsSubmitting(true);
+    try {
+      await api.put(`/admin/courses/${selectedCourse.id}/reject`, { rejectionReason });
+      toast({ title: 'Course rejected successfully' });
+      setIsReviewModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/courses'] });
+    } catch (err: any) {
+      toast({ title: 'Error rejecting course', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const pendingList = courses?.courses || courses || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold font-display">Pending Course Approvals</h2>
+      </div>
+
+      <div className="bg-card rounded-2xl border border-border p-6 shadow-sm min-h-[400px]">
+        {isLoading ? (
+          <div className="text-center py-20 text-muted-foreground">Loading pending courses...</div>
+        ) : pendingList.length === 0 ? (
+          <div className="text-center py-20 bg-muted/20 rounded-xl border border-dashed border-border">
+            <CheckCircle className="w-16 h-16 text-green-500/50 mx-auto mb-4" />
+            <h3 className="text-xl font-bold">All Caught Up!</h3>
+            <p className="text-muted-foreground mt-2">There are no courses waiting for review right now.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {pendingList.map((course: any) => (
+              <div key={course.id} className="bg-background rounded-xl border border-border overflow-hidden flex flex-col shadow-sm">
+                <div className="aspect-video bg-muted relative">
+                  {course.thumbnailUrl ? (
+                    <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                      <Video className="w-10 h-10 text-primary/30" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 start-2">
+                    <Badge className="bg-blue-500 hover:bg-blue-600 shadow-md">Under Review</Badge>
+                  </div>
+                </div>
+                <div className="p-4 flex flex-col flex-1">
+                  <h3 className="font-bold line-clamp-1">{course.title}</h3>
+                  <p className="text-xs text-muted-foreground mb-3">{course.titleAr}</p>
+                  
+                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Presentation className="w-3 h-3 text-primary" />
+                    </div>
+                    <span className="truncate">{course.teacherName}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-center mb-4">
+                    <div className="bg-muted/50 p-2 rounded">
+                      <div className="font-bold">{course.lessonCount || 0}</div>
+                      <div className="text-muted-foreground">Lessons</div>
+                    </div>
+                    <div className="bg-muted/50 p-2 rounded">
+                      <div className="font-bold">{course.price === 0 ? 'Free' : course.price}</div>
+                      <div className="text-muted-foreground">Price</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto">
+                    <Button className="w-full gap-2" onClick={() => handleReviewClick(course)}>
+                      <Search className="w-4 h-4" /> Review Course
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isReviewModalOpen} onOpenChange={setIsReviewModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Course Review</DialogTitle>
+          </DialogHeader>
+          
+          {selectedCourse && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+              <div className="md:col-span-2 space-y-6">
+                <div>
+                  <h3 className="font-bold text-lg mb-1">{selectedCourse.title}</h3>
+                  <p className="text-muted-foreground mb-4">{selectedCourse.titleAr}</p>
+                  
+                  <div className="flex items-center gap-4 text-sm border-y border-border py-3">
+                    <div><span className="text-muted-foreground">Teacher:</span> <span className="font-medium">{selectedCourse.teacherName}</span></div>
+                    <div><span className="text-muted-foreground">Price:</span> <span className="font-medium text-primary">{selectedCourse.price === 0 ? 'Free' : selectedCourse.price + ' LYD'}</span></div>
+                    <div><span className="text-muted-foreground">Category:</span> <span className="font-medium">{selectedCourse.categoryName}</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-bold mb-3 flex items-center gap-2"><Video className="w-4 h-4" /> Course Content ({lessons?.length || 0} lessons)</h4>
+                  {lessonsLoading ? (
+                    <div className="text-muted-foreground text-sm">Loading lessons...</div>
+                  ) : lessons?.length === 0 ? (
+                    <div className="text-destructive text-sm bg-destructive/10 p-3 rounded">Warning: This course has no lessons!</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {lessons?.map((lesson: any, i: number) => (
+                        <div key={lesson.id} className="bg-muted/30 border border-border p-3 rounded-lg flex items-start gap-3">
+                          <div className="bg-primary/10 text-primary w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs font-bold">{i + 1}</div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{lesson.title}</div>
+                            {lesson.videoUrl ? (
+                              <a href={lesson.videoUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                                <PlayCircle className="w-3 h-3" /> View Video Content
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground mt-1 block">No video attached</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded shrink-0">{lesson.duration || 0}m</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-muted/20 p-5 rounded-xl border border-border space-y-5 h-fit sticky top-0">
+                <div>
+                  <h4 className="font-bold mb-2 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-primary" /> Admin Checklist</h4>
+                  <ul className="text-sm space-y-2 text-muted-foreground">
+                    <li className="flex gap-2"><input type="checkbox" className="mt-1" /> Is audio clear and understandable?</li>
+                    <li className="flex gap-2"><input type="checkbox" className="mt-1" /> Is the video quality acceptable?</li>
+                    <li className="flex gap-2"><input type="checkbox" className="mt-1" /> Does the course meet Islamic guidelines?</li>
+                    <li className="flex gap-2"><input type="checkbox" className="mt-1" /> Are there any prohibited elements?</li>
+                    <li className="flex gap-2"><input type="checkbox" className="mt-1" /> Is the pricing fair for the content?</li>
+                  </ul>
+                </div>
+
+                <hr className="border-border" />
+
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white" 
+                    onClick={handleApprove}
+                    disabled={isSubmitting || !lessons || lessons.length === 0}
+                  >
+                    <CheckCircle className="w-4 h-4" /> Approve & Publish
+                  </Button>
+                  
+                  <div className="pt-2">
+                    <label className="text-sm font-bold mb-1 block text-destructive">Rejection Reason</label>
+                    <Textarea 
+                      placeholder="Explain what needs to be fixed (min 20 characters)..." 
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      className="text-sm min-h-[100px] mb-2"
+                    />
+                    <Button 
+                      variant="outline" 
+                      className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" 
+                      onClick={handleReject}
+                      disabled={isSubmitting}
+                    >
+                      <XCircle className="w-4 h-4" /> Reject Course
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

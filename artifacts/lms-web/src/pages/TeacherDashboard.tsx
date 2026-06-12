@@ -83,6 +83,17 @@ export default function TeacherDashboard() {
     }
   };
 
+  const handleSubmitForReview = async (courseId: number) => {
+    if (!window.confirm('Submit this course for review? You will not be able to edit it while it is under review.')) return;
+    try {
+      await api.put(`/courses/${courseId}/submit`, {});
+      toast({ title: 'Course submitted for review successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/courses'] });
+    } catch (err: any) {
+      toast({ title: 'Error submitting course', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const handleCancelSession = async () => {
     if (!sessionToCancel) return;
     setIsCancelling(true);
@@ -313,17 +324,32 @@ export default function TeacherDashboard() {
                         </div>
                       )}
                       <div className="absolute top-3 start-3 flex gap-2">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${course.isPublished ? 'bg-green-500 text-white' : 'bg-yellow-400 text-yellow-900'}`}>
-                          {course.isPublished ? '✓ Published' : '⏳ Pending Approval'}
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold shadow-sm ${
+                          course.status === 'published' ? 'bg-green-500 text-white' : 
+                          course.status === 'pending_review' ? 'bg-blue-500 text-white' : 
+                          course.status === 'rejected' ? 'bg-red-500 text-white' : 
+                          'bg-yellow-400 text-yellow-900'
+                        }`}>
+                          {course.status === 'published' ? '✓ Published' : 
+                           course.status === 'pending_review' ? '⏳ Under Review' : 
+                           course.status === 'rejected' ? '✗ Rejected' : 
+                           '📝 Draft'}
                         </span>
                         {parseFloat(course.price) === 0 && (
-                          <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-blue-500 text-white">Free</span>
+                          <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-primary/20 text-primary">Free</span>
                         )}
                       </div>
                     </div>
                     <div className="p-5 flex flex-col flex-1">
                       <h3 className="font-bold text-base mb-1 line-clamp-2">{course.title}</h3>
                       <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{course.titleAr}</p>
+                      
+                      {course.status === 'rejected' && course.rejectionReason && (
+                        <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-2 rounded mb-3">
+                          <span className="font-bold">Reason:</span> {course.rejectionReason}
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-3 gap-2 mb-4 text-center">
                         <div className="bg-muted/50 rounded-lg p-2">
                           <div className="text-sm font-bold">{course.lessonCount}</div>
@@ -340,6 +366,15 @@ export default function TeacherDashboard() {
                       </div>
 
                       <div className="mt-auto space-y-2">
+                        {(course.status === 'draft' || course.status === 'rejected') && course.lessonCount > 0 && (
+                          <Button 
+                            className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white" 
+                            size="sm"
+                            onClick={() => handleSubmitForReview(course.id)}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Submit for Review
+                          </Button>
+                        )}
                         <Link href={`/teacher/courses/${course.id}/lessons`}>
                           <Button className="w-full gap-2 bg-primary hover:bg-primary/90" size="sm">
                             <Video className="w-3.5 h-3.5" /> Manage Lessons
