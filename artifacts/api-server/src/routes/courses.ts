@@ -13,6 +13,7 @@ import {
 import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
+import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 
 const router = Router();
 
@@ -310,6 +311,16 @@ router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async 
       return;
     }
 
+    // Delete associated files from Cloudinary
+    if (course.thumbnailUrl) {
+      await deleteFromCloudinaryByUrl(course.thumbnailUrl);
+    }
+    const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId));
+    for (const lesson of lessons) {
+      if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
+    }
+
     await db.delete(coursesTable).where(eq(coursesTable.id, courseId));
     res.json({ success: true, message: "Course deleted" });
   } catch (err: any) {
@@ -426,6 +437,14 @@ router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "
 router.delete("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const lessonId = parseParam(req.params.lessonId);
+    
+    // Fetch lesson first to get the URLs
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (lesson) {
+      if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
+    }
+
     await db.delete(lessonsTable).where(eq(lessonsTable.id, lessonId));
     res.json({ success: true, message: "Lesson deleted" });
   } catch (err: any) {

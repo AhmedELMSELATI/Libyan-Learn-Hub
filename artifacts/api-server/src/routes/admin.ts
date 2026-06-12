@@ -9,6 +9,7 @@ import { eq, count, sql, sum, desc, and, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 
 const router = Router();
 
@@ -326,6 +327,19 @@ router.put("/courses/:courseId/reject", async (req, res) => {
 router.delete("/courses/:courseId", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
+    
+    // Fetch course and lessons to delete from Cloudinary
+    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
+    if (course && course.thumbnailUrl) {
+      await deleteFromCloudinaryByUrl(course.thumbnailUrl);
+    }
+    
+    const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId));
+    for (const lesson of lessons) {
+      if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
+    }
+
     await db.delete(coursesTable).where(eq(coursesTable.id, courseId));
     res.json({ success: true });
   } catch (err: any) {
