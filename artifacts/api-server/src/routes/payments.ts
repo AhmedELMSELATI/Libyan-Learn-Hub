@@ -12,7 +12,7 @@ import {
   withdrawalRequestsTable,
   tutoringRequestsTable,
 } from "@workspace/db";
-import { eq, and, sum, count, desc } from "drizzle-orm";
+import { eq, and, or, sum, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
@@ -487,7 +487,11 @@ router.get("/earnings", requireAuth, async (req, res) => {
     const available = balance - pendingWithdrawalsAmount;
     
     const pending = earnings.filter(e => e.status === "pending").reduce((s, e) => s + parseFloat(e.netAmount), 0);
-    const paid = earnings.filter(e => e.status === "paid").reduce((s, e) => s + parseFloat(e.netAmount), 0);
+    
+    // Total withdrawn is the sum of all approved/paid withdrawal requests
+    const approvedRequests = await db.select().from(withdrawalRequestsTable)
+      .where(and(eq(withdrawalRequestsTable.teacherId, userId), or(eq(withdrawalRequestsTable.status, "approved"), eq(withdrawalRequestsTable.status, "paid"))));
+    const paid = approvedRequests.reduce((s, r) => s + parseFloat(r.amount as string), 0);
     
     const entries = await Promise.all(earnings.map(async (e) => {
       let itemName = "–";
