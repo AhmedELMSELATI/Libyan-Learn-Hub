@@ -229,6 +229,8 @@ export default function ManageCourse() {
       try {
         const result = await uploadFileToServer(file, 'video', (p) => setUploadProgressPercent(p));
         const title = file.name.replace(/\.[^/.]+$/, "");
+        setUploadProgressPercent(100);
+        setUploadProgress(`Creating lesson...`);
         await api.post(`/courses/${courseId}/sections/${sectionId}/lessons`, {
           title: title,
           titleAr: title,
@@ -240,13 +242,22 @@ export default function ManageCourse() {
           isFree: false,
           type: 'video'
         });
-        toast({ title: `Added ${title}` });
+        toast({ title: `✓ Added "${title}"` });
       } catch (err: any) {
         toast({ title: `Failed to upload ${file.name}`, description: err.message, variant: 'destructive' });
       }
     }
+    // Brief delay at 100% so the teacher can see it finished
+    await new Promise(r => setTimeout(r, 800));
     setUploading(false);
     setUploadProgress('');
+    setUploadProgressPercent(0);
+    // Only expand the section if it isn't already open
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.add(sectionId);
+      return next;
+    });
     loadData();
   };
 
@@ -288,12 +299,15 @@ export default function ManageCourse() {
       setEditingLesson(null);
       setVideoFile(null);
       setDocumentFile(null);
+      // Brief delay so teacher sees 100%
+      await new Promise(r => setTimeout(r, 800));
       loadData();
     } catch (err: any) {
       toast({ title: 'Error updating lesson', description: err.message, variant: 'destructive' });
     } finally {
       setUploading(false);
       setUploadProgress('');
+      setUploadProgressPercent(0);
     }
   };
 
@@ -667,12 +681,12 @@ export default function ManageCourse() {
                     }
                   }}
                   onDragLeave={e => {
-                    // Only clear if the overlay hasn't taken over
-                    if (draggedSectionId !== section.id) {
-                      e.preventDefault();
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        setDraggedSectionId(null);
-                      }
+                    e.preventDefault();
+                    // If the overlay is active, let the overlay handle its own dragLeave
+                    // Only clear here if we truly left this card's DOM boundary
+                    if (draggedSectionId === section.id) return;
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDraggedSectionId(null);
                     }
                   }}
                   onDrop={e => {
@@ -682,7 +696,6 @@ export default function ManageCourse() {
                     setDraggedSectionId(null);
                     if (e.dataTransfer.files?.length) {
                       handleQuickUpload(section.id, Array.from(e.dataTransfer.files));
-                      if (!expanded.has(section.id)) toggleExpand(section.id);
                     }
                   }}
                 >
@@ -704,7 +717,6 @@ export default function ManageCourse() {
                         setDraggedSectionId(null);
                         if (e.dataTransfer.files?.length) {
                           handleQuickUpload(section.id, Array.from(e.dataTransfer.files));
-                          if (!expanded.has(section.id)) toggleExpand(section.id);
                         }
                       }}
                     >
