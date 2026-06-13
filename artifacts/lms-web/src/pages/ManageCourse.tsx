@@ -42,6 +42,7 @@ export default function ManageCourse() {
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [uploadProgressPercent, setUploadProgressPercent] = useState<number>(0);
   const [draggedSectionId, setDraggedSectionId] = useState<number | null>(null);
 
   // Sync upload state to media activity so the inactivity timer never fires during a long upload
@@ -170,20 +171,45 @@ export default function ManageCourse() {
     }
   });
 
-  const uploadFileToServer = async (file: File, type: 'video' | 'document'): Promise<any> => {
-    const formData = new FormData();
-    formData.append(type, file);
-    const token = localStorage.getItem('lms_token');
-    const res = await fetch(`/api/upload/${type}`, {
-      method: 'POST',
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: formData,
+  const uploadFileToServer = (file: File, type: 'video' | 'document', onProgress?: (percent: number) => void): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append(type, file);
+      const token = localStorage.getItem('lms_token');
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/upload/${type}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      
+      if (onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            onProgress(percent);
+          }
+        };
+      }
+      
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (err) {
+            resolve({});
+          }
+        } else {
+          try {
+            const err = JSON.parse(xhr.responseText);
+            reject(new Error(err.error || 'Upload failed'));
+          } catch (err) {
+            reject(new Error('Upload failed'));
+          }
+        }
+      };
+      
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Upload failed' }));
-      throw new Error(err.error || 'Upload failed');
-    }
-    return res.json();
   };
 
   const handleQuickUpload = async (sectionId: number, files: File[]) => {
@@ -198,9 +224,10 @@ export default function ManageCourse() {
 
     for (const file of videoFiles) {
       setUploading(true);
+      setUploadProgressPercent(0);
       setUploadProgress(`Uploading ${file.name}...`);
       try {
-        const result = await uploadFileToServer(file, 'video');
+        const result = await uploadFileToServer(file, 'video', (p) => setUploadProgressPercent(p));
         const title = file.name.replace(/\.[^/.]+$/, "");
         await api.post(`/courses/${courseId}/sections/${sectionId}/lessons`, {
           title: title,
@@ -233,18 +260,21 @@ export default function ManageCourse() {
       let duration = parseInt(data.duration) || 0;
 
       if (videoFile) {
+        setUploadProgressPercent(0);
         setUploadProgress('Uploading video...');
-        const result = await uploadFileToServer(videoFile, 'video');
+        const result = await uploadFileToServer(videoFile, 'video', (p) => setUploadProgressPercent(p));
         videoFilePath = result.url;
         if (result.duration) duration = result.duration;
       }
       if (documentFile) {
+        setUploadProgressPercent(0);
         setUploadProgress('Uploading document...');
-        const result = await uploadFileToServer(documentFile, 'document');
+        const result = await uploadFileToServer(documentFile, 'document', (p) => setUploadProgressPercent(p));
         documentFilePath = result.url;
         documentFileName = result.fileName;
       }
 
+      setUploadProgressPercent(100);
       setUploadProgress('Saving...');
       await api.put(`/courses/${courseId}/lessons/${editingLesson.id}`, {
         ...data,
@@ -537,6 +567,33 @@ export default function ManageCourse() {
 
   return (
     <PageContainer>
+      {/* Global Upload Progress Overlay */}
+      {uploading && (
+        <div className="fixed bottom-6 right-6 w-80 bg-card rounded-2xl shadow-2xl border border-border overflow-hidden z-50 animate-in slide-in-from-bottom-5">
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                {uploadProgressPercent < 100 ? (
+                  <Upload className="w-4 h-4 text-primary animate-bounce" />
+                ) : (
+                  <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate">{uploadProgress}</p>
+                <p className="text-xs text-muted-foreground">{uploadProgressPercent}%</p>
+              </div>
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-primary/5 py-8 border-b border-primary/10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
