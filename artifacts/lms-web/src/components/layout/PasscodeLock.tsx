@@ -23,12 +23,6 @@ export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [shake, setShake] = useState(false);
   const [attempts, setAttempts] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Focus the hidden input to receive keyboard entry
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   const handleVerify = useCallback(async (code: string) => {
     if (isVerifying) return;
@@ -77,10 +71,15 @@ export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
     setDigits(prev => prev.slice(0, -1));
   };
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key >= '0' && e.key <= '9') addDigit(e.key);
     else if (e.key === 'Backspace') removeDigit();
   }, [addDigit]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const dialPad = [
     ['1', '2', '3'],
@@ -146,15 +145,6 @@ export function PasscodeLock({ onUnlocked }: PasscodeLockProps) {
           ))}
         </div>
 
-        {/* Hidden keyboard input */}
-        <input
-          ref={inputRef}
-          type="tel"
-          inputMode="numeric"
-          className="sr-only"
-          onKeyDown={handleKeyDown}
-          readOnly
-        />
 
         {/* Error */}
         <AnimatePresence>
