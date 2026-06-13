@@ -56,7 +56,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-20">
           
           {/* Logo */}
-          <Logo size={52} />
+          <Logo size={75} />
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">

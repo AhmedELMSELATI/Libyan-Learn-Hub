@@ -33,7 +33,6 @@ export default function ManageCourse() {
   // Modals
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<any>(null);
-  const [isAddLessonOpen, setIsAddLessonOpen] = useState<number | null>(null); // sectionId
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [deletingSection, setDeletingSection] = useState<any>(null);
   const [deletingLesson, setDeletingLesson] = useState<any>(null);
@@ -161,52 +160,41 @@ export default function ManageCourse() {
     return res.json();
   };
 
-  const handleAddLesson = async (data: any) => {
-    if (!isAddLessonOpen) return;
-    const sectionId = isAddLessonOpen;
-    const sectionLessons = sections.find(s => s.id === sectionId)?.lessons || [];
-    try {
-      setUploading(true);
-      let videoFilePath = data.videoFilePath || '';
-      let documentFilePath = data.documentFilePath || '';
-      let documentFileName = data.documentFileName || '';
-      let duration = parseInt(data.duration) || 0;
-
-      if (videoFile) {
-        setUploadProgress('Uploading video...');
-        const result = await uploadFileToServer(videoFile, 'video');
-        videoFilePath = result.url;
-        if (result.duration) duration = result.duration;
-      }
-      if (documentFile) {
-        setUploadProgress('Uploading document...');
-        const result = await uploadFileToServer(documentFile, 'document');
-        documentFilePath = result.url;
-        documentFileName = result.fileName;
-      }
-
-      setUploadProgress('Saving...');
-      await api.post(`/courses/${courseId}/sections/${sectionId}/lessons`, {
-        ...data,
-        videoFilePath,
-        documentFilePath,
-        documentFileName,
-        duration,
-        order: sectionLessons.length,
-        isFree: data.isFree === true || data.isFree === 'true',
-      });
-      toast({ title: 'Lesson added!' });
-      setIsAddLessonOpen(null);
-      lessonForm.reset();
-      setVideoFile(null);
-      setDocumentFile(null);
-      loadData();
-    } catch (err: any) {
-      toast({ title: 'Error adding lesson', description: err.message, variant: 'destructive' });
-    } finally {
-      setUploading(false);
-      setUploadProgress('');
+  const handleQuickUpload = async (sectionId: number, files: File[]) => {
+    const videoFiles = files.filter(f => f.type.startsWith('video/'));
+    if (!videoFiles.length) {
+      toast({ title: 'Only video files are accepted', variant: 'destructive' });
+      return;
     }
+
+    const sectionLessons = sections.find(s => s.id === sectionId)?.lessons || [];
+    let startOrder = sectionLessons.length;
+
+    for (const file of videoFiles) {
+      setUploading(true);
+      setUploadProgress(`Uploading ${file.name}...`);
+      try {
+        const result = await uploadFileToServer(file, 'video');
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        await api.post(`/courses/${courseId}/sections/${sectionId}/lessons`, {
+          title: title,
+          titleAr: title,
+          videoFilePath: result.url,
+          documentFilePath: '',
+          documentFileName: '',
+          duration: result.duration || 0,
+          order: startOrder++,
+          isFree: false,
+          type: 'video'
+        });
+        toast({ title: `Added ${title}` });
+      } catch (err: any) {
+        toast({ title: `Failed to upload ${file.name}`, description: err.message, variant: 'destructive' });
+      }
+    }
+    setUploading(false);
+    setUploadProgress('');
+    loadData();
   };
 
   const handleUpdateLesson = async (data: any) => {
@@ -660,19 +648,36 @@ export default function ManageCourse() {
                           ))}
                         </div>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2 mt-4 w-full border-dashed"
-                        onClick={() => {
-                          setIsAddLessonOpen(section.id);
-                          lessonForm.reset({ title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '', content: '', contentAr: '', duration: 0, isFree: false, type: 'video', bookName: '', bookNameAr: '', schoolYear: '', chapter: '', pageNumber: '', subjectTags: '' });
-                        setVideoFile(null);
-                        setDocumentFile(null);
-                        }}
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add Lesson to "{section.title}"
-                      </Button>
+                      <div className="mt-4">
+                        <input
+                          id={`upload-${section.id}`}
+                          type="file"
+                          multiple
+                          accept="video/mp4,video/webm,video/quicktime,video/*"
+                          className="hidden"
+                          onChange={e => {
+                            if (e.target.files?.length) {
+                              handleQuickUpload(section.id, Array.from(e.target.files));
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                        <label
+                          htmlFor={`upload-${section.id}`}
+                          className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl cursor-pointer transition-colors"
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={e => {
+                            e.preventDefault();
+                            if (e.dataTransfer.files?.length) {
+                              handleQuickUpload(section.id, Array.from(e.dataTransfer.files));
+                            }
+                          }}
+                        >
+                          <Upload className="w-5 h-5 text-primary opacity-60" />
+                          <span className="text-sm font-medium text-foreground">Drag videos here or click to upload</span>
+                          <span className="text-xs text-muted-foreground">Lessons will be auto-created for each video</span>
+                        </label>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -702,15 +707,7 @@ export default function ManageCourse() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Lesson Modal */}
-      <Dialog open={!!isAddLessonOpen} onOpenChange={(o) => !o && setIsAddLessonOpen(null)}>
-        <DialogContent className="sm:max-w-[580px]" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-display">Add New Lesson</DialogTitle>
-          </DialogHeader>
-          <LessonFormUI onSubmit={handleAddLesson} submitLabel="Add Lesson" />
-        </DialogContent>
-      </Dialog>
+
 
       {/* Edit Lesson Modal */}
       <Dialog open={!!editingLesson} onOpenChange={(o) => !o && setEditingLesson(null)}>
