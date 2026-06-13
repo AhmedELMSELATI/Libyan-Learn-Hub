@@ -42,6 +42,7 @@ export default function ManageCourse() {
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [draggedSectionId, setDraggedSectionId] = useState<number | null>(null);
 
   // Sync upload state to media activity so the inactivity timer never fires during a long upload
   useEffect(() => {
@@ -573,7 +574,43 @@ export default function ManageCourse() {
               const sectionLessons = section.lessons || [];
 
               return (
-                <div key={section.id} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div 
+                  key={section.id} 
+                  className={`bg-card rounded-2xl border ${draggedSectionId === section.id ? 'border-primary ring-4 ring-primary/20' : 'border-border'} shadow-sm overflow-hidden relative transition-all duration-200`}
+                  onDragOver={e => e.preventDefault()}
+                  onDragEnter={e => {
+                    e.preventDefault();
+                    if (e.dataTransfer.types.includes('Files')) {
+                      setDraggedSectionId(section.id);
+                    }
+                  }}
+                  onDragLeave={e => {
+                    e.preventDefault();
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDraggedSectionId(null);
+                    }
+                  }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDraggedSectionId(null);
+                    if (e.dataTransfer.files?.length) {
+                      handleQuickUpload(section.id, Array.from(e.dataTransfer.files));
+                      if (!expanded.has(section.id)) toggleExpand(section.id);
+                    }
+                  }}
+                >
+                  {/* WhatsApp-style full-section drag overlay */}
+                  {draggedSectionId === section.id && (
+                    <div className="absolute inset-0 z-50 bg-primary/95 backdrop-blur-sm flex flex-col items-center justify-center text-primary-foreground animate-in fade-in duration-200 pointer-events-none">
+                      <div className="p-6 bg-primary-foreground/10 rounded-full mb-4">
+                        <Upload className="w-16 h-16 text-primary-foreground animate-bounce" />
+                      </div>
+                      <h3 className="text-3xl font-bold font-display">Drop to Upload</h3>
+                      <p className="text-primary-foreground/80 mt-2 text-lg">Lessons will be auto-created in "{section.title}"</p>
+                    </div>
+                  )}
+
                   {/* Section Header */}
                   <div
                     className="flex items-center gap-3 p-5 cursor-pointer hover:bg-muted/30 transition-colors"
