@@ -54,6 +54,31 @@ export default function ManageCourse() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    const handleGlobalDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setDraggedSectionId(null);
+    };
+    const handleGlobalDragLeave = (e: DragEvent) => {
+      if (!e.relatedTarget) {
+        setDraggedSectionId(null);
+      }
+    };
+
+    window.addEventListener('dragover', handleGlobalDragOver);
+    window.addEventListener('drop', handleGlobalDrop);
+    window.addEventListener('dragleave', handleGlobalDragLeave);
+
+    return () => {
+      window.removeEventListener('dragover', handleGlobalDragOver);
+      window.removeEventListener('drop', handleGlobalDrop);
+      window.removeEventListener('dragleave', handleGlobalDragLeave);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!authLoading && !isAuthenticated) { setLocation('/login'); return; }
     if (user && user.role !== 'teacher') { setLocation('/dashboard'); return; }
   }, [isAuthenticated, authLoading, user]);
@@ -585,12 +610,16 @@ export default function ManageCourse() {
                     }
                   }}
                   onDragLeave={e => {
-                    e.preventDefault();
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                      setDraggedSectionId(null);
+                    // Only clear if the overlay hasn't taken over
+                    if (draggedSectionId !== section.id) {
+                      e.preventDefault();
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setDraggedSectionId(null);
+                      }
                     }
                   }}
                   onDrop={e => {
+                    // Fallback in case overlay is missed
                     e.preventDefault();
                     e.stopPropagation();
                     setDraggedSectionId(null);
@@ -602,12 +631,31 @@ export default function ManageCourse() {
                 >
                   {/* WhatsApp-style full-section drag overlay */}
                   {draggedSectionId === section.id && (
-                    <div className="absolute inset-0 z-50 bg-primary/95 backdrop-blur-sm flex flex-col items-center justify-center text-primary-foreground animate-in fade-in duration-200 pointer-events-none">
-                      <div className="p-6 bg-primary-foreground/10 rounded-full mb-4">
-                        <Upload className="w-16 h-16 text-primary-foreground animate-bounce" />
+                    <div 
+                      className="absolute inset-0 z-50 bg-primary/95 backdrop-blur-sm flex flex-col items-center justify-center text-primary-foreground animate-in fade-in duration-200"
+                      onDragEnter={e => e.preventDefault()}
+                      onDragOver={e => e.preventDefault()}
+                      onDragLeave={e => {
+                        e.preventDefault();
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                          setDraggedSectionId(null);
+                        }
+                      }}
+                      onDrop={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDraggedSectionId(null);
+                        if (e.dataTransfer.files?.length) {
+                          handleQuickUpload(section.id, Array.from(e.dataTransfer.files));
+                          if (!expanded.has(section.id)) toggleExpand(section.id);
+                        }
+                      }}
+                    >
+                      <div className="p-6 bg-primary-foreground/10 rounded-full mb-4 pointer-events-none">
+                        <Upload className="w-16 h-16 text-primary-foreground animate-bounce pointer-events-none" />
                       </div>
-                      <h3 className="text-3xl font-bold font-display">Drop to Upload</h3>
-                      <p className="text-primary-foreground/80 mt-2 text-lg">Lessons will be auto-created in "{section.title}"</p>
+                      <h3 className="text-3xl font-bold font-display pointer-events-none">Drop to Upload</h3>
+                      <p className="text-primary-foreground/80 mt-2 text-lg pointer-events-none">Lessons will be auto-created in "{section.title}"</p>
                     </div>
                   )}
 
