@@ -161,7 +161,7 @@ export default function ManageCourse() {
   };
 
   const handleQuickUpload = async (sectionId: number, files: File[]) => {
-    const videoFiles = files.filter(f => f.type.startsWith('video/'));
+    const videoFiles = files.filter(f => f.type.startsWith('video/') || f.name.match(/\.(mp4|webm|mov|mkv|avi|wmv)$/i));
     if (!videoFiles.length) {
       toast({ title: 'Only video files are accepted', variant: 'destructive' });
       return;
@@ -664,18 +664,21 @@ export default function ManageCourse() {
                         />
                         <label
                           htmlFor={`upload-${section.id}`}
-                          className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl cursor-pointer transition-colors"
+                          className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl cursor-pointer transition-colors relative"
+                          onDragEnter={e => e.preventDefault()}
                           onDragOver={e => e.preventDefault()}
                           onDrop={e => {
                             e.preventDefault();
+                            e.stopPropagation();
                             if (e.dataTransfer.files?.length) {
                               handleQuickUpload(section.id, Array.from(e.dataTransfer.files));
                             }
                           }}
                         >
-                          <Upload className="w-5 h-5 text-primary opacity-60" />
-                          <span className="text-sm font-medium text-foreground">Drag videos here or click to upload</span>
-                          <span className="text-xs text-muted-foreground">Lessons will be auto-created for each video</span>
+                          {uploading && <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10" />}
+                          <Upload className="w-5 h-5 text-primary opacity-60 pointer-events-none" />
+                          <span className="text-sm font-medium text-foreground pointer-events-none">Drag videos here or click to upload</span>
+                          <span className="text-xs text-muted-foreground pointer-events-none">Lessons will be auto-created for each video</span>
                         </label>
                       </div>
                     </div>
