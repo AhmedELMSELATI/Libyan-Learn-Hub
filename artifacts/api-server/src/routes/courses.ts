@@ -9,6 +9,7 @@ import {
   reviewsTable,
   progressTable,
   notificationsTable,
+  sectionsTable,
 } from "@workspace/db";
 import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -104,6 +105,100 @@ router.get("/", async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Bulk creation: course + default section + lessons in one shot ─────────────
+router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<any> => {
+  try {
+    const { userId } = (req as any).user;
+
+    // Validate biometrics
+    const [teacherUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!teacherUser) return res.status(404).json({ error: "User not found" });
+    if (teacherUser.role === "teacher" && !teacherUser.biometricsVerified) {
+      return res.status(403).json({ error: "Biometric identity verification is required before creating a course." });
+    }
+
+    const {
+      title,
+      titleAr,
+      description,
+      descriptionAr,
+      price,
+      categoryId,
+      level = "beginner",
+      language = "ar",
+      lessons, // array of { title, titleAr, videoFilePath, duration, isFree }
+    } = req.body;
+
+    if (!title || !categoryId) {
+      return res.status(400).json({ error: "title and categoryId are required" });
+    }
+    if (!Array.isArray(lessons) || lessons.length === 0) {
+      return res.status(400).json({ error: "At least one lesson is required" });
+    }
+
+    // 1. Create the course
+    const [course] = await db.insert(coursesTable).values({
+      title,
+      titleAr: titleAr || title,
+      description: description || title,
+      descriptionAr: descriptionAr || titleAr || title,
+      price: (price ?? 0).toString(),
+      level,
+      language,
+      categoryId: parseInt(categoryId),
+      teacherId: userId,
+      isPublished: false,
+      status: "pending_review",
+      submittedAt: new Date(),
+    }).returning();
+
+    // 2. Create a default section
+    const [section] = await db.insert(sectionsTable).values({
+      courseId: course.id,
+      title: "General",
+      titleAr: "عام",
+      order: 0,
+    }).returning();
+
+    // 3. Bulk-insert lessons
+    const lessonRows = lessons.map((l: any, idx: number) => ({
+      courseId: course.id,
+      sectionId: section.id,
+      title: l.title || `Lesson ${idx + 1}`,
+      titleAr: l.titleAr || l.title || `درس ${idx + 1}`,
+      videoFilePath: l.videoFilePath || null,
+      videoUrl: l.videoUrl || null,
+      duration: parseInt(l.duration) || 0,
+      isFree: l.isFree === true || l.isFree === "true",
+      type: "video" as const,
+      order: idx,
+    }));
+    const insertedLessons = await db.insert(lessonsTable).values(lessonRows).returning();
+
+    // 4. Notify all admins about the new pending course
+    const admins = await db.select().from(usersTable).where(eq(usersTable.role, "admin"));
+    if (admins.length > 0) {
+      await db.insert(notificationsTable).values(admins.map((admin) => ({
+        userId: admin.id,
+        type: "course_submitted" as any,
+        title: "New Course Pending Review",
+        titleAr: "دورة جديدة تنتظر المراجعة",
+        message: `A new course "${course.title}" by ${teacherUser.fullName} has been submitted for review.`,
+        messageAr: `تم إرسال دورة جديدة "${course.titleAr}" بواسطة ${teacherUser.fullName} للمراجعة.`,
+        referenceId: course.id,
+      })));
+    }
+
+    res.status(201).json({
+      course: { id: course.id, title: course.title, status: course.status },
+      section: { id: section.id },
+      lessons: insertedLessons.map(l => ({ id: l.id, title: l.title, order: l.order })),
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: "Failed to create course", message: err.message });
   }
 });
 

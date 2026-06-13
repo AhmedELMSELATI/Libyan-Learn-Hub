@@ -1,110 +1,480 @@
-import React from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGetCategories } from '@workspace/api-client-react';
 import { useLocation, Link } from 'wouter';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import {
+  Upload, Video, CheckCircle2, XCircle, Loader2,
+  ArrowLeft, GripVertical, Pencil, AlertTriangle,
+  ChevronRight, BookOpen, Sparkles
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
-import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { useApi } from '@/hooks/useApi';
 
+// ── Types ────────────────────────────────────────────────────────────────────
+type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
+
+interface LessonDraft {
+  id: string;          // local UUID
+  file: File;
+  title: string;
+  status: UploadStatus;
+  progress: number;    // 0-100
+  videoFilePath: string; // cloudinary URL once uploaded
+  duration: number;
+  isFree: boolean;
+  error?: string;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function uid() {
+  return Math.random().toString(36).slice(2);
+}
+
+function filenameToTitle(filename: string): string {
+  return filename
+    .replace(/\.[^/.]+$/, '')       // strip extension
+    .replace(/[-_]/g, ' ')          // hyphens/underscores → spaces
+    .replace(/\b\w/g, c => c.toUpperCase()); // title case
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDuration(secs: number): string {
+  if (!secs) return '';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function CreateCourse() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const api = useApi();
   const { data: categories } = useGetCategories();
 
-  React.useEffect(() => {
+  // Redirect if not a teacher
+  useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
     if (user && user.role !== 'teacher') setLocation('/dashboard');
-  }, [isAuthenticated, authLoading, user, setLocation]);
+  }, [isAuthenticated, authLoading, user]);
 
-  const courseForm = useForm({
-    defaultValues: {
-      title: '', titleAr: '', description: '', descriptionAr: '',
-      price: 0, categoryId: '', level: 'beginner', language: 'ar',
-      thumbnailUrl: ''
-    }
-  });
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [lessons, setLessons] = useState<LessonDraft[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateCourse = async (data: any) => {
+  // Sidebar course metadata
+  const [courseTitle, setCourseTitle] = useState('');
+  const [courseTitleAr, setCourseTitleAr] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [price, setPrice] = useState('0');
+
+  // Inline title editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const hasVideos = lessons.length > 0;
+  const allDone = lessons.length > 0 && lessons.every(l => l.status === 'done');
+  const anyUploading = lessons.some(l => l.status === 'uploading' || l.status === 'pending');
+  const canSubmit = allDone && courseTitle.trim() && categoryId && !isSubmitting;
+
+  // ── Upload helpers ─────────────────────────────────────────────────────────
+  const uploadLesson = useCallback(async (draft: LessonDraft) => {
+    const token = localStorage.getItem('lms_token');
+    const formData = new FormData();
+    formData.append('video', draft.file);
+
+    setLessons(prev => prev.map(l =>
+      l.id === draft.id ? { ...l, status: 'uploading', progress: 0 } : l
+    ));
+
     try {
-      await api.post('/courses', {
-        ...data,
-        price: parseFloat(data.price) || 0,
-        categoryId: parseInt(data.categoryId),
+      const xhr = new XMLHttpRequest();
+      await new Promise<void>((resolve, reject) => {
+        xhr.upload.onprogress = e => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 95);
+            setLessons(prev => prev.map(l =>
+              l.id === draft.id ? { ...l, progress: pct } : l
+            ));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const result = JSON.parse(xhr.responseText);
+            setLessons(prev => prev.map(l =>
+              l.id === draft.id
+                ? { ...l, status: 'done', progress: 100, videoFilePath: result.url, duration: result.duration || 0 }
+                : l
+            ));
+            resolve();
+          } else {
+            const err = JSON.parse(xhr.responseText || '{}');
+            reject(new Error(err.error || `Upload failed (${xhr.status})`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.open('POST', '/api/upload/video');
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.send(formData);
       });
-      toast({ title: 'Course created successfully!' });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/courses'] });
+    } catch (err: any) {
+      setLessons(prev => prev.map(l =>
+        l.id === draft.id ? { ...l, status: 'error', error: err.message } : l
+      ));
+    }
+  }, []);
+
+  const addFiles = useCallback((files: File[]) => {
+    const videoFiles = files.filter(f => f.type.startsWith('video/'));
+    if (!videoFiles.length) {
+      toast({ title: 'Only video files are accepted', variant: 'destructive' });
+      return;
+    }
+
+    const newDrafts: LessonDraft[] = videoFiles.map(file => ({
+      id: uid(),
+      file,
+      title: filenameToTitle(file.name),
+      status: 'pending',
+      progress: 0,
+      videoFilePath: '',
+      duration: 0,
+      isFree: false,
+    }));
+
+    setLessons(prev => [...prev, ...newDrafts]);
+
+    // Start uploads sequentially to avoid hammering the server
+    (async () => {
+      for (const draft of newDrafts) {
+        await uploadLesson(draft);
+      }
+    })();
+  }, [uploadLesson, toast]);
+
+  // ── Drag & Drop ────────────────────────────────────────────────────────────
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
+  const onDragLeave = () => setIsDragOver(false);
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    addFiles(Array.from(e.dataTransfer.files));
+  };
+
+  // ── Inline title edit ──────────────────────────────────────────────────────
+  const renameLesson = (id: string, title: string) => {
+    setLessons(prev => prev.map(l => l.id === id ? { ...l, title } : l));
+  };
+
+  const removeLesson = (id: string) => {
+    setLessons(prev => prev.filter(l => l.id !== id));
+  };
+
+  const retryLesson = (id: string) => {
+    const draft = lessons.find(l => l.id === id);
+    if (draft) uploadLesson(draft);
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('lms_token');
+      const res = await fetch('/api/courses/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          title: courseTitle.trim(),
+          titleAr: courseTitleAr.trim() || courseTitle.trim(),
+          price: parseFloat(price) || 0,
+          categoryId: parseInt(categoryId),
+          lessons: lessons.map(l => ({
+            title: l.title,
+            videoFilePath: l.videoFilePath,
+            duration: l.duration,
+            isFree: l.isFree,
+          })),
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || 'Failed to create course');
+      }
+
+      toast({ title: '🎉 Course submitted for review!', description: 'Admin will review it shortly.' });
       setLocation('/teacher/dashboard');
     } catch (err: any) {
-      toast({ title: 'Error creating course', description: err.message, variant: 'destructive' });
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   if (authLoading) {
-    return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
+    return <PageContainer><div className="p-20 text-center text-muted-foreground">Loading...</div></PageContainer>;
   }
   if (!user || user.role !== 'teacher') return null;
 
   return (
     <PageContainer>
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-8 border-b border-primary/10">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-primary/10 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-4">
           <Link href="/teacher/dashboard">
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground mb-4">
-              <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-4 h-4" /> Back
             </Button>
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-display font-bold text-foreground">Create New Course</h1>
-              <p className="text-sm text-muted-foreground">Fill in the details to create your course</p>
+              <h1 className="text-xl font-display font-bold">New Course</h1>
+              <p className="text-xs text-muted-foreground">Drop your videos to get started</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-card rounded-2xl border border-border p-6 sm:p-8 shadow-sm">
-          <form onSubmit={courseForm.handleSubmit(handleCreateCourse)} className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">Title (English) *</label>
-                <Input {...courseForm.register('title', { required: true })} placeholder="e.g. Mathematics Grade 12" className="h-11" />
+      {/* ── Main layout ────────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col lg:flex-row gap-6 items-start">
+
+        {/* ── Left: Drop zone + lesson cards ─────────────────────────────── */}
+        <div className="flex-1 min-w-0">
+
+          {/* Drop Zone */}
+          <div
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`relative rounded-3xl border-2 border-dashed transition-all duration-200 cursor-pointer select-none
+              ${isDragOver
+                ? 'border-primary bg-primary/10 scale-[1.01]'
+                : hasVideos
+                  ? 'border-border/60 bg-card hover:border-primary/40 hover:bg-primary/5 py-5'
+                  : 'border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/60 py-20'
+              }
+            `}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="video/mp4,video/webm,video/quicktime,video/*"
+              className="hidden"
+              onChange={e => {
+                if (e.target.files) addFiles(Array.from(e.target.files));
+                e.target.value = '';
+              }}
+            />
+            <div className={`flex flex-col items-center gap-3 text-center px-6 ${hasVideos ? 'py-3' : ''}`}>
+              <div className={`rounded-2xl bg-primary/10 flex items-center justify-center transition-all
+                ${isDragOver ? 'scale-110' : ''} ${hasVideos ? 'w-10 h-10' : 'w-20 h-20'}`}>
+                <Upload className={`text-primary ${hasVideos ? 'w-5 h-5' : 'w-9 h-9'}`} />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">العنوان (عربي) *</label>
-                <Input {...courseForm.register('titleAr', { required: true })} dir="rtl" placeholder="مثال: رياضيات الصف الثاني عشر" className="h-11" />
+                <p className={`font-semibold text-foreground ${hasVideos ? 'text-sm' : 'text-xl'}`}>
+                  {isDragOver ? 'Release to upload!' : hasVideos ? 'Drop more videos here' : 'Drag your videos here'}
+                </p>
+                {!hasVideos && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    MP4, WebM, MOV — multiple files accepted
+                  </p>
+                )}
               </div>
+              {!hasVideos && (
+                <Button variant="outline" size="sm" className="mt-2 gap-2 pointer-events-none">
+                  <Video className="w-4 h-4" /> Or browse files
+                </Button>
+              )}
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Description (English) *</label>
-              <Textarea {...courseForm.register('description', { required: true })} placeholder="Describe your course..." rows={3} />
+          </div>
+
+          {/* ── Lesson Cards ─────────────────────────────────────────────── */}
+          {lessons.length > 0 && (
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Lessons ({lessons.length})
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {lessons.filter(l => l.status === 'done').length}/{lessons.length} uploaded
+                </span>
+              </div>
+
+              {lessons.map((lesson, idx) => (
+                <div
+                  key={lesson.id}
+                  className={`bg-card rounded-2xl border transition-all duration-200 overflow-hidden
+                    ${lesson.status === 'error' ? 'border-destructive/40' : 'border-border hover:border-primary/30'}`}
+                >
+                  {/* Progress bar */}
+                  {lesson.status === 'uploading' && (
+                    <div className="h-1 bg-muted">
+                      <div
+                        className="h-full bg-primary transition-all duration-300 rounded-full"
+                        style={{ width: `${lesson.progress}%` }}
+                      />
+                    </div>
+                  )}
+                  {lesson.status === 'done' && (
+                    <div className="h-1 bg-green-500" />
+                  )}
+                  {lesson.status === 'error' && (
+                    <div className="h-1 bg-destructive" />
+                  )}
+
+                  <div className="flex items-center gap-3 p-4">
+                    {/* Order number + drag handle placeholder */}
+                    <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                      <GripVertical className="w-4 h-4 opacity-40" />
+                      <span className="text-xs font-mono w-5 text-center">{idx + 1}</span>
+                    </div>
+
+                    {/* Status icon */}
+                    <div className="shrink-0">
+                      {lesson.status === 'done' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                      {lesson.status === 'uploading' && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
+                      {lesson.status === 'pending' && <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />}
+                      {lesson.status === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
+                    </div>
+
+                    {/* Inline title */}
+                    <div className="flex-1 min-w-0">
+                      {editingId === lesson.id ? (
+                        <Input
+                          autoFocus
+                          value={lesson.title}
+                          onChange={e => renameLesson(lesson.id, e.target.value)}
+                          onBlur={() => setEditingId(null)}
+                          onKeyDown={e => { if (e.key === 'Enter') setEditingId(null); }}
+                          className="h-8 text-sm font-medium border-primary"
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setEditingId(lesson.id)}
+                          className="group flex items-center gap-1.5 text-left w-full"
+                        >
+                          <span className="font-medium text-sm truncate">{lesson.title}</span>
+                          <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        </button>
+                      )}
+
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className="text-xs text-muted-foreground">{formatFileSize(lesson.file.size)}</span>
+                        {lesson.status === 'uploading' && (
+                          <span className="text-xs text-primary">{lesson.progress}%</span>
+                        )}
+                        {lesson.status === 'done' && lesson.duration > 0 && (
+                          <span className="text-xs text-green-600">{formatDuration(lesson.duration)}</span>
+                        )}
+                        {lesson.status === 'error' && (
+                          <span className="text-xs text-destructive">{lesson.error}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Free toggle */}
+                    {lesson.status === 'done' && (
+                      <button
+                        onClick={() => setLessons(prev => prev.map(l =>
+                          l.id === lesson.id ? { ...l, isFree: !l.isFree } : l
+                        ))}
+                        className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium border transition-colors
+                          ${lesson.isFree
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-muted text-muted-foreground border-border hover:border-blue-300'
+                          }`}
+                      >
+                        {lesson.isFree ? 'Free' : 'Paid'}
+                      </button>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-1 shrink-0">
+                      {lesson.status === 'error' && (
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={() => retryLesson(lesson.id)}>
+                          Retry
+                        </Button>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeLesson(lesson.id)}
+                        disabled={lesson.status === 'uploading'}
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">الوصف (عربي) *</label>
-              <Textarea {...courseForm.register('descriptionAr', { required: true })} dir="rtl" placeholder="اوصف دورتك..." rows={3} />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Thumbnail Image URL</label>
-              <Input {...courseForm.register('thumbnailUrl')} placeholder="https://..." type="url" className="h-11" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          )}
+        </div>
+
+        {/* ── Right: Minimal sidebar ──────────────────────────────────────── */}
+        {hasVideos && (
+          <div className="w-full lg:w-80 shrink-0">
+            <div className="bg-card rounded-3xl border border-border p-6 space-y-5 sticky top-24">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" />
+                <h2 className="font-semibold text-base">Course Details</h2>
+              </div>
+
+              {/* Title EN */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Category *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                  Course Title (EN) *
+                </label>
+                <Input
+                  value={courseTitle}
+                  onChange={e => setCourseTitle(e.target.value)}
+                  placeholder="e.g. Mathematics Grade 12"
+                  className="h-10"
+                />
+              </div>
+
+              {/* Title AR */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                  العنوان بالعربية
+                </label>
+                <Input
+                  value={courseTitleAr}
+                  onChange={e => setCourseTitleAr(e.target.value)}
+                  placeholder="رياضيات الصف الثاني عشر"
+                  dir="rtl"
+                  className="h-10"
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                  Category *
+                </label>
                 <select
-                  {...courseForm.register('categoryId', { required: true })}
-                  className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
+                  value={categoryId}
+                  onChange={e => setCategoryId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
                 >
                   <option value="">Select category</option>
                   {categories?.map((cat: any) => (
@@ -112,42 +482,79 @@ export default function CreateCourse() {
                   ))}
                 </select>
               </div>
+
+              {/* Price */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Price (LYD)</label>
-                <Input type="number" min="0" step="0.5" {...courseForm.register('price', { valueAsNumber: true })} placeholder="0 = Free" className="h-11" />
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                  Price (LYD)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={price}
+                  onChange={e => setPrice(e.target.value)}
+                  placeholder="0 = Free"
+                  className="h-10"
+                />
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">Level</label>
-                <select {...courseForm.register('level')} className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm">
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
+
+              {/* Status indicator */}
+              <div className="bg-muted/50 rounded-xl p-3 space-y-2">
+                <StatusRow
+                  done={lessons.some(l => l.status === 'done')}
+                  loading={anyUploading}
+                  label="Videos uploaded"
+                />
+                <StatusRow done={!!courseTitle.trim()} label="Course title" />
+                <StatusRow done={!!categoryId} label="Category selected" />
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">Language</label>
-                <select {...courseForm.register('language')} className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm">
-                  <option value="ar">Arabic</option>
-                  <option value="en">English</option>
-                </select>
-              </div>
-            </div>
-            <div className="pt-2">
-              <p className="text-sm text-muted-foreground bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
-                All new courses are saved as "Pending Approval" and must be reviewed by an administrator before they are published to students.
+
+              {/* Submit */}
+              <Button
+                className="w-full h-11 gap-2 bg-primary hover:bg-primary/90 text-white font-semibold shadow-md shadow-primary/20"
+                disabled={!canSubmit}
+                onClick={handleSubmit}
+              >
+                {isSubmitting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                ) : anyUploading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
+                ) : (
+                  <><ChevronRight className="w-4 h-4" /> Submit for Review</>
+                )}
+              </Button>
+
+              {!canSubmit && !anyUploading && hasVideos && (
+                <p className="text-xs text-muted-foreground text-center flex items-center gap-1 justify-center">
+                  <AlertTriangle className="w-3 h-3" />
+                  Fill in title &amp; category to continue
+                </p>
+              )}
+
+              <p className="text-xs text-muted-foreground text-center leading-relaxed">
+                Course is saved as <strong>Draft</strong> and sent for admin review before publishing.
               </p>
             </div>
-            <div className="flex gap-3 pt-2">
-              <Link href="/teacher/dashboard" className="flex-1">
-                <Button type="button" variant="outline" className="w-full h-11">Cancel</Button>
-              </Link>
-              <Button type="submit" className="flex-1 h-11 bg-primary hover:bg-primary/90">Create Course</Button>
-            </div>
-          </form>
-        </div>
+          </div>
+        )}
       </div>
     </PageContainer>
+  );
+}
+
+// ── Status row helper ─────────────────────────────────────────────────────────
+function StatusRow({ done, loading, label }: { done: boolean; loading?: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      {loading ? (
+        <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+      ) : done ? (
+        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+      ) : (
+        <div className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground/30" />
+      )}
+      <span className={done ? 'text-foreground font-medium' : 'text-muted-foreground'}>{label}</span>
+    </div>
   );
 }
