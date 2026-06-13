@@ -532,7 +532,7 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
         <div className="mx-auto w-full max-w-md pt-20 sm:pt-0">
           <div className="mb-8 text-center lg:text-start">
             <div className="flex justify-center lg:justify-start mb-5">
-              <Logo size={60} linked={false} />
+              <Logo size={140} linked={false} />
             </div>
             <h2 className="text-3xl font-display font-bold tracking-tight text-foreground">
               {isLogin ? 'Welcome back' : 'Create your account'}
