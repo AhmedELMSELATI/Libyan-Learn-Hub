@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useParams } from 'wouter';
 import {
   Plus, Edit, Trash2, ArrowLeft, Video, FileText, Upload,
-  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen
+  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen, SendHorizonal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -360,6 +360,17 @@ export default function ManageCourse() {
     });
   };
 
+  const handleSubmitForReview = async () => {
+    if (!window.confirm('Submit this course for admin review? You will still be able to manage lessons while it is under review.')) return;
+    try {
+      await api.put(`/courses/${courseId}/submit`, {});
+      toast({ title: '✓ Course submitted for review!', description: 'The admin has been notified and will review your course shortly.' });
+      loadData();
+    } catch (err: any) {
+      toast({ title: 'Error submitting course', description: err.message, variant: 'destructive' });
+    }
+  };
+
   if (authLoading || loading) {
     return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
   }
@@ -644,6 +655,68 @@ export default function ManageCourse() {
           </div>
         </div>
       </div>
+
+      {/* Submit for Review Banner (shows when draft and has lessons) */}
+      {(course?.status === 'draft' || course?.status === 'rejected') && totalLessons > 0 && (
+        <div className={`border-b ${
+          course?.status === 'rejected'
+            ? 'bg-red-50 border-red-200'
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                course?.status === 'rejected' ? 'bg-red-100' : 'bg-blue-100'
+              }`}>
+                <SendHorizonal className={`w-5 h-5 ${
+                  course?.status === 'rejected' ? 'text-red-600' : 'text-blue-600'
+                }`} />
+              </div>
+              <div>
+                <p className={`font-bold text-sm ${
+                  course?.status === 'rejected' ? 'text-red-800' : 'text-blue-800'
+                }`}>
+                  {course?.status === 'rejected'
+                    ? '✗ Course Rejected — Fix & Resubmit'
+                    : '🎉 Your course is ready! Submit it for admin review.'}
+                </p>
+                <p className={`text-xs mt-0.5 ${
+                  course?.status === 'rejected' ? 'text-red-600' : 'text-blue-600'
+                }`}>
+                  {course?.status === 'rejected'
+                    ? (course?.rejectionReason ? `Reason: ${course.rejectionReason}` : 'Please review the feedback and resubmit.')
+                    : `${totalLessons} lesson${totalLessons !== 1 ? 's' : ''} ready — the admin will review and publish it.`}
+                </p>
+              </div>
+            </div>
+            <Button
+              className={`shrink-0 gap-2 text-white shadow-sm ${
+                course?.status === 'rejected'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+              onClick={handleSubmitForReview}
+            >
+              <SendHorizonal className="w-4 h-4" />
+              {course?.status === 'rejected' ? 'Resubmit for Review' : 'Submit for Review'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Under Review Banner */}
+      {course?.status === 'pending_review' && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <p className="text-sm text-amber-800">
+              <span className="font-bold">⏳ Under Review</span> — Your course is currently being reviewed by the admin. You will be notified once it is approved.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Sections List */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

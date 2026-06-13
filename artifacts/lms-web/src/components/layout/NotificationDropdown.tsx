@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, BookOpen, MonitorPlay, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Bell, BookOpen, MonitorPlay, Info, AlertTriangle, CheckCircle2, ClipboardCheck, BadgeCheck, XCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 import { useLocation } from 'wouter';
@@ -30,6 +30,9 @@ export function NotificationDropdown() {
       case 'new_course': return <BookOpen className="w-5 h-5 text-indigo-500" />;
       case 'live_session_starting': return <MonitorPlay className="w-5 h-5 text-emerald-500" />;
       case 'live_session_cancelled': return <AlertTriangle className="w-5 h-5 text-rose-500" />;
+      case 'course_submitted': return <ClipboardCheck className="w-5 h-5 text-amber-500" />;
+      case 'course_approved': return <BadgeCheck className="w-5 h-5 text-green-500" />;
+      case 'course_rejected': return <XCircle className="w-5 h-5 text-red-500" />;
       default: return <Info className="w-5 h-5 text-blue-500" />;
     }
   };
@@ -45,6 +48,12 @@ export function NotificationDropdown() {
       setLocation(`/courses/${notification.referenceId}`);
     } else if (notification.type === 'live_session_starting' && notification.referenceId) {
       setLocation(`/live/${notification.referenceId}`);
+    } else if (notification.type === 'course_submitted') {
+      // Send admin to the Approvals tab
+      setLocation('/admin?tab=approvals');
+    } else if (notification.type === 'course_approved' || notification.type === 'course_rejected') {
+      // Send teacher to their dashboard
+      setLocation('/teacher/dashboard');
     }
   };
 

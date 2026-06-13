@@ -22,10 +22,15 @@ import { useForm } from 'react-hook-form';
 
 export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const api = useApi();
   const queryClient = useQueryClient();
+
+  // Read the ?tab= deep-link from the URL
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const defaultTab = searchParams.get('tab') || 'users';
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -43,7 +48,7 @@ export default function AdminDashboard() {
     queryKey: ['/api/admin/courses', 'pending_review'],
     queryFn: () => api.get('/admin/courses?status=pending_review'),
     enabled: !!user && user.role === 'admin',
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
   if (authLoading || statsLoading) {
@@ -107,7 +112,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="users">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-8 bg-muted/60 flex-wrap h-auto gap-1">
             <TabsTrigger value="users" className="gap-2"><Users className="w-4 h-4" /> Users</TabsTrigger>
             <TabsTrigger value="teachers" className="gap-2"><Presentation className="w-4 h-4" /> Teachers</TabsTrigger>

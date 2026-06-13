@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export interface Notification {
   id: number;
   userId: number;
-  type: 'new_course' | 'live_session_starting' | 'live_session_cancelled' | 'system_alert';
+  type: 'new_course' | 'live_session_starting' | 'live_session_cancelled' | 'system_alert' | 'course_submitted' | 'course_approved' | 'course_rejected';
   title: string;
   titleAr: string;
   message: string;
@@ -43,8 +43,8 @@ export function useNotifications() {
     setIsLoading(true);
     fetchNotifications();
 
-    // Poll every 30 seconds
-    intervalRef.current = setInterval(fetchNotifications, 30_000);
+    // Poll every 15 seconds for more responsive notifications
+    intervalRef.current = setInterval(fetchNotifications, 15_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
