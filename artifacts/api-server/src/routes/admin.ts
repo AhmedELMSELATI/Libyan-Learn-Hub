@@ -337,6 +337,7 @@ router.delete("/courses/:courseId", async (req, res) => {
     const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId));
     for (const lesson of lessons) {
       if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.videoFilePath) await deleteFromCloudinaryByUrl(lesson.videoFilePath);
       if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
     }
 

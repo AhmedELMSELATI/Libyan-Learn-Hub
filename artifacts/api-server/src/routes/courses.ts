@@ -413,6 +413,7 @@ router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async 
     const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId));
     for (const lesson of lessons) {
       if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.videoFilePath) await deleteFromCloudinaryByUrl(lesson.videoFilePath);
       if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
     }
 
@@ -537,6 +538,7 @@ router.delete("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher"
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
     if (lesson) {
       if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.videoFilePath) await deleteFromCloudinaryByUrl(lesson.videoFilePath);
       if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
     }
 

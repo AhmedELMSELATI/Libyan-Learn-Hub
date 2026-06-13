@@ -84,7 +84,8 @@ export default function CreateCourse() {
   const hasVideos = lessons.length > 0;
   const allDone = lessons.length > 0 && lessons.every(l => l.status === 'done');
   const anyUploading = lessons.some(l => l.status === 'uploading' || l.status === 'pending');
-  const canSubmit = allDone && courseTitle.trim() && categoryId && !isSubmitting;
+  const anyErrored = lessons.some(l => l.status === 'error');
+  const canSubmit = allDone && !anyErrored && courseTitle.trim() && categoryId && !isSubmitting;
 
   // ── Upload helpers ─────────────────────────────────────────────────────────
   const uploadLesson = useCallback(async (draft: LessonDraft) => {
@@ -162,8 +163,14 @@ export default function CreateCourse() {
   }, [uploadLesson, toast]);
 
   // ── Drag & Drop ────────────────────────────────────────────────────────────
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
-  const onDragLeave = () => setIsDragOver(false);
+  const onDragLeave = (e: React.DragEvent) => {
+    // Only clear drag state if we've left the drop zone entirely (not moved to a child)
+    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
@@ -259,6 +266,7 @@ export default function CreateCourse() {
 
           {/* Drop Zone */}
           <div
+            ref={dropZoneRef}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
@@ -525,10 +533,16 @@ export default function CreateCourse() {
                 )}
               </Button>
 
-              {!canSubmit && !anyUploading && hasVideos && (
+              {!canSubmit && !anyUploading && !anyErrored && hasVideos && (
                 <p className="text-xs text-muted-foreground text-center flex items-center gap-1 justify-center">
                   <AlertTriangle className="w-3 h-3" />
                   Fill in title &amp; category to continue
+                </p>
+              )}
+              {anyErrored && (
+                <p className="text-xs text-destructive text-center flex items-center gap-1 justify-center">
+                  <AlertTriangle className="w-3 h-3" />
+                  Fix or remove failed uploads first
                 </p>
               )}
 

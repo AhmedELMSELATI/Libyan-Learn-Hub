@@ -115,6 +115,16 @@ router.delete("/:sectionId", requireAuth, requireRole("teacher", "admin"), async
       return;
     }
 
+    // Clean up Cloudinary assets for all lessons in this section before deleting
+    const { deleteFromCloudinaryByUrl } = await import("../lib/cloudinary.js");
+    const sectionLessons = await db.select().from(lessonsTable)
+      .where(and(eq(lessonsTable.courseId, courseId), eq(lessonsTable.sectionId, sectionId)));
+    for (const lesson of sectionLessons) {
+      if (lesson.videoUrl) await deleteFromCloudinaryByUrl(lesson.videoUrl);
+      if (lesson.videoFilePath) await deleteFromCloudinaryByUrl(lesson.videoFilePath);
+      if (lesson.documentFilePath) await deleteFromCloudinaryByUrl(lesson.documentFilePath);
+    }
+
     // Cascade-delete lessons within this section
     await db.delete(lessonsTable).where(and(eq(lessonsTable.courseId, courseId), eq(lessonsTable.sectionId, sectionId)));
     await db.delete(sectionsTable).where(eq(sectionsTable.id, sectionId));
