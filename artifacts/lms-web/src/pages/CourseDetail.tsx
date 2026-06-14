@@ -117,7 +117,17 @@ export default function CourseDetail() {
   });
 
   if (isLoading) return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
-  if (!course) return <PageContainer><div className="p-20 text-center">Course not found</div></PageContainer>;
+  if (error) return <div className="min-h-screen pt-24 text-center text-red-500">Error loading course</div>;
+  if (!course) return null;
+
+  const formatDuration = (secs: number): string => {
+    if (!secs) return '';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  };
 
   const handleEnroll = () => {
     if (!isAuthenticated) {
@@ -228,8 +238,8 @@ export default function CourseDetail() {
                   <div className="flex items-center gap-3">
                     <PlayCircle className="w-5 h-5 text-primary" /> {course.lessonCount} video lessons
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-primary" /> {Math.round(course.totalDuration / 60)} hours total length
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-primary" /> {formatDuration(course.totalDuration)} total length
                   </div>
                   <div className="flex items-center gap-3">
                     <ShieldAlert className="w-5 h-5 text-secondary" /> Protected content (no downloads)
@@ -259,8 +269,10 @@ export default function CourseDetail() {
                     <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">Free Preview</span>
                   )}
                 </div>
-                <div className="text-sm text-muted-foreground whitespace-nowrap">
-                  {lesson.duration} min
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {formatDuration(lesson.duration)}
+                  </span>
                 </div>
               </div>
             ))}

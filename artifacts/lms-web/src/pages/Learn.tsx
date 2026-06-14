@@ -57,8 +57,8 @@ export default function Learn() {
     // Signal to the inactivity timer that the user is actively watching
     pingMediaActivity();
     
-    // Mark complete if 90% watched
-    const isComplete = progress.playedSeconds > (lesson.duration * 60 * 0.9);
+    // Mark complete if 90% watched. lesson.duration is in seconds.
+    const isComplete = progress.playedSeconds > (lesson.duration * 0.9);
     
     updateProgress({
       courseId,
@@ -72,9 +72,16 @@ export default function Learn() {
       updateProgress({
         courseId,
         lessonId: lesson.id,
-        data: { isCompleted: true, watchedSeconds: lesson.duration * 60 }
+        data: { isCompleted: true, watchedSeconds: lesson.duration }
       });
     }
+  };
+
+  const formatDuration = (secs: number): string => {
+    if (!secs) return '';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
 
   const submitReport = async (data: any) => {
@@ -204,7 +211,7 @@ export default function Learn() {
                     <div className={`text-sm font-medium line-clamp-2 leading-tight ${isActive ? 'text-primary' : ''}`}>
                       {idx + 1}. {language === 'ar' ? l.titleAr : l.title}
                     </div>
-                    <div className="text-xs opacity-70 mt-1">{l.duration} min</div>
+                    <div className="text-xs opacity-70 mt-1">{formatDuration(l.duration)}</div>
                   </div>
                 </button>
               );
