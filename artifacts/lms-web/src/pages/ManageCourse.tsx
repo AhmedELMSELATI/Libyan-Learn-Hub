@@ -376,7 +376,7 @@ export default function ManageCourse() {
   }
   if (!user || user.role !== 'teacher') return null;
 
-  const canDelete = enrollCount === 0;
+  const canDelete = true;
   const totalLessons = sections.reduce((sum, s) => sum + (s.lessons?.length || 0), 0);
   const totalDuration = sections.reduce((sum, s) =>
     sum + (s.lessons || []).reduce((ls: number, l: any) => ls + (l.duration || 0), 0), 0
@@ -720,13 +720,7 @@ export default function ManageCourse() {
 
       {/* Sections List */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {!canDelete && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center gap-3 text-sm text-amber-800">
-            <span className="text-lg">⚠️</span>
-            <span>This course has <strong>{enrollCount}</strong> enrolled students. Sections and lessons cannot be deleted.</span>
-          </div>
-        )}
-
+        {/* Enrollment deletion restriction removed */}
         {sections.length === 0 ? (
           <div className="text-center py-24 bg-card rounded-3xl border border-dashed border-border">
             <FolderOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />

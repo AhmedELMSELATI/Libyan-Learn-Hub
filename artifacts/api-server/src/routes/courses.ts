@@ -399,13 +399,7 @@ router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async 
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
     if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
 
-    // Block deletion if students are enrolled
-    const [{ value: enrollCount }] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, courseId));
-    if (Number(enrollCount) > 0) {
-      res.status(403).json({ error: "Cannot delete a course with enrolled students. Remove all enrollments first." });
-      return;
-    }
-
+    // Deletion allowed even if students are enrolled
     // Delete associated files from Cloudinary
     if (course.thumbnailUrl) {
       await deleteFromCloudinaryByUrl(course.thumbnailUrl);

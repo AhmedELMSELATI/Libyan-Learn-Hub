@@ -108,13 +108,7 @@ router.delete("/:sectionId", requireAuth, requireRole("teacher", "admin"), async
     const courseId = parseParam(req.params.courseId);
     const sectionId = parseParam(req.params.sectionId);
 
-    // Block deletion if students are enrolled in the parent course
-    const [{ value: enrollCount }] = await db.select({ value: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, courseId));
-    if (Number(enrollCount) > 0) {
-      res.status(403).json({ error: "Cannot delete a section from a course with enrolled students." });
-      return;
-    }
-
+    // Deletion allowed even if students are enrolled
     // Clean up Cloudinary assets for all lessons in this section before deleting
     const { deleteFromCloudinaryByUrl } = await import("../lib/cloudinary.js");
     const sectionLessons = await db.select().from(lessonsTable)
