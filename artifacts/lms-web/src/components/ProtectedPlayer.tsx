@@ -86,7 +86,7 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
               // - Increased timeouts for first-time generation of Cloudinary segments.
               // - abrBandWidthFactor: estimate bandwidth conservatively on first load.
               hlsOptions: isHls ? {
-                startLevel: 4,
+                startLevel: 0,
                 capLevelToPlayerSize: true,
                 maxBufferLength: 30,
                 manifestLoadingTimeOut: 30000,
