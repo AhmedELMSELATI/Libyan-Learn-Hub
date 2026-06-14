@@ -47,12 +47,8 @@ router.post("/generate-token", requireAuth, async (req, res) => {
     let isHls = false;
 
     if (lesson.videoFilePath) {
-      // Force MP4 delivery by stripping the streaming profile and converting to .mp4.
-      // Cloudinary's dynamic HLS generation (sp_hd) stalls on short videos or incomplete eager transforms.
-      playbackUrl = lesson.videoFilePath
-        .replace('/sp_hd/', '/')
-        .replace(/\.m3u8$/, '.mp4');
-      isHls = false;
+      playbackUrl = lesson.videoFilePath;
+      isHls = lesson.videoFilePath.endsWith('.m3u8');
     } else {
       // External videoUrl — proxy through secure-stream
       playbackUrl = `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
