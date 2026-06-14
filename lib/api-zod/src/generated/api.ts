@@ -372,6 +372,7 @@ export const GetLessonResponse = zod
     zod.object({
       courseId: zod.number(),
       videoUrl: zod.string().nullish(),
+      videoFilePath: zod.string().nullish(),
       content: zod.string().nullish(),
       contentAr: zod.string().nullish(),
       createdAt: zod.date(),
