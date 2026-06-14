@@ -501,6 +501,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
       type: lesson.type,
       courseId: lesson.courseId,
       videoUrl: lesson.videoUrl,
+      videoFilePath: lesson.videoFilePath,
       content: lesson.content,
       contentAr: lesson.contentAr,
       createdAt: lesson.createdAt,

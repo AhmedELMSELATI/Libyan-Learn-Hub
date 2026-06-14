@@ -130,10 +130,10 @@ export default function Learn() {
             <div className="flex-1 flex items-center justify-center">Loading lesson...</div>
           ) : lesson ? (
             <div className="max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 flex-1">
-              {lesson.type === 'video' && lesson.videoUrl ? (
+              {lesson.type === 'video' && (lesson.videoUrl || lesson.videoFilePath) ? (
                 <div className="mb-8">
                   <ProtectedPlayer 
-                    url={lesson.videoUrl} 
+                    url={(lesson.videoUrl || lesson.videoFilePath)!} 
                     courseId={courseId}
                     lessonId={lesson.id}
                     startAt={lesson.watchedSeconds || 0}
