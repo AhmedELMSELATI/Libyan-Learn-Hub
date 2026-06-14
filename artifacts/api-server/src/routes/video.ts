@@ -47,8 +47,10 @@ router.post("/generate-token", requireAuth, async (req, res) => {
     let isHls = false;
 
     if (lesson.videoFilePath) {
-      playbackUrl = lesson.videoFilePath;
-      isHls = lesson.videoFilePath.endsWith('.m3u8');
+      // Fix Cloudinary bug: Use f_m3u8 (single stream) instead of sp_hd (adaptive)
+      // because sp_hd generates 0:00 duration playlists for very short videos.
+      playbackUrl = lesson.videoFilePath.replace('/sp_hd/', '/f_m3u8/');
+      isHls = playbackUrl.endsWith('.m3u8');
     } else {
       // External videoUrl — proxy through secure-stream
       playbackUrl = `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
