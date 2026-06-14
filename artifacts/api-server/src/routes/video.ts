@@ -39,11 +39,36 @@ router.post("/generate-token", requireAuth, async (req, res) => {
       { expiresIn: "6h" }
     );
 
-    const isHls = lesson.videoFilePath?.endsWith('.m3u8') || false;
+    // Resolve the best playback URL:
+    // 1. If videoFilePath is a Cloudinary HLS stream (sp_hd m3u8), convert to direct MP4
+    //    — removes hls.js / CORS complexity; Chrome streams MP4 natively.
+    // 2. If videoFilePath is some other direct URL, use it as-is.
+    // 3. Fall back to the secure-stream proxy for external videoUrl lessons.
+    let playbackUrl: string;
+    let isHls = false;
+
+    if (lesson.videoFilePath) {
+      if (lesson.videoFilePath.includes('/sp_hd/') && lesson.videoFilePath.endsWith('.m3u8')) {
+        // Convert: remove the sp_hd transformation and swap extension to .mp4
+        playbackUrl = lesson.videoFilePath
+          .replace('/sp_hd/', '/')
+          .replace(/\.m3u8$/, '.mp4');
+      } else if (lesson.videoFilePath.endsWith('.m3u8')) {
+        // Other HLS streams — try hls.js
+        playbackUrl = lesson.videoFilePath;
+        isHls = true;
+      } else {
+        // Already a direct video URL (e.g., raw .mp4)
+        playbackUrl = lesson.videoFilePath;
+      }
+    } else {
+      // External videoUrl — proxy through secure-stream
+      playbackUrl = `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
+    }
 
     res.json({ 
       token: playbackToken, 
-      url: lesson.videoFilePath || `/api/video/secure-stream/${lessonId}?token=${playbackToken}`,
+      url: playbackUrl,
       isHls 
     });
   } catch (err: any) {
