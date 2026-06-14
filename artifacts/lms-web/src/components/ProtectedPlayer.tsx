@@ -79,21 +79,8 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
           config={{
             file: {
               forceHLS: isHls,
-              // hls.js configuration for Cloudinary HLS streams:
-              // - startLevel: 4 = start at the lowest quality variant (180p) to
-              //   avoid triggering slow on-demand generation of higher quality streams.
-              //   hls.js will auto-upgrade quality once the lowest level is cached.
-              // - Increased timeouts for first-time generation of Cloudinary segments.
-              // - abrBandWidthFactor: estimate bandwidth conservatively on first load.
               hlsOptions: isHls ? {
-                startLevel: 0,
-                capLevelToPlayerSize: true,
-                maxBufferLength: 30,
-                manifestLoadingTimeOut: 30000,
-                levelLoadingTimeOut: 60000,
-                fragLoadingTimeOut: 60000,
-                abrBandWidthFactor: 0.6,
-                abrBandWidthUpFactor: 0.5,
+                capLevelToPlayerSize: true
               } : undefined,
               attributes: {
                 controlsList: 'nodownload',
@@ -110,6 +97,10 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
           onEnded={onEnded}
           onProgress={onProgress as any}
           progressInterval={10000}
+          onError={(e) => {
+            console.error('Player error:', e);
+            setError(typeof e === 'string' ? e : 'Playback error occurred');
+          }}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-black">
