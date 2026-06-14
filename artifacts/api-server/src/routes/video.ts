@@ -43,7 +43,7 @@ router.post("/generate-token", requireAuth, async (req, res) => {
 
     res.json({ 
       token: playbackToken, 
-      url: `/api/video/secure-stream/${lessonId}?token=${playbackToken}`,
+      url: lesson.videoFilePath || `/api/video/secure-stream/${lessonId}?token=${playbackToken}`,
       isHls 
     });
   } catch (err: any) {
