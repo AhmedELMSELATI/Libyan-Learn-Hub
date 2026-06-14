@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 interface AuthContextType {
   user: User | null | undefined;
   isLoading: boolean;
-  login: (token: string) => void;
+  login: (token: string, userData?: User) => void;
   logout: (redirectUrl?: string) => void;
   refetchUser: () => void;
   isAuthenticated: boolean;
@@ -53,10 +53,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 
 
-  const login = (newToken: string) => {
+  const login = (newToken: string, userData?: User) => {
     localStorage.setItem('lms_token', newToken);
     setToken(newToken);
-    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+    // If we already have the user data (from login response), pre-seed the cache
+    // to avoid a redundant /auth/me round-trip
+    if (userData) {
+      queryClient.setQueryData(['/api/auth/me'], userData);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+    }
     // Clear lock state on fresh login
     sessionStorage.removeItem(LOCK_STATE_KEY);
     setIsLocked(false);

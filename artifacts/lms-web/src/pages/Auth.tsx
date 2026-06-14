@@ -136,23 +136,26 @@ export default function Auth() {
           return;
         }
         
-        setAuthContext(data.token);
+        // Pre-seed the user cache to avoid a second /auth/me round-trip
+        setAuthContext(data.token, data.user);
+
         const searchParams = new URLSearchParams(window.location.search);
         const returnTo = searchParams.get('returnTo');
         
         if (returnTo) {
-          window.location.href = decodeURIComponent(returnTo);
+          setLocation(decodeURIComponent(returnTo));
         } else {
           if (data.user.role === 'teacher' && !data.user.biometricsVerified) {
-            window.location.href = '/teacher/biometrics-setup';
+            setLocation('/teacher/biometrics-setup');
           } else {
-            window.location.href = data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard';
+            setLocation(data.user.role === 'teacher' ? '/teacher/dashboard' : '/dashboard');
           }
         }
       },
       onError: (err) => setErrorMsg(err.message || 'Login failed')
     }
   });
+
 
   const { mutate: registerMutate, isPending: isRegistering } = useRegister({
     mutation: {

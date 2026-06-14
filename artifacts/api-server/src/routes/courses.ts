@@ -346,7 +346,7 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
 
 router.put("/:courseId/submit", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId);
+    const courseId = parseParam(req.params.courseId);
     const { userId, role } = (req as any).user;
     
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);

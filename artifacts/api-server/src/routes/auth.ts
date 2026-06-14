@@ -63,7 +63,7 @@ router.post("/register", authLimiter, async (req, res) => {
       return;
     }
     const passwordHash = await bcrypt.hash(body.password, 10);
-    const passkeyHash = body.passkey ? await bcrypt.hash(body.passkey, 10) : null;
+    const passkeyHash = body.passkey ? await bcrypt.hash(body.passkey, 8) : null;
     const otpCode = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const phoneNumber = req.body.phoneNumber || null;
@@ -99,16 +99,13 @@ router.post("/register", authLimiter, async (req, res) => {
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
 
     if (user.email) {
-      try {
-        await sendEmail({
-          to: user.email,
-          subject: "Welcome to Libyan Learn Hub - Verification Code",
-          text: `Hello ${user.fullName},\n\nYour account verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
-          html: `<div dir="ltr"><p>Hello ${user.fullName},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
-        });
-      } catch (err) {
-        console.error("Failed to send welcome OTP email:", err);
-      }
+      // Fire-and-forget: don't await, respond immediately
+      sendEmail({
+        to: user.email,
+        subject: "Welcome to Libyan Learn Hub - Verification Code",
+        text: `Hello ${user.fullName},\n\nYour account verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+        html: `<div dir="ltr"><p>Hello ${user.fullName},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
+      }).catch((err) => console.error("Failed to send welcome OTP email:", err));
     }
 
     res.status(201).json({
@@ -229,16 +226,13 @@ router.post("/login", authLimiter, async (req, res) => {
       await db.update(usersTable).set({ otpCode, otpExpiry }).where(eq(usersTable.id, user.id));
       
       if (user.email) {
-        try {
-          await sendEmail({
-            to: user.email,
-            subject: "Libyan Learn Hub - Verification Code",
-            text: `Hello ${user.fullName || "User"},\n\nYour account verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
-            html: `<div dir="ltr"><p>Hello ${user.fullName || "User"},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
-          });
-        } catch (err) {
-          console.error("Failed to send OTP email:", err);
-        }
+        // Fire-and-forget: respond immediately, email in background
+        sendEmail({
+          to: user.email,
+          subject: "Libyan Learn Hub - Verification Code",
+          text: `Hello ${user.fullName || "User"},\n\nYour account verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+          html: `<div dir="ltr"><p>Hello ${user.fullName || "User"},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
+        }).catch((err) => console.error("Failed to send OTP email:", err));
       }
       const token = signToken({ userId: user.id, role: user.role });
       
@@ -385,7 +379,7 @@ router.post("/set-passkey", requireAuth, async (req, res) => {
       }
     }
 
-    const passkeyHash = await bcrypt.hash(passkey, 10);
+    const passkeyHash = await bcrypt.hash(passkey, 8);
     await db.update(usersTable)
       .set({ passkeyHash, updatedAt: new Date() })
       .where(eq(usersTable.id, userId));

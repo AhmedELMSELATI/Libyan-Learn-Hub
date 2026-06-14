@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
   teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable,
-  platformSettingsTable, redeemCardsTable, withdrawalRequestsTable
+  platformSettingsTable, redeemCardsTable, withdrawalRequestsTable, notificationsTable
 } from "@workspace/db";
 import { eq, count, sql, sum, desc, and, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -205,14 +205,9 @@ router.post("/users/create", async (req, res) => {
 router.get("/courses", async (req, res) => {
   try {
     const { status } = req.query as any;
-    let query = db.select().from(coursesTable).orderBy(desc(coursesTable.createdAt));
-    
-    // Convert old frontend filters mapping to the new status filter if needed
-    if (status === "pending_review") {
-      query = db.select().from(coursesTable).where(eq(coursesTable.status, "pending_review")).orderBy(desc(coursesTable.createdAt));
-    }
-    
-    const courses = await query;
+    const courses = status === "pending_review"
+      ? await db.select().from(coursesTable).where(eq(coursesTable.status, "pending_review")).orderBy(desc(coursesTable.createdAt))
+      : await db.select().from(coursesTable).orderBy(desc(coursesTable.createdAt));
     const result = await Promise.all(courses.map(async (c) => {
       const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, c.teacherId)).limit(1);
       const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, c.categoryId)).limit(1);
