@@ -85,7 +85,6 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
               attributes: {
                 controlsList: 'nodownload',
                 disablePictureInPicture: true,
-                crossOrigin: 'anonymous',
               }
             }
           } as any}
