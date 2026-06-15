@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import ReactPlayer from 'react-player';
 import { ScreenProtection } from './ScreenProtection';
 import { WatermarkOverlay } from './WatermarkOverlay';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -14,17 +13,17 @@ interface ProtectedPlayerProps {
 }
 
 export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded, onProgress }: ProtectedPlayerProps) {
-  const playerRef = useRef<typeof ReactPlayer>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [secureUrl, setSecureUrl] = useState<string | null>(null);
   const [isHls, setIsHls] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const generateToken = () => {
     const token = localStorage.getItem('lms_token');
-    const apiBase = '/api';
     setError(null);
     if (courseId && lessonId && token) {
-      fetch(`${apiBase}/video/generate-token`, {
+      fetch(`/api/video/generate-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ courseId, lessonId })
@@ -32,21 +31,22 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
       .then(res => res.json())
       .then(data => {
         if (data.url) {
-          setSecureUrl(`${data.url}`);
+          setSecureUrl(data.url);
           setIsHls(!!data.isHls);
         } else if (data.error) {
           setError(data.error);
         } else {
-          // Fallback: try playing the raw URL directly
           setSecureUrl(url);
+          setIsHls(url.endsWith('.m3u8'));
         }
       })
       .catch(() => {
-        // Network error: fall back to direct URL
         setSecureUrl(url);
+        setIsHls(url.endsWith('.m3u8'));
       });
     } else {
       setSecureUrl(url);
+      setIsHls(url.endsWith('.m3u8'));
     }
   };
 
@@ -54,7 +54,69 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
     generateToken();
   }, [courseId, lessonId, url]);
 
-  const Player = ReactPlayer as any;
+  // Attach HLS.js or load native video when secureUrl changes
+  useEffect(() => {
+    if (!secureUrl || !videoRef.current) return;
+
+    const video = videoRef.current;
+
+    const setupProgress = () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      progressTimerRef.current = setInterval(() => {
+        if (!video.paused && onProgress) {
+          onProgress({ playedSeconds: video.currentTime });
+        }
+      }, 10000);
+    };
+
+    const handleEnded = () => { if (onEnded) onEnded(); };
+    video.addEventListener('ended', handleEnded);
+    video.addEventListener('play', setupProgress);
+
+    if (startAt > 0) {
+      const seekOnce = () => {
+        video.currentTime = startAt;
+        video.removeEventListener('loadedmetadata', seekOnce);
+      };
+      video.addEventListener('loadedmetadata', seekOnce);
+    }
+
+    let hlsInstance: any = null;
+
+    if (isHls) {
+      // Dynamically import HLS.js only when needed
+      import('hls.js').then(({ default: Hls }) => {
+        if (!videoRef.current) return;
+        if (Hls.isSupported()) {
+          hlsInstance = new Hls({ capLevelToPlayerSize: true });
+          hlsInstance.loadSource(secureUrl);
+          hlsInstance.attachMedia(videoRef.current);
+          hlsInstance.on(Hls.Events.ERROR, (_: any, data: any) => {
+            if (data.fatal) {
+              console.error('HLS fatal error:', data);
+              setError('Video playback error. Please try again.');
+            }
+          });
+        } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+          // Safari native HLS
+          videoRef.current.src = secureUrl;
+        } else {
+          setError('Your browser does not support video streaming.');
+        }
+      });
+    } else {
+      // Plain MP4 — just set src directly
+      video.src = secureUrl;
+      video.load();
+    }
+
+    return () => {
+      video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('play', setupProgress);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (hlsInstance) hlsInstance.destroy();
+    };
+  }, [secureUrl, isHls]);
 
   return (
     <ScreenProtection className="aspect-video bg-black rounded-2xl shadow-2xl">
@@ -70,35 +132,19 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
           </button>
         </div>
       ) : secureUrl ? (
-        <Player
-          ref={playerRef as any}
-          url={secureUrl}
-          width="100%"
-          height="100%"
-          controls={true}
-          config={{
-            file: {
-              forceHLS: isHls,
-              hlsOptions: isHls ? {
-                capLevelToPlayerSize: true
-              } : undefined,
-              attributes: {
-                controlsList: 'nodownload',
-                disablePictureInPicture: true,
-              }
-            }
-          } as any}
-          onReady={() => {
-            if (startAt > 0 && playerRef.current) {
-              (playerRef.current as any).seekTo(startAt, 'seconds');
-            }
-          }}
-          onEnded={onEnded}
-          onProgress={onProgress as any}
-          progressInterval={10000}
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full rounded-2xl"
+          controls
+          playsInline
+          controlsList="nodownload"
+          disablePictureInPicture
           onError={(e) => {
-            console.error('Player error:', e);
-            setError(typeof e === 'string' ? e : 'Playback error occurred');
+            const v = e.currentTarget;
+            const code = v.error?.code;
+            const msg = v.error?.message;
+            console.error('Video error:', code, msg);
+            setError(`Playback error (${code}). Please retry.`);
           }}
         />
       ) : (
@@ -114,4 +160,3 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
     </ScreenProtection>
   );
 }
-
